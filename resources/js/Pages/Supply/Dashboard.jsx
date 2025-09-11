@@ -54,7 +54,7 @@ export default function Dashboard({stats, documents, stockData, recentActivity, 
             <Head title="Dashboard" />
 
             <div className="bg-white rounded-2xl shadow p-6 mb-6">
-                <h1 className="text-2xl font-semibold text-gray-800">Welcome, Kens</h1>
+                <h1 className="text-2xl font-semibold text-gray-800">Welcome, {user.firstname}</h1>
                 <p className="text-gray-600">
                     Manage inventory, RIS, ICS, PAR, PO, and Issuance efficiently from your dashboard.
                 </p>
