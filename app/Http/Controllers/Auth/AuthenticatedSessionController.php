@@ -47,7 +47,13 @@ class AuthenticatedSessionController extends Controller
             }
 
             // fallback route if role doesn't match
-            return redirect()->route('dashboard');
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->withErrors([
+                'email' => 'Your account does not have an assigned role.',
+            ]);
         }
 
 
