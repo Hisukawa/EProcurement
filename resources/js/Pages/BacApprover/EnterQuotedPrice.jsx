@@ -758,7 +758,7 @@ const [skippedItems, setSkippedItems] = useState([]);
 
                         <td className="py-3 px-4">{supplier.address}</td>
                         <td className="py-3 px-4">{supplier.tin_num}</td>
-                        <td className="py-3 px-4 space-x-2">
+                        <td className="py-3 px-4 space-x-2 text-nowrap">
                           <button
                             disabled={rfq_details.some(
                               (q) =>
