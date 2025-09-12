@@ -27,12 +27,20 @@ Route::get('/', function () {
             return redirect()->route('supply_officer.dashboard');
         }
 
-        // fallback if no matching role
-        return redirect()->route('login');
+        // fallback if no role
+        Auth::logout();
+        request()->session()->invalidate();
+        request()->session()->regenerateToken();
+
+        return redirect()->route('login')->withErrors([
+            'email' => 'Your account does not have an assigned role.',
+        ]);
     }
 
-    return redirect()->route('login'); // guest user
+    // guest user → go to login route
+    return redirect()->route('login');
 });
+
 
 // Notifications polling route
 Route::middleware('auth')->get('/notifications', [NotificationController::class, 'fetch'])
@@ -135,7 +143,7 @@ Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 Route::get('/login', function(){
-    return Inertia::render('Login');
+    return Inertia::render('Auth/Login');
 })->name('login');
 
 // Profile routes
