@@ -28,7 +28,7 @@ Route::get('/', function () {
         }
 
         // fallback if no matching role
-        return redirect()->route('dashboard');
+        return redirect()->route('login');
     }
 
     return redirect()->route('login'); // guest user
@@ -134,6 +134,9 @@ Route::middleware(['auth', 'role:supply_officer'])->prefix('supply_officer')->gr
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/login', function(){
+    return Inertia::render('Login');
+})->name('login');
 
 // Profile routes
 Route::middleware('auth')->group(function () {
