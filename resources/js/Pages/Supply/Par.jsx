@@ -30,7 +30,7 @@ export default function Par({purchaseOrders, inventoryItems, par, user}) {
         {/* RIS table or form here */}
          <div className="bg-white rounded-lg p-6 shadow space-y-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-          <h2 className="text-lg font-bold mb-4">Inventory Custodian Slip (ICS)</h2>
+          <h2 className="text-lg font-bold mb-4">Property Acknowledgement Receipt (PAR)</h2>
           {/* RIS table or form here */}
           {/* Action Buttons */}
             <div className="flex flex-wrap items-center gap-2">
@@ -136,7 +136,7 @@ export default function Par({purchaseOrders, inventoryItems, par, user}) {
                 })
               ) : (
                 <tr>
-                  <td colSpan="10" className="text-center">No RIS records found</td>
+                  <td colSpan="10" className="text-center">No PAR records found</td>
                 </tr>
               )}
               

@@ -972,8 +972,7 @@ public function ics_issuance_high(Request $request)
             'details.prDetail.purchaseRequest.division',
             'details.prDetail.purchaseRequest.focal_person'
         ])->latest()->paginate(10);
-        $par = ICS::query()
-        ->where('type', 'high')
+        $par = PAR::query()
         ->with([
             'po.rfq.purchaseRequest.division',
             'po.rfq.purchaseRequest.focal_person',
