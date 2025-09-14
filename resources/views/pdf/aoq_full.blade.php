@@ -11,12 +11,13 @@
         .uppercase { text-transform: uppercase; }
         table { border-collapse: collapse; width: 100%; font-size: 12px; text-align: center; margin-bottom: 20px; }
         th, td { border: 1px solid #000; padding: 4px 6px; }
-        footer { font-size: 11px; color: #555; display: flex; justify-content: space-between; margin-top: 50px; }
+        .footer-table { width: 100%; font-size: 11px; color: #555; margin-top: 50px; border: none; }
+        .footer-table td { border: none; }
     </style>
 </head>
 <body>
     <div class="center">
-        <img src="{{ public_path('deped1.png') }}" alt="DepEd Logo" style="width:70px; height:auto; margin-bottom:10px;">
+        <img src="file://{{ public_path('deped1.png') }}" alt="DepEd Logo" style="width:70px; height:auto; margin-bottom:10px;">
         <h2 class="uppercase bold" style="font-size:14px;">Republic of the Philippines</h2>
         <h3 class="uppercase bold" style="font-size:13px;">Department of Education</h3>
         <p class="uppercase bold" style="font-size:12px;">
@@ -43,14 +44,13 @@
         </thead>
         <tbody>
             @foreach($suppliers as $idx => $detail)
-                <tr>
+                <tr @if($detail['is_winner']) style="background:#d9f7d9;" @endif>
                     <td>{{ $idx+1 }}</td>
                     <td>{{ $detail['supplier']->company_name }}</td>
                     <td>₱{{ number_format($detail['total_amount'], 2) }}</td>
                     <td>{{ $detail['is_winner'] ? 'Winner' : '' }}</td>
                 </tr>
             @endforeach
-
         </tbody>
     </table>
 
@@ -63,7 +63,7 @@
         <span style="text-decoration:underline; font-weight:bold;">
             {{ $awarded['supplier']->company_name ?? '__________' }}
         </span>
-        @if(!empty($awarded['remarks']))
+        @if(isset($awarded['remarks']) && !empty($awarded['remarks']))
             offering the <em>{{ $awarded['remarks'] }}</em>.
         @endif
     </p>
@@ -92,9 +92,11 @@
         </table>
     </div>
 
-    <footer>
-        <div>ASDS-QF-003</div>
-        <div>Rev:00</div>
-    </footer>
+    <table class="footer-table">
+        <tr>
+            <td>ASDS-QF-003</td>
+            <td style="text-align:right;">Rev:00</td>
+        </tr>
+    </table>
 </body>
 </html>

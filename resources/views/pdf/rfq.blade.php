@@ -16,12 +16,15 @@
     .font-bold { font-weight: bold; }
     .table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
     .table th, .table td { border: 1px solid #000; padding: 3px; }
+    .footer { width: 100%; font-size: 10px; margin-top: 20px; }
+    .footer td { text-align: left; }
   </style>
 </head>
 <body>
 
 <div class="text-center">
-    <img src="{{ public_path('/deped1.png') }}" alt="DepEd Logo" style="width:50px; margin-bottom:3px;">
+    {{-- ✅ Use $logo passed from controller --}}
+    <img src="{{ $logo }}" alt="DepEd Logo" style="width:50px; margin-bottom:3px;">
     <h2>
       Republic of the Philippines<br>
       Department of Education<br>
@@ -64,46 +67,30 @@
     </tr>
   </thead>
   <tbody>
-    
-
     <tr>
       <td colspan="3" class="text-left">Location:</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
+      <td colspan="6">&nbsp;</td>
     </tr>
     <tr>
       <td colspan="3" class="text-left">Subject:</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
+      <td colspan="6">&nbsp;</td>
     </tr>
     <tr>
       <td colspan="3" class="text-left">Delivery Period:</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
+      <td colspan="6">&nbsp;</td>
     </tr>
     <tr>
       <td colspan="3" class="text-left">Approved Budget for the Contract (ABC):</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
-      <td>&nbsp;</td>
+      <td colspan="6">&nbsp;</td>
     </tr>
+
+    {{-- ✅ Loop items --}}
     @foreach($details as $item)
     <tr>
       <td class="font-bold" colspan="3">{{ $item['item'] ?? '' }}</td>
-      <td class="font-bold" >{{ $item['quantity'] ?? '' }}</td>
-      <td class="font-bold" >{{ $item['unit'] ?? '' }}</td>
-      <td class="font-bold" >{{ $item['unit_price'] ?? '' }}</td>
+      <td class="font-bold">{{ $item['quantity'] ?? '' }}</td>
+      <td class="font-bold">{{ $item['unit'] ?? '' }}</td>
+      <td class="font-bold">{{ number_format($item['unit_price'], 2) ?? '' }}</td>
       <td>&nbsp;</td>
       <td class="font-bold" colspan="2">&nbsp;</td>
     </tr>
@@ -156,10 +143,12 @@
   This is to submit our price quotations as indicated above subject to the terms and conditions of this RFQ.
 </p>
 
-<div style="margin-top:20px; font-size:10px; display:flex; justify-content:space-between;">
-  <div>ASDS-QF-003</div>
-  <div>Rev 01</div>
-</div>
+<table class="footer">
+  <tr>
+    <td>ASDS-QF-003</td>
+    <td style="text-align:right;">Rev 01</td>
+  </tr>
+</table>
 
 </body>
 </html>

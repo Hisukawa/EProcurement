@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Products;
 use App\Models\PurchaseRequestDetail;
 use App\Notifications\PurchaseRequestSubmitted;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -394,7 +395,7 @@ $purchaseRequest = PurchaseRequest::with(['details.product.unit'])->findOrFail($
     ];
 
     // 👇 Load Blade instead of React for Snappy
-    $pdf = SnappyPdf::loadView('pdf.purchase_request', [
+    $pdf = Pdf::loadView('pdf.purchase_request', [
         'pr' => $pr,
         'focal_person' => $purchaseRequest->focal_person,
     ]);
