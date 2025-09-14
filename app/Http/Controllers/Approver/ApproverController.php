@@ -14,11 +14,11 @@ use App\Models\SupplyCategory;
 use App\Models\User;
 use App\Notifications\PurchaseRequestApproved;
 use App\Notifications\PurchaseRequestSentBack;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Validation\ValidationException;
-use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 use Illuminate\Support\Facades\Auth;
 
 class ApproverController extends Controller
@@ -319,11 +319,8 @@ public function store_supplier(Request $request)
 
 public function print_rfq($prId)
 {
-    // Get the PurchaseRequest with its details & related product/unit
-    $pr = PurchaseRequest::with(['details.product.unit'])
-        ->findOrFail($prId);
+    $pr = PurchaseRequest::with(['details.product.unit'])->findOrFail($prId);
 
-    // Map the PR details into a format suitable for the PDF
     $details = $pr->details->map(function ($detail) {
         return [
             'id' => $detail->id,
@@ -336,20 +333,26 @@ public function print_rfq($prId)
         ];
     });
 
-    // Generate PDF
-    $pdf = PDF::loadView('pdf.rfq', [
-        'rfq' => $pr, // pass the PR itself
+    // PASS absolute filesystem path for Dompdf
+    $logo = public_path('deped1.png');
+    if (!file_exists($logo)) {
+        // fallback to null or alternative image
+        $logo = null;
+    }
+
+    $pdf = Pdf::loadView('pdf.rfq', [
+        'rfq' => $pr,
         'details' => $details,
+        'logo' => $logo,
     ]);
 
-    return $pdf->inline("PR-{$pr->id}-RFQ.pdf");
+    return $pdf->stream("PR-{$pr->id}-RFQ.pdf");
 }
 
 
 public function print_rfq_per_item($rfqId, $detailId)
 {
-    $prDetail = PurchaseRequestDetail::with(['product.unit'])
-        ->findOrFail($detailId);
+    $prDetail = PurchaseRequestDetail::with(['product.unit'])->findOrFail($detailId);
 
     $formattedDetail = [
         'id' => $prDetail->id,
@@ -360,15 +363,20 @@ public function print_rfq_per_item($rfqId, $detailId)
         'unit_price' => $prDetail->unit_price,
         'total_price' => $prDetail->quantity * $prDetail->unit_price,
     ];
-    $logo = public_path('/deped1.png');
 
-    $pdf = PDF::loadView('pdf.rfq_per_item', [
+    $logo = public_path('deped1.png');
+    if (!file_exists($logo)) {
+        $logo = null;
+    }
+
+    $pdf = Pdf::loadView('pdf.rfq_per_item', [
         'detail' => $formattedDetail,
-        'logo' => $logo
+        'logo' => $logo,
     ]);
 
-    return $pdf->inline("RFQ-Item-{$prDetail->id}.pdf");
+    return $pdf->stream("RFQ-Item-{$prDetail->id}.pdf");
 }
+
 
 
 
@@ -703,10 +711,10 @@ public function printAOQ($id, $pr_detail_id = null)
         'details.supplier'
     ])->findOrFail($id);
 
+    // ----------------------
+    // PER-ITEM AOQ MODE
+    // ----------------------
     if (!empty($pr_detail_id)) {
-        // ----------------------
-        // PER-ITEM AOQ MODE
-        // ----------------------
         $prDetail = $rfq->purchaseRequest
             ->details
             ->firstWhere('id', $pr_detail_id);
@@ -720,7 +728,7 @@ public function printAOQ($id, $pr_detail_id = null)
             ->sortBy('quoted_price')
             ->values();
 
-        // always render winner first if exists
+        // Place winner on top if exists
         $winner = $quotes->firstWhere('is_winner', 1);
         if ($winner) {
             $quotes = collect([$winner])
@@ -728,43 +736,48 @@ public function printAOQ($id, $pr_detail_id = null)
                 ->values();
         }
 
-        $pdf = PDF::loadView('pdf.aoq_item', [
+        $pdf = Pdf::loadView('pdf.aoq_item', [
             'rfq'      => $rfq,
             'prDetail' => $prDetail,
-            'quotes'   => $quotes
+            'quotes'   => $quotes,
         ]);
 
-        return $pdf->inline('AOQ_item_'.$pr_detail_id.'.pdf');
+        return $pdf->stream("AOQ_item_{$pr_detail_id}.pdf");
     }
 
     // ----------------------
     // FULL-PR AOQ MODE
     // ----------------------
     if ($rfq->award_mode === 'whole-pr') {
-    $prItemCount = $rfq->purchaseRequest->details->count();
+        $prItemCount = $rfq->purchaseRequest->details->count();
 
-    $supplierTotals = $rfq->details
-        ->groupBy('supplier_id')
-        ->filter(function ($quotes) use ($prItemCount) {
-            // Only keep suppliers who quoted ALL items
-            return $quotes->pluck('pr_details_id')->unique()->count() === $prItemCount;
-        })
-        ->map(function ($quotes) {
-            return [
-                'supplier'     => $quotes->first()->supplier,
-                'total_amount' => $quotes->sum('quoted_price'),
-                'is_winner'    => $quotes->contains('is_winner', 1),
-            ];
-        })
-        ->sortBy('total_amount')
-        ->values();
+        $supplierTotals = $rfq->details
+            ->groupBy('supplier_id')
+            ->filter(function ($quotes) use ($prItemCount) {
+                // Only keep suppliers who quoted ALL items
+                return $quotes->pluck('pr_details_id')->unique()->count() === $prItemCount;
+            })
+            ->map(function ($quotes) {
+                return [
+                    'supplier'     => $quotes->first()->supplier,
+                    'total_amount' => $quotes->sum('quoted_price'),
+                    'is_winner'    => $quotes->contains('is_winner', 1),
+                    'remarks'      => $quotes->firstWhere('is_winner', 1)->remarks ?? null,
+                ];
+            })
+            ->sortBy('total_amount')
+            ->values();
 
-    $pdf = PDF::loadView('pdf.aoq_full', [
-        'rfq'       => $rfq,
-        'suppliers' => $supplierTotals
-    ]);
+        $pdf = Pdf::loadView('pdf.aoq_full', [
+            'rfq'       => $rfq,
+            'suppliers' => $supplierTotals,
+        ]);
 
-    return $pdf->inline('AOQ_full_'.$id.'.pdf');
+        return $pdf->stream("AOQ_full_{$id}.pdf");
+    }
+
+    // If not per-item or whole-pr mode
+    abort(400, 'Invalid AOQ mode.');
 }
 
     // per-item awarding but no $pr_detail_id provided
@@ -788,7 +801,7 @@ public function printAOQ($id, $pr_detail_id = null)
 
     //     return $pdf->inline('AOQ_per_item_'.$id.'.pdf');
     // }
-}
+
 
 
 public function send_back(Request $request, $id)
