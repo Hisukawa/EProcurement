@@ -26,7 +26,7 @@ class RISExportMonthly implements FromCollection, WithHeadings, WithEvents, With
 
     public function collection()
     {
-        return RIS::with(['inventoryItem.product.unit', 'po.details.prDetail.purchaseRequest.division'])
+        return RIS::with(['items.inventoryItem.product.unit', 'po.details.prDetail.purchaseRequest.division'])
             ->whereMonth('created_at', $this->month)
             ->whereYear('created_at', $this->year)
             ->orderBy('created_at')

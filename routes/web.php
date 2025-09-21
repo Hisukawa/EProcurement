@@ -3,7 +3,9 @@
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Approver\ApproverController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Requester\IssuedController;
 use App\Http\Controllers\Requester\RequesterController;
+use App\Http\Controllers\Supply\IssuanceController;
 use Barryvdh\Snappy\Facades\SnappyPdf;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -81,6 +83,10 @@ Route::middleware(['auth', 'role:requester'])->prefix('requester')->group(functi
     Route::get('/print/{id}', [RequesterController::class, 'print'])->name('requester.print');
     Route::post('/requests/{id}/send-for-approval', [RequesterController::class, 'sendForApproval'])->name('requester.pr.send_for_approval');
     Route::put('/{product}/update-price', [RequesterController::class, 'updatePrice'])->name('requester.update_price');
+    Route::get('/ris_issued', [IssuedController::class, 'ris_issued'])->name('requester.ris_issued');
+    Route::get('/ics_issued_low', [IssuedController::class, 'ics_issued_low'])->name('requester.ics_issued_low');
+    Route::get('/ics_issued_high', [IssuedController::class, 'ics_issued_high'])->name('requester.ics_issued_high');
+    Route::get('/par_issued', [IssuedController::class, 'par_issued'])->name('requester.par_issued');
 });
 
 // Approver routes
@@ -125,16 +131,16 @@ Route::middleware(['auth', 'role:supply_officer'])->prefix('supply_officer')->gr
     Route::get('/iar_table', [SupplyController::class, 'iar_table'])->name('supply_officer.iar_table');
     Route::get('/print_iar/{id}', [SupplyController::class, 'print_iar'])->name('supply_officer.print_iar');
     Route::get('/inventory', [SupplyController::class, 'inventory'])->name('supply_officer.inventory');
-    Route::get('/issuance/{po_id}/{inventory_id}', [SupplyController::class, 'issuance'])->name('supply_officer.issuance');
-    Route::post('/store_ris', [SupplyController::class, 'store_ris'])->name('supply_officer.store_ris');
-    Route::post('/store_ics', [SupplyController::class, 'store_ics'])->name('supply_officer.store_ics');
-    Route::post('/store_par', [SupplyController::class, 'store_par'])->name('supply_officer.store_par');
-    Route::get('/ris_issuance', [SupplyController::class, 'ris_issuance'])->name('supply_officer.ris_issuance');
-    Route::get('/ics_issuance_low', [SupplyController::class, 'ics_issuance_low'])->name('supply_officer.ics_issuance_low');
-    Route::get('/ics_issuance_high', [SupplyController::class, 'ics_issuance_high'])->name('supply_officer.ics_issuance_high');
-    Route::get('/par_issuance', [SupplyController::class, 'par_issuance'])->name('supply_officer.par_issuance');
-    Route::get('/export_excel', [SupplyController::class, 'export_excel'])->name('supply_officer.export_excel');
-    Route::get('/export_excel_monthly', [SupplyController::class, 'export_excel_monthly'])->name('supply_officer.export_excel_monthly');
+    Route::get('/issuance/{po_detail_id}/{inventory_id}', [IssuanceController::class, 'issuance'])->name('supply_officer.issuance');
+    Route::post('/store_ris', [IssuanceController::class, 'store_ris'])->name('supply_officer.store_ris');
+    Route::post('/store_ics', [IssuanceController::class, 'store_ics'])->name('supply_officer.store_ics');
+    Route::post('/store_par', [IssuanceController::class, 'store_par'])->name('supply_officer.store_par');
+    Route::get('/ris_issuance', [IssuanceController::class, 'ris_issuance'])->name('supply_officer.ris_issuance');
+    Route::get('/ics_issuance_low', [IssuanceController::class, 'ics_issuance_low'])->name('supply_officer.ics_issuance_low');
+    Route::get('/ics_issuance_high', [IssuanceController::class, 'ics_issuance_high'])->name('supply_officer.ics_issuance_high');
+    Route::get('/par_issuance', [IssuanceController::class, 'par_issuance'])->name('supply_officer.par_issuance');
+    Route::get('/export_excel', [IssuanceController::class, 'export_excel'])->name('supply_officer.export_excel');
+    Route::get('/export_excel_monthly', [IssuanceController::class, 'export_excel_monthly'])->name('supply_officer.export_excel_monthly');
     Route::post('/inspection-committee/{id}/replace-member', [SupplyController::class, 'replaceMember'])->name('inspection.committee.save');
 
 });

@@ -5,19 +5,20 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
 class ICS extends Model
 {
-    /** @use HasFactory<\Database\Factories\ICSFactory> */
     use HasFactory;
 
     protected $table = 'tbl_ics';
 
-    protected $fillable = ['inventory_item_id', 'po_id', 'ics_number', 'received_by', 'received_from', 'quantity', 'unit_cost', 'total_cost', 'remarks', 'type'];
+    protected $fillable = ['po_id', 'ics_number', 'received_by', 'received_from', 'type', 'remarks'];
 
-    public function inventoryItem()
-    {
-        return $this->belongsTo(Inventory::class, 'inventory_item_id');
-    }
+    // Header relations
     public function po()
     {
         return $this->belongsTo(PurchaseOrder::class, 'po_id');
@@ -32,4 +33,11 @@ class ICS extends Model
     {
         return $this->belongsTo(User::class, 'received_from');
     }
+
+    // Header → Items
+    public function items()
+    {
+        return $this->hasMany(ICSItems::class, 'ics_id');
+    }
 }
+

@@ -4,9 +4,6 @@ import { Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 
 export default function Ris({purchaseOrders, inventoryItems, ris, user}) {
-  console.log("PO:", purchaseOrders);
-  console.log("IV:",inventoryItems);
-  console.log("RIS:",ris);
 
 
   const [search, setSearch] = useState('');
@@ -117,27 +114,75 @@ ris?.data?.forEach(r => {
             <tbody>
               {ris?.data?.length > 0 ? (
                 ris.data.map((record, index) => {
-                  const dateReceived = record?.created_at
-                    ? new Date(record.created_at).toLocaleDateString("en-PH", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })
-                    : "—";
+                  const [expandedRows, setExpandedRows] = useState([]);
+
+                  const hasMoreThanTwoItems = record.items?.length > 2;
+                  const isExpanded = expandedRows.includes(record.id);
+
+                  const toggleRow = (id) => {
+                    setExpandedRows((prev) =>
+                      prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
+                    );
+                  };
+
+                  const itemsWithDates = record.items?.map(item => ({
+                    description: item.inventory_item?.item_desc ?? 'N/A',
+                    quantity: item.quantity,
+                    unitCost: Number(item.inventory_item?.unit_cost ?? 0),
+                    totalCost: Number(item.inventory_item?.unit_cost ?? 0) * item.quantity,
+                    date: new Date(item.created_at).toLocaleDateString("en-PH", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    }),
+                  })) || [];
 
                   return (
                     <tr key={record.id}>
                       <td className="px-4 py-2">{index + 1}</td>
                       <td className="px-4 py-2">{record.ris_number}</td>
                       <td className="px-4 py-2">{record.po?.details?.[0]?.pr_detail?.purchase_request?.division?.division ?? "N/A"}</td>
+                      <td className="px-4 py-2">{record.issued_to?.firstname} {record.issued_to?.lastname}</td>
+
+                      {/* Item Description */}
                       <td className="px-4 py-2">
-                        {record.issued_to?.firstname} {record.issued_to?.lastname}
+                        {itemsWithDates.slice(0, 2).map((item, idx) => <div key={idx}>{item.description}</div>)}
+                        {hasMoreThanTwoItems && !isExpanded && (
+                          <button
+                            onClick={() => toggleRow(record.id)}
+                            className="text-blue-600 hover:underline text-sm mt-1"
+                          >
+                            +{itemsWithDates.length - 2} more
+                          </button>
+                        )}
+                        {isExpanded && itemsWithDates.slice(2).map((item, idx) => <div key={idx + 2}>{item.description}</div>)}
                       </td>
-                      <td className="px-4 py-2">{record.inventory_item?.item_desc}</td>
-                      <td className="px-4 py-2">{record.quantity}</td>
-                      <td className="px-4 py-2">₱{Number(record.inventory_item?.unit_cost ?? 0).toFixed(2)}</td>
-                      <td className="px-4 py-2">₱{(Number(record.inventory_item?.unit_cost ?? 0) * record.quantity).toFixed(2)}</td>
-                      <td className="px-4 py-2">{dateReceived}</td>
+
+                      {/* Quantity */}
+                      <td className="px-4 py-2">
+                        {itemsWithDates.slice(0, 2).map((item, idx) => <div key={idx}>{item.quantity}</div>)}
+                        {isExpanded && itemsWithDates.slice(2).map((item, idx) => <div key={idx + 2}>{item.quantity}</div>)}
+                      </td>
+
+                      {/* Unit Cost */}
+                      <td className="px-4 py-2">
+                        {itemsWithDates.slice(0, 2).map((item, idx) => <div key={idx}>₱{item.unitCost.toFixed(2)}</div>)}
+                        {isExpanded && itemsWithDates.slice(2).map((item, idx) => <div key={idx + 2}>₱{item.unitCost.toFixed(2)}</div>)}
+                      </td>
+
+                      {/* Total Cost */}
+                      <td className="px-4 py-2">
+                        {itemsWithDates.slice(0, 2).map((item, idx) => <div key={idx}>₱{item.totalCost.toFixed(2)}</div>)}
+                        {isExpanded && itemsWithDates.slice(2).map((item, idx) => <div key={idx + 2}>₱{item.totalCost.toFixed(2)}</div>)}
+                      </td>
+
+                      {/* Date */}
+                      <td className="px-4 py-2">
+                        {itemsWithDates.slice(0, 2).map((item, idx) => <div key={idx}>{item.date}</div>)}
+                        {isExpanded && itemsWithDates.slice(2).map((item, idx) => <div key={idx + 2}>{item.date}</div>)}
+                      </td>
+
+                      {/* Actions */}
                       <td className="px-4 py-2 text-center space-x-2">
                         <button className="text-blue-600 hover:underline">Edit</button>
                         <button className="text-green-600 hover:underline">Copy</button>
@@ -152,6 +197,8 @@ ris?.data?.forEach(r => {
                 </tr>
               )}
             </tbody>
+
+
 
           </table>
         </div>

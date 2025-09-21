@@ -1,5 +1,5 @@
 import SupplyOfficerLayout from "@/Layouts/SupplyOfficerLayout";
-import { Head, useForm, router } from "@inertiajs/react";
+import { Head, useForm } from "@inertiajs/react";
 import { FileText, SendHorizonal } from "lucide-react";
 import {
   Dialog,
@@ -14,23 +14,31 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function RisForm({ purchaseOrder, inventoryItem, user }) {
-  const detail = purchaseOrder.details?.[0];
-  const pr = detail?.pr_detail?.purchase_request;
-  const product = detail?.pr_detail?.product;
+const detail = purchaseOrder.detail; // ✅ no array
+const pr = detail?.pr_detail?.purchase_request;
+const product = detail?.pr_detail?.product;
+
+
 
   const focal = pr
     ? `${pr.focal_person.firstname} ${pr.focal_person.middlename} ${pr.focal_person.lastname}`
     : "N/A";
 
+  // ✅ Fix: put quantity inside items[0]
   const { data, setData, post, processing, errors } = useForm({
-    po_id: detail.po_id,
+    po_id: purchaseOrder.id, // not detail.po_id, safer
     ris_number: purchaseOrder.po_number,
-    inventory_item_id: inventoryItem.id,
     issued_to: pr?.focal_person?.id,
     issued_by: user.id,
-    quantity: "",
     remarks: "",
+    items: [
+      {
+        inventory_item_id: inventoryItem.id,
+        quantity: "",
+      },
+    ],
   });
+
 
   const item = product
     ? `${product.name} (${product.specs})`
@@ -38,13 +46,12 @@ export default function RisForm({ purchaseOrder, inventoryItem, user }) {
 
   const isInStock = true; // Replace with real logic
 
-  // --- Confirmation state ---
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    setConfirmDialogOpen(true); // open confirm dialog
+    setConfirmDialogOpen(true);
   };
 
   const handleConfirmSave = () => {
@@ -191,10 +198,15 @@ export default function RisForm({ purchaseOrder, inventoryItem, user }) {
                 <label className="block text-sm font-medium text-gray-700">
                   Quantity to Issue
                 </label>
+                {/* ✅ Fix: bind to items[0].quantity */}
                 <input
                   type="text"
-                  value={data.quantity}
-                  onChange={(e) => setData("quantity", e.target.value)}
+                  value={data.items[0].quantity}
+                  onChange={(e) =>
+                    setData("items", [
+                      { ...data.items[0], quantity: e.target.value },
+                    ])
+                  }
                   placeholder="Enter quantity to issue"
                   className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
                 />

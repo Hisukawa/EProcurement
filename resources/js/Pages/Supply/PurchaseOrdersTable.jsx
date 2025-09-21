@@ -143,7 +143,15 @@ export default function PurchaseOrdersTable({ purchaseOrders, filters }) {
           <button
             key={i}
             disabled={!link.url}
-            onClick={() => link.url && get(link.url)}
+            onClick={() =>
+              link.url &&
+              get(link.url, {
+                data, // carry over search & division
+                preserveState: true,
+                preserveScroll: true,
+              })
+            }
+
             className={`px-3 py-1 text-sm border rounded-md ${
               link.active
                 ? "bg-blue-600 text-white"

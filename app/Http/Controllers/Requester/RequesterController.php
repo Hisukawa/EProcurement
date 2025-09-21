@@ -376,8 +376,7 @@ $purchaseRequests = $query->paginate(10)->withQueryString();
 
     public function print($id)
     {
-$purchaseRequest = PurchaseRequest::with(['details.product.unit'])->findOrFail($id);
-
+$purchaseRequest = PurchaseRequest::with(['details.product.unit', 'focal_person'])->findOrFail($id);
     $pr = [
         'id' => $purchaseRequest->id,
         'pr_number' => $purchaseRequest->pr_number,
