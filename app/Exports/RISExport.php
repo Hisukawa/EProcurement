@@ -26,7 +26,7 @@ class RISExport implements FromCollection, WithHeadings, WithEvents, WithMapping
 
     public function collection()
     {
-        $query = RIS::with(['inventoryItem.product.unit', 'po.details.prDetail.purchaseRequest.division']);
+        $query = RIS::with(['items.inventoryItem.product.unit', 'po.details.prDetail.purchaseRequest.division']);
 
         if ($this->month) {
             $query->whereMonth('created_at', $this->month);

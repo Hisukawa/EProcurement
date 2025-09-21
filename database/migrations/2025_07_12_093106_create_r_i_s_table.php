@@ -11,18 +11,27 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // RIS Header
         Schema::create('tbl_ris', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('inventory_item_id')->constrained('tbl_inventory')->onDelete('cascade');
             $table->foreignId('po_id')->constrained('tbl_purchase_orders')->onDelete('cascade');
             $table->string('ris_number')->unique();
             $table->foreignId('issued_to')->constrained('users');
             $table->foreignId('issued_by')->constrained('users');
-            $table->integer('quantity');
             $table->text('remarks')->nullable();
             $table->timestamps();
         });
 
+        // RIS Items (details)
+        Schema::create('tbl_ris_items', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('ris_id')->constrained('tbl_ris')->onDelete('cascade');
+            $table->foreignId('inventory_item_id')->constrained('tbl_inventory')->onDelete('cascade');
+            $table->decimal('unit_cost', 12, 2);
+            $table->decimal('total_cost', 14, 2);
+            $table->integer('quantity');
+            $table->timestamps();
+        });
     }
 
     /**
@@ -30,6 +39,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('tbl_ris_items');
         Schema::dropIfExists('tbl_ris');
     }
 };

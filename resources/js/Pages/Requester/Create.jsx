@@ -578,6 +578,11 @@ useEffect(() => {
                                 className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 w-full"
                             />
                         </div>
+                        <div className="flex flex-col items-center text-gray-400">
+                        <small className="text-xs italic text-red-500">
+                            Note that the PR Number is AUTO GENERATED based on the last PR across the system
+                        </small>
+                        </div>
                         {errors.pr_number && <p className="text-red-600 text-sm mt-1">{errors.pr_number}</p>}
                     </div>
 

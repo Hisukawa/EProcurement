@@ -50,87 +50,122 @@
     <li>Supplier with complete quotation and total quotation price is equal or less than the Approved Budget for the Contract shall only be appreciated.</li>
   </ol>
 </div>
-
+  @php
+    $chair = $committee->members->firstWhere('position', 'chair');
+  @endphp
 <div class="text-right" style="margin-top:10px;">
-  <p>________________</p>
+  <span style="display:inline-block; text-decoration:underline; min-width:200px;">
+      {{ strtoupper(optional($chair)->name ?? '__________________') }}
+  </span><br>
   <p>BAC Chairperson</p>
 </div>
 
 <table class="table text-center">
   <thead>
     <tr>
-      <th colspan="3" class="text-left">Services to be provided:</th>
+      <th colspan="5" class="text-left"></th>
       <th>Qty</th>
       <th>Unit</th>
       <th>Estimated Unit Cost</th>
       <th>Bid Price per Unit</th>
       <th>Total Bid Price</th>
     </tr>
+    
   </thead>
   <tbody>
-    <tr>
-      <td colspan="3" class="text-left">Location:</td>
-      <td colspan="5">&nbsp;</td>
+        <tr>
+      <td colspan="5" class="text-left" style="border-bottom: none !important">Services to be provided:</td>
+      <td style="border-bottom: none !important"></td>
+      <td style="border-bottom: none !important"></td>
+      <td style="border-bottom: none !important"></td>
+      <td style="border-bottom: none !important"></td>
+      <td style="border-bottom: none !important"></td>
     </tr>
     <tr>
-      <td colspan="3" class="text-left">Subject:</td>
-      <td colspan="5">&nbsp;</td>
+      <td colspan="5" class="text-left" style="border-bottom: none !important; border-top: none !important;">Location:</td>
+      <td style="border-bottom: none !important; border-top: none !important;"></td>
+      <td style="border-bottom: none !important; border-top: none !important;"></td>
+      <td style="border-bottom: none !important; border-top: none !important;"></td>
+      <td style="border-bottom: none !important; border-top: none !important;"></td>
+      <td style="border-bottom: none !important; border-top: none !important;"></td>
     </tr>
     <tr>
-      <td colspan="3" class="text-left">Delivery Period:</td>
-      <td colspan="5">&nbsp;</td>
+      <td colspan="5" class="text-left" style="border-bottom: none !important; border-top: none !important;">Subject:</td>
+      <td style="border-bottom: none !important; border-top: none !important;"></td>
+      <td style="border-bottom: none !important; border-top: none !important;"></td>
+      <td style="border-bottom: none !important; border-top: none !important;"></td>
+      <td style="border-bottom: none !important; border-top: none !important;"></td>
+      <td style="border-bottom: none !important; border-top: none !important;"></td>
     </tr>
     <tr>
-      <td colspan="3" class="text-left">Approved Budget for the Contract (ABC):</td>
-      <td colspan="5">&nbsp;</td>
+      <td colspan="5" class="text-left" style="border-bottom: none !important; border-top: none !important;">Delivery Period:</td>
+      <td style="border-bottom: none !important; border-top: none !important;"></td>
+      <td style="border-bottom: none !important; border-top: none !important;"></td>
+      <td style="border-bottom: none !important; border-top: none !important;"></td>
+      <td style="border-bottom: none !important; border-top: none !important;"></td>
+      <td style="border-bottom: none !important; border-top: none !important;"></td>
+    </tr>
+    <tr>
+      <td colspan="5" class="text-left" style="border-top: none !important;">Approved Budget for the Contract (ABC):</td>
+      <td style="border-top: none !important;"></td>
+      <td style="border-top: none !important;"></td>
+      <td style="border-top: none !important;"></td>
+      <td style="border-top: none !important;"></td>
+      <td style="border-top: none !important;"></td>
     </tr>
 
     {{-- Item row --}}
     <tr>
-      <td class="font-bold" colspan="3">{{ $detail['item'] ?? '' }}</td>
+      <td colspan="5" class="font-bold text-center">{{ $detail['item'] ?? ''. " ". $detail['specs'] ?? ' '}}</td>
       <td class="font-bold">{{ $detail['quantity'] ?? '' }}</td>
       <td class="font-bold">{{ $detail['unit'] ?? '' }}</td>
-      <td class="font-bold">{{ number_format($detail['unit_price'] ?? 0, 2) }}</td>
+      <td class="font-bold">{{ number_format($detail['unit_price'], 2) ?? '' }}</td>
       <td>&nbsp;</td>
-      <td class="font-bold">&nbsp;</td>
+      <td>&nbsp;</td>
     </tr>
 
-    {{-- Total --}}
     <tr>
-      <td colspan="7" class="text-center font-bold">TOTAL:</td>
+      <td colspan="9" class="text-center font-bold">TOTAL:</td>
       <td class="font-bold"></td>
     </tr>
 
     <tr>
-      <td colspan="3" class="font-bold">SDO City Of Ilagan</td>
-      <td colspan="5">&nbsp;</td>
+      <td colspan="10" class="font-bold text-left" style="border-left:none !important; border-right:none !important;">SDO City Of Ilagan</td>
     </tr>
+
     <tr>
-      <td colspan="3" class="font-bold">Supplier's Company Name:</td>
-      <td colspan="2">&nbsp;</td>
-      <td class="font-bold text-left">TIN:</td>
-      <td colspan="2">&nbsp;</td>
-    </tr>
-    <tr>
-      <td colspan="3" class="font-bold">Address:</td>
-      <td colspan="5">&nbsp;</td>
-    </tr>
-    <tr>
-      <td colspan="3" class="font-bold">Contact Number:</td>
-      <td colspan="2">&nbsp;</td>
-      <td class="font-bold text-left">Fax No.</td>
-      <td class="font-bold text-left">E-mail:</td>
-      <td>&nbsp;</td>
-    </tr>
-    <tr>
-      <td colspan="3" class="font-bold">Supplier's Authorized Representative Signature Over Printed Name:</td>
-      <td colspan="2">&nbsp;</td>
-      <td class="font-bold text-left">Date:</td>
+      <td colspan="2" class="font-bold text-left">Supplier's Company Name:</td>
+      <td colspan="4">&nbsp;</td>
+      <td colspan="2">TIN</td>
       <td colspan="2">&nbsp;</td>
     </tr>
+
     <tr>
-      <td colspan="3" class="font-bold">Canvasser:</td>
-      <td colspan="5">&nbsp;</td>
+      <td colspan="2" class="font-bold text-left">Address:</td>
+      <td colspan="2" style="border-right:none !important; border-left:none !important">&nbsp;</td>
+      <td colspan="2" style="border-right:none !important; border-left:none !important">&nbsp;</td>
+      <td colspan="4"  style="border-left:none !important">&nbsp;</td>
+    </tr>
+
+    <tr>
+      <td colspan="2" class="font-bold text-left">Contact Number:</td>
+      <td colspan="4">&nbsp;</td>
+      <td colspan="2" class="text-left">Fax No.</td>
+      <td colspan="2" class="text-left">E-mail</td>
+    </tr>
+
+    <tr>
+      <td colspan="2" class="font-bold text-left">Supplier's Authorized Representative Signature Over Printed Name:</td>
+      <td colspan="4">&nbsp;</td>
+      <td colspan="2" class="font-bold text-left align-top">Date:</td>
+      <td colspan="2">&nbsp;</td>
+    </tr>
+
+    <tr>
+      <td colspan="2" class="font-bold text-left">Canvasser:</td>
+      <td colspan="4">&nbsp;</td>
+      <td colspan="2">&nbsp;</td>
+      <td colspan="2">&nbsp;</td>
     </tr>
   </tbody>
 </table>
@@ -139,12 +174,30 @@
   This is to submit our price quotations as indicated above subject to the terms and conditions of this RFQ.
 </p>
 
-<table class="footer">
-  <tr>
-    <td>ASDS-QF-003</td>
-    <td style="text-align:right;">Rev 01</td>
-  </tr>
-</table>
+
+    <table class="footer" style="width:100%; margin-top:40px; font-size:11px; border:none;">
+        <tr>
+            <!-- Left logos -->
+            <td style="width:40%; text-align:left; border:none;">
+                <img src="file://{{ public_path('deped-matatag.png') }}" alt="DepEd Logo" style="height:70px; margin-right:5px;">
+                <img src="file://{{ public_path('bagong-pilipinas.png') }}" alt="Philippines Logo" style="height:70px; margin-right:5px;">
+                <img src="file://{{ public_path('ilagan.png') }}" alt="Ilagan Logo" style="height:70px;">
+                <div>ASDS-QF-003</div>
+            </td>
+
+            <!-- Office info -->
+            <td style="width:60%; text-align:right; border:none; line-height:1.3;">
+                <div><strong>INHS Compound, Claravall St., San Vicente, City of Ilagan, Isabela</strong></div>
+                <div>Telephone Nos: (078) 624-0077</div>
+                <div>
+                    <span style="margin-right:10px;">www.facebook.com/sdoilagan</span> 
+                    <span style="margin-right:10px;">ilagan@deped.gov.ph</span> 
+                    <span>www.sdoilagan.gov.ph</span>
+                </div>
+                <div style="margin-top:5px;">Rev:00</div>
+            </td>
+        </tr>
+    </table>
 
 </body>
 </html>

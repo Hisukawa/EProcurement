@@ -6,9 +6,9 @@ import { useState } from "react";
 
 export default function IcsForm({ purchaseOrder, inventoryItem, user }) {
   const [showConfirm, setShowConfirm] = useState(false);
-  const { toast } = useToast(); // ✅ useToast hook
+  const { toast } = useToast();
 
-  const detail = purchaseOrder.details?.[0];
+  const detail = purchaseOrder.detail;
   const pr = detail?.pr_detail?.purchase_request;
   const product = detail?.pr_detail?.product;
 
@@ -16,23 +16,27 @@ export default function IcsForm({ purchaseOrder, inventoryItem, user }) {
     ? `${pr.focal_person.firstname} ${pr.focal_person.middlename} ${pr.focal_person.lastname}`
     : "N/A";
 
+  const itemDesc = product ? `${product.name} (${product.specs})` : "N/A";
+
   const { data, setData, post, processing, errors } = useForm({
     po_id: detail.po_id,
     ics_number: purchaseOrder.po_number,
-    inventory_item_id: inventoryItem.id,
     received_by: pr.focal_person.id,
     received_from: user.id,
-    quantity: detail?.quantity,
-    unit_cost: detail?.unit_price,
-    total_cost: detail?.total_price,
-    remarks: ""
+    remarks: "",
+    items: [
+      {
+        inventory_item_id: inventoryItem.id,
+        quantity: detail?.quantity,
+        unit_cost: detail?.unit_price,
+        total_cost: detail?.total_price,
+      },
+    ],
   });
-
-  const item = product ? `${product.name} (${product.specs})` : "N/A";
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    setShowConfirm(true); // open confirmation dialog
+    setShowConfirm(true);
   };
 
   const confirmSubmit = () => {
@@ -53,13 +57,14 @@ export default function IcsForm({ purchaseOrder, inventoryItem, user }) {
           variant: "destructive",
         });
         setShowConfirm(false);
-      }
+      },
     });
   };
 
   return (
     <SupplyOfficerLayout header="Schools Divisions Office - Ilagan | Inventory Custodian Slip">
       <Head title="ICS Form" />
+
       <button
         type="button"
         onClick={() => window.history.back()}
@@ -114,7 +119,7 @@ export default function IcsForm({ purchaseOrder, inventoryItem, user }) {
             <div>
               <label className="block text-sm font-medium text-gray-700">Description</label>
               <input
-                value={item}
+                value={itemDesc}
                 readOnly
                 className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
               />
@@ -125,9 +130,8 @@ export default function IcsForm({ purchaseOrder, inventoryItem, user }) {
                 <label className="block text-sm font-medium text-gray-700">Quantity</label>
                 <input
                   type="number"
-                  placeholder="Quantity"
-                  value={data.quantity}
-                  onChange={(e) => setData("quantity", e.target.value)}
+                  value={data.items[0].quantity}
+                  onChange={(e) => setData("items.0.quantity", e.target.value)}
                   className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
                 />
               </div>
@@ -149,9 +153,8 @@ export default function IcsForm({ purchaseOrder, inventoryItem, user }) {
                 <label className="block text-sm font-medium text-gray-700">Unit Cost</label>
                 <input
                   type="number"
-                  placeholder="Unit Cost"
-                  value={data.unit_cost}
-                  onChange={(e) => setData("unit_cost", e.target.value)}
+                  value={data.items[0].unit_cost}
+                  onChange={(e) => setData("items.0.unit_cost", e.target.value)}
                   className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
                 />
               </div>
@@ -159,9 +162,8 @@ export default function IcsForm({ purchaseOrder, inventoryItem, user }) {
                 <label className="block text-sm font-medium text-gray-700">Total Cost</label>
                 <input
                   type="number"
-                  placeholder="Total Cost"
-                  value={data.total_cost}
-                  onChange={(e) => setData("total_cost", e.target.value)}
+                  value={data.items[0].total_cost}
+                  onChange={(e) => setData("items.0.total_cost", e.target.value)}
                   className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
                 />
               </div>
@@ -183,7 +185,6 @@ export default function IcsForm({ purchaseOrder, inventoryItem, user }) {
                 type="text"
                 value={focal}
                 readOnly
-                placeholder="Enter recipient name"
                 className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
               />
             </div>
@@ -191,7 +192,6 @@ export default function IcsForm({ purchaseOrder, inventoryItem, user }) {
             <div>
               <label className="block text-sm font-medium text-gray-700">Remarks</label>
               <textarea
-                type="text"
                 value={data.remarks}
                 onChange={(e) => setData("remarks", e.target.value)}
                 rows="4"
@@ -214,7 +214,7 @@ export default function IcsForm({ purchaseOrder, inventoryItem, user }) {
         </form>
       </div>
 
-      {/* ✅ Confirmation Modal */}
+      {/* Confirmation Modal */}
       {showConfirm && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
           <div className="bg-white p-6 rounded-lg shadow-md max-w-md w-full">

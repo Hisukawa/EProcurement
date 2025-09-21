@@ -1,7 +1,7 @@
 import SupplyOfficerLayout from "@/Layouts/SupplyOfficerLayout";
 import { Head, useForm } from "@inertiajs/react";
 import { PackageCheck } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, Fragment } from "react";
 
 export default function Inventory({ inventoryData, filters }) {
   const { data, setData, get } = useForm({
@@ -21,33 +21,33 @@ export default function Inventory({ inventoryData, filters }) {
     return () => clearTimeout(delay);
   }, [data.search, data.status, data.date_received]);
 
-  // --- START: Idinagdag na Logic para i-filter ang duplicate items ---
-const getUniqueInventory = (inventory) => {
-  if (!inventory || !inventory.data) {
-    return [];
-  }
+const groupByPO = (inventory) => {
+  if (!inventory || !inventory.data) return [];
 
-  const uniqueItems = new Map();
+  const grouped = new Map();
 
   inventory.data.forEach((inv) => {
-    const key = inv.item_desc;
+    const po = inv.po_detail?.purchase_order; // ✅ now available
+    if (!po) return;
 
-    if (!uniqueItems.has(key)) {
-      uniqueItems.set(key, { ...inv, total_stock: parseFloat(inv.total_stock) || 0 });
-    } else {
-      const existingItem = uniqueItems.get(key);
-      // ✅ Ensure numbers before summing
-      existingItem.total_stock =
-        (parseFloat(existingItem.total_stock) || 0) +
-        (parseFloat(inv.total_stock) || 0);
+    if (!grouped.has(po.id)) {
+      grouped.set(po.id, {
+        po_id: po.id,
+        po: po,
+        requested_by: inv.requested_by,
+        items: [],
+      });
     }
+    grouped.get(po.id).items.push(inv);
   });
 
-  return Array.from(uniqueItems.values());
+  return Array.from(grouped.values());
 };
 
-  const uniqueInventoryData = getUniqueInventory(inventoryData);
-  // --- END: Idinagdag na Logic ---
+
+
+
+  const groupedInventoryData = groupByPO(inventoryData);
 
   return (
     <SupplyOfficerLayout header="Schools Divisions Office - Ilagan | Inventory">
@@ -75,13 +75,6 @@ const getUniqueInventory = (inventory) => {
             <option value="Available">Available</option>
             <option value="Issued">Issued</option>
           </select>
-
-          {/* <input
-            type="date"
-            value={data.date_received}
-            onChange={(e) => setData("date_received", e.target.value)}
-            className="border border-gray-300 px-6 py-2 rounded-md"
-          /> */}
         </form>
       </div>
 
@@ -91,6 +84,7 @@ const getUniqueInventory = (inventory) => {
           <thead className="bg-gray-50">
             <tr>
               {[
+                "PO Number",
                 "Requested By",
                 "Specs",
                 "Unit",
@@ -110,62 +104,92 @@ const getUniqueInventory = (inventory) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 text-center">
-            {uniqueInventoryData.length === 0 ? ( // Binago para gamitin ang uniqueInventoryData
+            {groupedInventoryData.length === 0 ? (
               <tr>
-                <td colSpan="8" className="py-12 text-gray-500 text-lg font-medium">
+                <td colSpan="9" className="py-12 text-gray-500 text-lg font-medium">
                   No Inventory Found.
                 </td>
               </tr>
             ) : (
-              uniqueInventoryData.map((inv) => {
-                const requestedBy = inv.requested_by
-                  ? `${inv.requested_by.firstname} ${inv.requested_by.middlename} ${inv.requested_by.lastname}`
-                  : "N/A";
-                const unit = inv.unit?.unit ?? "N/A";
-
-                const unitCost = parseFloat(inv.unit_cost) || 0;
-                const totalStock = parseFloat(inv.total_stock) || 0;
-                const totalPrice = (unitCost * totalStock).toFixed(2);
-
-                return (
-                  <tr key={inv.id} className="hover:bg-blue-50 transition duration-200">
-                    <td className="px-6 py-4 font-semibold text-blue-700">{requestedBy}</td>
-                    <td className="px-6 py-4">{inv.item_desc}</td>
-                    <td className="px-6 py-4">{unit}</td>
-                    <td className="px-6 py-4">{totalStock}</td>
-                    <td className="px-6 py-4">₱ {unitCost.toFixed(2)}</td>
-                    <td className="px-6 py-4">₱ {totalPrice}</td>
-                    <td className="px-6 py-4">{inv.status}</td>
-                    <td className="px-6 py-4">
-                      {inv.status === "Issued" ? (
-                        <span className="bg-gray-300 text-gray-600 px-3 py-2 rounded cursor-not-allowed flex items-center justify-center gap-1">
-                          <PackageCheck size={16} /> Already Issued
-                        </span>
-                      ) : (
-                        <a
-                          href={route("supply_officer.issuance", { po_id: inv.po_id, inventory_id: inv.id })}
-                          className="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 transition flex items-center justify-center gap-1"
-                        >
-                          <PackageCheck size={16} /> Issue Item
-                        </a>
-                      )}
+              groupedInventoryData.map((group) => (
+                <Fragment key={group.po_id}>
+                  {/* Group Header Row */}
+                  <tr className="bg-gray-100 font-semibold">
+                    <td className="px-6 py-3 text-blue-700">
+                      {group.po?.po_number ?? "N/A"}
+                    </td>
+                    <td className="px-6 py-3">
+                      {group.requested_by
+                        ? [group.requested_by.firstname, group.requested_by.middlename, group.requested_by.lastname]
+                            .filter(Boolean)
+                            .join(" ")
+                        : "N/A"}
+                    </td>
+                    <td colSpan="7" className="text-left px-6 py-3">
+                      {group.po?.supplier?.name ?? ""}
                     </td>
                   </tr>
-                );
-              })
+
+
+
+                  {/* Item Rows */}
+                  {group.items.map((inv) => {
+                    const unit = inv.unit?.unit ?? "N/A";
+                    const unitCost = parseFloat(inv.unit_cost) || 0;
+                    const totalStock = parseFloat(inv.total_stock) || 0;
+                    const totalPrice = (unitCost * totalStock).toFixed(2);
+
+                    return (
+                      <tr key={inv.id} className="hover:bg-blue-50 transition duration-200">
+                        <td className="px-6 py-4"></td>
+                        <td className="px-6 py-4"></td>
+                        <td className="px-6 py-4">{inv.item_desc ?? "No description"}</td>
+                        <td className="px-6 py-4">{unit}</td>
+                        <td className="px-6 py-4">{totalStock}</td>
+                        <td className="px-6 py-4">₱ {unitCost.toFixed(2)}</td>
+                        <td className="px-6 py-4">₱ {totalPrice}</td>
+                        <td className="px-6 py-4">{inv.status}</td>
+                        <td className="px-6 py-4">
+                          {inv.status === "Issued" ? (
+                            <span className="bg-gray-300 text-gray-600 px-3 py-2 rounded cursor-not-allowed flex items-center justify-center gap-1">
+                              <PackageCheck size={16} /> Already Issued
+                            </span>
+                          ) : (
+                            <a
+                              href={route("supply_officer.issuance", {
+                                po_detail_id: inv.po_detail_id, // ✅ correct now
+                                inventory_id: inv.id,
+                              })}
+                              className="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 transition flex items-center justify-center gap-1"
+                            >
+                              <PackageCheck size={16} /> Issue Item
+                            </a>
+
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </Fragment>
+              ))
             )}
           </tbody>
         </table>
       </div>
 
       {/* Pagination */}
-      {/* Tandaan: Baka kailangan ding i-adjust ang pagination kung ang filtering ay gagawin sa frontend. */}
       <div className="mt-6 flex justify-center flex-wrap gap-1">
         {inventoryData.links.map((link, i) => (
           <button
             key={i}
             disabled={!link.url}
-            onClick={() => link.url && get(link.url)}
+            onClick={() =>
+              link.url &&
+              get(link.url, {
+                preserveState: true,
+                preserveScroll: true,
+              })
+            }
             className={`px-3 py-1 text-sm border rounded-md ${
               link.active
                 ? "bg-blue-600 text-white"

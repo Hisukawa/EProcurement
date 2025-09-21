@@ -320,6 +320,9 @@ public function store_supplier(Request $request)
 public function print_rfq($prId)
 {
     $pr = PurchaseRequest::with(['details.product.unit'])->findOrFail($prId);
+    $committee = BacCommittee::with('members')
+        ->where('committee_status', 'active')
+        ->first();
 
     $details = $pr->details->map(function ($detail) {
         return [
@@ -344,6 +347,7 @@ public function print_rfq($prId)
         'rfq' => $pr,
         'details' => $details,
         'logo' => $logo,
+        'committee' => $committee
     ]);
 
     return $pdf->stream("PR-{$pr->id}-RFQ.pdf");
@@ -353,6 +357,9 @@ public function print_rfq($prId)
 public function print_rfq_per_item($rfqId, $detailId)
 {
     $prDetail = PurchaseRequestDetail::with(['product.unit'])->findOrFail($detailId);
+    $committee = BacCommittee::with('members')
+        ->where('committee_status', 'active')
+        ->first();
 
     $formattedDetail = [
         'id' => $prDetail->id,
@@ -372,6 +379,7 @@ public function print_rfq_per_item($rfqId, $detailId)
     $pdf = Pdf::loadView('pdf.rfq_per_item', [
         'detail' => $formattedDetail,
         'logo' => $logo,
+        'committee' => $committee
     ]);
 
     return $pdf->stream("RFQ-Item-{$prDetail->id}.pdf");
@@ -710,6 +718,9 @@ public function printAOQ($id, $pr_detail_id = null)
         'purchaseRequest.details',
         'details.supplier'
     ])->findOrFail($id);
+    $committee = BacCommittee::with('members')
+        ->where('committee_status', 'active')
+        ->first();
 
     // ----------------------
     // PER-ITEM AOQ MODE
@@ -727,6 +738,7 @@ public function printAOQ($id, $pr_detail_id = null)
             ->where('pr_details_id', $pr_detail_id)
             ->sortBy('quoted_price')
             ->values();
+        
 
         // Place winner on top if exists
         $winner = $quotes->firstWhere('is_winner', 1);
@@ -740,6 +752,7 @@ public function printAOQ($id, $pr_detail_id = null)
             'rfq'      => $rfq,
             'prDetail' => $prDetail,
             'quotes'   => $quotes,
+            'committee' => $committee
         ]);
 
         return $pdf->stream("AOQ_item_{$pr_detail_id}.pdf");
@@ -771,6 +784,7 @@ public function printAOQ($id, $pr_detail_id = null)
         $pdf = Pdf::loadView('pdf.aoq_full', [
             'rfq'       => $rfq,
             'suppliers' => $supplierTotals,
+            'committee' => $committee
         ]);
 
         return $pdf->stream("AOQ_full_{$id}.pdf");

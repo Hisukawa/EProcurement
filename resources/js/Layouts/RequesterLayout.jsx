@@ -7,6 +7,7 @@ import {
   ChevronDownIcon,
   Bars3Icon,
   XMarkIcon,
+  DocumentCheckIcon,
 } from '@heroicons/react/24/solid';
 import { BellAlertIcon, CheckCircleIcon, ClipboardDocumentListIcon, EyeIcon, PlusCircleIcon, XCircleIcon } from '@heroicons/react/16/solid';
 import NavLink from '@/Components/NavLink';
@@ -194,6 +195,14 @@ fetchNotifications();
               >
                 <ClipboardDocumentListIcon className="w-5 h-5 text-gray-300" />
                 <span className="text-white font-medium">Manage Requests</span>
+              </NavLink>
+              <NavLink
+                href={route('requester.ris_issued')}
+                active={route().current('requester.ris_issued')}
+                className="flex items-center gap-2 px-4 py-2 hover:bg-indigo-600 rounded-lg"
+              >
+                <DocumentCheckIcon className="w-5 h-5 text-gray-300" />
+                <span className="text-white font-medium">Issued</span>
               </NavLink>
               {/* <NavLink
                 href="#"

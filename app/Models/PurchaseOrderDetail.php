@@ -15,4 +15,9 @@ class PurchaseOrderDetail extends Model
     {
         return $this->belongsTo(PurchaseRequestDetail::class, 'pr_detail_id');
     }
+    public function purchaseOrder()
+{
+    return $this->belongsTo(PurchaseOrder::class, 'po_id');
+}
+
 }
