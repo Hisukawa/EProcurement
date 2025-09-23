@@ -35,6 +35,8 @@ const product = detail?.pr_detail?.product;
       {
         inventory_item_id: inventoryItem.id,
         quantity: "",
+        unit_cost: inventoryItem.unit_cost ?? 0,
+        total_cost: (detail?.quantity ?? 0) * (inventoryItem.unit_cost ?? 0),
       },
     ],
   });
@@ -198,17 +200,47 @@ const product = detail?.pr_detail?.product;
                 <label className="block text-sm font-medium text-gray-700">
                   Quantity to Issue
                 </label>
-                {/* ✅ Fix: bind to items[0].quantity */}
                 <input
-                  type="text"
+                  type="number"
+                  min="1"
                   value={data.items[0].quantity}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const qty = e.target.value;
+                    const unit = data.items[0].unit_cost ?? 0;
                     setData("items", [
-                      { ...data.items[0], quantity: e.target.value },
-                    ])
-                  }
+                      {
+                        ...data.items[0],
+                        quantity: qty,
+                        total_cost: unit * (parseFloat(qty) || 0), // ✅ recalc
+                      },
+                    ]);
+                  }}
                   placeholder="Enter quantity to issue"
                   className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Unit Cost
+                </label>
+                <input
+                  type="number"
+                  value={data.items[0].unit_cost}
+                  readOnly
+                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Total Cost
+                </label>
+                <input
+                  type="number"
+                  value={data.items[0].total_cost}
+                  readOnly
+                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50"
                 />
               </div>
 

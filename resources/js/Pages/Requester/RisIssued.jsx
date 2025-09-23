@@ -86,14 +86,16 @@ export default function RisIssued({ ris }) {
         <div className="overflow-x-auto">
           <table className="w-full border border-gray-300 rounded-lg text-sm">
             <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
-              <tr>
-                <th className="px-4 py-2">#</th>
-                <th className="px-4 py-2 border">RIS No.</th>
-                <th className="px-4 py-2 border">Item Description</th>
-                <th className="px-4 py-2 border">Quantity</th>
-                <th className="px-4 py-2 border">Date Issued</th>
-                <th className="px-4 py-2 border">Issued By</th>
-              </tr>
+  <tr>
+    <th className="px-4 py-2">#</th>
+    <th className="px-4 py-2 border">RIS No.</th>
+    <th className="px-4 py-2 border">Item Description</th>
+    <th className="px-4 py-2 border">Quantity</th>
+    <th className="px-4 py-2 border">Unit Cost</th>
+    <th className="px-4 py-2 border">Total Cost</th>
+    <th className="px-4 py-2 border">Date Issued</th>
+    <th className="px-4 py-2 border">Issued By</th>
+  </tr>
             </thead>
             <tbody>
               {filteredRis && filteredRis.length > 0 ? filteredRis.map((record, index) => {
@@ -112,6 +114,8 @@ export default function RisIssued({ ris }) {
                   >
                     <td className="px-4 py-2 border">{index + 1}</td>
                     <td className="px-4 py-2 border font-medium">{record.ris_number}</td>
+
+                    {/* Item Descriptions */}
                     <td className="px-4 py-2 border">
                       {items.length > 0 ? items[0].inventory_item?.item_desc : 'N/A'}
                       {hasMoreThanOneItem && !isExpanded && (
@@ -121,22 +125,45 @@ export default function RisIssued({ ris }) {
                         <div key={idx + 1} className="mt-1">{item.inventory_item?.item_desc}</div>
                       ))}
                     </td>
+
+                    {/* Quantities */}
                     <td className="px-4 py-2 border">
                       {items.length > 0 ? items[0].quantity : 'N/A'}
                       {isExpanded && items.slice(1).map((item, idx) => (
                         <div key={idx + 1}>{item.quantity}</div>
                       ))}
                     </td>
+
+                    {/* Unit Costs */}
+                    <td className="px-4 py-2 border">
+                      {items.length > 0 ? `₱${Number(items[0].unit_cost).toFixed(2)}` : 'N/A'}
+                      {isExpanded && items.slice(1).map((item, idx) => (
+                        <div key={idx + 1}>₱{Number(item.unit_cost).toFixed(2)}</div>
+                      ))}
+                    </td>
+
+                    {/* Total Costs */}
+                    <td className="px-4 py-2 border">
+                      {items.length > 0 ? `₱${Number(items[0].total_cost).toFixed(2)}` : 'N/A'}
+                      {isExpanded && items.slice(1).map((item, idx) => (
+                        <div key={idx + 1}>₱{Number(item.total_cost).toFixed(2)}</div>
+                      ))}
+                    </td>
+
+                    {/* Date + Issuer */}
                     <td className="px-4 py-2 border">{dateIssued}</td>
-                    <td className="px-4 py-2 border">{record.issued_by ? `${record.issued_by.firstname} ${record.issued_by.lastname}` : 'N/A'}</td>
+                    <td className="px-4 py-2 border">
+                      {record.issued_by ? `${record.issued_by.firstname} ${record.issued_by.lastname}` : 'N/A'}
+                    </td>
                   </tr>
                 );
               }) : (
                 <tr>
-                  <td colSpan="6" className="text-center py-4 text-gray-500">No RIS records found</td>
+                  <td colSpan="8" className="text-center py-4 text-gray-500">No RIS records found</td>
                 </tr>
               )}
             </tbody>
+
           </table>
         </div>
       </div>

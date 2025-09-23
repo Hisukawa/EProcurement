@@ -91,6 +91,8 @@ export default function ParIssued({ par }) {
                 <th className="px-4 py-2 border">PAR No.</th>
                 <th className="px-4 py-2 border">Item Description</th>
                 <th className="px-4 py-2 border">Quantity</th>
+                <th className="px-4 py-2 border">Unit Cost</th>
+                <th className="px-4 py-2 border">Total Cost</th>
                 <th className="px-4 py-2 border">Date Issued</th>
                 <th className="px-4 py-2 border">Issued By</th>
               </tr>
@@ -103,7 +105,6 @@ export default function ParIssued({ par }) {
                 const dateReceived = record?.created_at
                   ? new Date(record.created_at).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })
                   : "—";
-
                 return (
                   <tr
                     key={record.id}
@@ -112,6 +113,8 @@ export default function ParIssued({ par }) {
                   >
                     <td className="px-4 py-2 border">{index + 1}</td>
                     <td className="px-4 py-2 border font-medium">{record.par_number}</td>
+
+                    {/* Item Description */}
                     <td className="px-4 py-2 border">
                       {items.length > 0 ? items[0].inventory_item?.item_desc : 'N/A'}
                       {hasMoreThanOneItem && !isExpanded && (
@@ -121,22 +124,47 @@ export default function ParIssued({ par }) {
                         <div key={idx + 1} className="mt-1">{item.inventory_item?.item_desc}</div>
                       ))}
                     </td>
+
+                    {/* Quantity */}
                     <td className="px-4 py-2 border">
                       {items.length > 0 ? items[0].quantity : 'N/A'}
                       {isExpanded && items.slice(1).map((item, idx) => (
                         <div key={idx + 1}>{item.quantity}</div>
                       ))}
                     </td>
+
+                    {/* Unit Cost */}
+                    <td className="px-4 py-2 border">
+                      {items.length > 0 ? `₱${Number(items[0].unit_cost).toFixed(2)}` : 'N/A'}
+                      {isExpanded && items.slice(1).map((item, idx) => (
+                        <div key={idx + 1}>₱{Number(item.unit_cost).toFixed(2)}</div>
+                      ))}
+                    </td>
+
+                    {/* Total Cost */}
+                    <td className="px-4 py-2 border">
+                      {items.length > 0 ? `₱${Number(items[0].total_cost).toFixed(2)}` : 'N/A'}
+                      {isExpanded && items.slice(1).map((item, idx) => (
+                        <div key={idx + 1}>₱{Number(item.total_cost).toFixed(2)}</div>
+                      ))}
+                    </td>
+
+                    {/* Date Issued */}
                     <td className="px-4 py-2 border">{dateReceived}</td>
-                    <td className="px-4 py-2 border">{record.issued_by ? `${record.issued_by.firstname} ${record.issued_by.lastname}` : 'N/A'}</td>
+
+                    {/* Issued By */}
+                    <td className="px-4 py-2 border">
+                      {record.issued_by ? `${record.issued_by.firstname} ${record.issued_by.lastname}` : 'N/A'}
+                    </td>
                   </tr>
                 );
               }) : (
                 <tr>
-                  <td colSpan="6" className="text-center py-4 text-gray-500">No PAR records found</td>
+                  <td colSpan="8" className="text-center py-4 text-gray-500">No PAR records found</td>
                 </tr>
               )}
             </tbody>
+
           </table>
         </div>
       </div>

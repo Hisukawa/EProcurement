@@ -20,6 +20,7 @@ use App\Models\RFQ;
 use App\Models\RIS;
 use App\Models\Supplier;
 use App\Models\SupplyCategory;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
@@ -400,13 +401,15 @@ public function store_po(Request $request)
             'rfq.purchaseRequest.focal_person',
             'rfq.purchaseRequest.details.product.unit',
             'supplier',
-            'details' 
+            'details'
         ])->findOrFail($id);
 
-        return Inertia::render('Supply/PrintPurchaseOrder', [
-            'po' => $po,
-        ]);
+        $pdf = Pdf::loadView('pdf.purchase_order', compact('po'))
+            ->setPaper('A4', 'portrait'); // or 'landscape' if needed
+
+        return $pdf->stream('purchase_order_' . $po->po_number . '.pdf');
     }
+
 
     public function record_iar($id){
         $committee = InspectionCommittee::with('members')
@@ -569,21 +572,25 @@ public function iar_table(Request $request)
     ]);
 }
 
-
-
 public function print_iar($id)
 {
+    $committee = InspectionCommittee::with('members')
+        ->where('inspection_committee_status', 'active')
+        ->first();
     $iar = IAR::with([
         'purchaseOrder.details',
         'purchaseOrder.details.prDetail.product.unit',
         'purchaseOrder.supplier',
         'purchaseOrder.rfq.purchaseRequest.division'
-        ]
-    )->findOrFail($id);
+    ])->findOrFail($id);
 
-    return Inertia::render('Supply/PrintIar', [
-        'iarData' => $iar,
-    ]);
+    // Generate PDF from Blade
+    $pdf = Pdf::loadView('pdf.print_iar', ['iarData' => $iar, 'inspectors' => $committee])
+              ->setPaper('A4', 'portrait'); // can use 'landscape'
+
+    // Stream or Download
+    return $pdf->stream('IAR-'.$iar->iar_number.'.pdf');
+    // return $pdf->download('IAR-'.$iar->iar_number.'.pdf');
 }
 public function inventory(Request $request)
 {

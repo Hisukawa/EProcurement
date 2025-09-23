@@ -16,14 +16,17 @@ class DivisionSeeder extends Seeder
         Division::create([
             'id' => 1,
             'division' => 'SGOD',
+            'meaning' => 'School Governance and Operations Division'
         ]);
         Division::create([
             'id' => 2,
             'division' => 'OSDS',
+            'meaning' => 'Office of the Schools Division Superintendent'
         ]);
         Division::create([
             'id' => 3,
             'division' => 'CID',
+            'meaning' => 'Curriculum Implementation Division'
         ]);
     }
 }
