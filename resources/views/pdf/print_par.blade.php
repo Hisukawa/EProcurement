@@ -90,7 +90,7 @@
                     });
                 @endphp
             <tr class="text-center">
-                <td>{{ (int) $issued->quantity }}</td>
+                <td>{{ (int) ($issued->quantity ?? 0)}}</td>
                 <td>{{ $detail->prDetail->product->unit->unit ?? '' }}</td>
                 <td class="text-left" style="padding-left:8px;">
                     {{ $detail->prDetail->product->name ?? '' }}

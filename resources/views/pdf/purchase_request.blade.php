@@ -73,7 +73,7 @@
         <tr class="text-center">
             <td></td>
             <td>{{ $detail['unit'] }}</td>
-            <td class="text-left">{{ $detail['item'] }}</td>
+            <td class="text-left">{{ $detail['item'] . ' ' . $detail['specs'] }}</td>
             <td>{{ number_format($detail['quantity'], 0) }}</td>
             <td>{{ number_format($detail['unit_price'], 2) }}</td>
             <td>{{ number_format($detail['unit_price'] * $detail['quantity'], 2) }}</td>

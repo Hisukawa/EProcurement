@@ -94,7 +94,7 @@
                     });
                 @endphp
             <tr class="text-center">
-                <td>{{ (int) $issued->quantity }}</td>
+                <td>{{ (int) ($issued->quantity ?? 0) }}</td>
                 <td>{{ $detail->prDetail->product->unit->unit ?? '' }}</td>
                 <td>{{ number_format($issued->unit_cost, 2) }}</td>
                 <td>{{ number_format($issued->total_cost, 2) }}</td>
