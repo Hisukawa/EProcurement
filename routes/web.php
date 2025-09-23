@@ -142,7 +142,9 @@ Route::middleware(['auth', 'role:supply_officer'])->prefix('supply_officer')->gr
     Route::get('/export_excel', [IssuanceController::class, 'export_excel'])->name('supply_officer.export_excel');
     Route::get('/export_excel_monthly', [IssuanceController::class, 'export_excel_monthly'])->name('supply_officer.export_excel_monthly');
     Route::post('/inspection-committee/{id}/replace-member', [SupplyController::class, 'replaceMember'])->name('inspection.committee.save');
-
+    Route::get('/print_ris/{id}', [IssuanceController::class, 'print_ris'])->name('supply_officer.print_ris');
+    Route::get('/print_ics/{id}', [IssuanceController::class, 'print_ics'])->name('supply_officer.print_ics');
+    Route::get('/print_par/{id}', [IssuanceController::class, 'print_par'])->name('supply_officer.print_par');
 });
 // Shared dashboard route
 Route::get('/dashboard', function () {

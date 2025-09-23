@@ -1,6 +1,7 @@
 import IssuanceTabs from '@/Layouts/IssuanceTabs';
 import SupplyOfficerLayout from '@/Layouts/SupplyOfficerLayout';
 import { Head, Link } from '@inertiajs/react';
+import { PrinterCheck } from 'lucide-react';
 import { useState } from 'react';
 
 export default function Par({ purchaseOrders, inventoryItems, par, user }) {
@@ -181,9 +182,13 @@ const [expandedRows, setExpandedRows] = useState([]);
 
                       {/* Actions */}
                       <td className="px-4 py-2 text-center space-x-2">
-                        <button className="text-blue-600 hover:underline">Edit</button>
-                        <button className="text-green-600 hover:underline">Copy</button>
-                        <button className="text-red-600 hover:underline">Delete</button>
+                        <a
+                          href={route("supply_officer.print_par", record.id)}
+                          className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-1"
+                          target="_blank"
+                        >
+                          <PrinterCheck size={16} /> Print
+                        </a>
                       </td>
                     </tr>
                   );

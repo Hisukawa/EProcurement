@@ -11,6 +11,7 @@ use App\Models\PAR;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderDetail;
 use App\Models\RIS;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -183,6 +184,26 @@ class IssuanceController extends Controller
             'user'           => Auth::user(),
         ]);
     }
+public function print_ris($id)
+{
+    $ris = RIS::with([
+        'issuedTo.division',
+        'issuedBy.division',
+        'po.details.prDetail' => function ($query) {
+            $query->select('id', 'pr_id', 'product_id', 'quantity');
+        },
+        'po.details.prDetail.purchaseRequest',
+        'po.details.prDetail.purchaseRequest.division',
+        'items.inventoryItem.unit',
+        'items.inventoryItem.poDetail.prDetail.product',
+    ])->findOrFail($id);
+
+
+    $pdf = Pdf::loadView('pdf.print_ris', ['ris' => $ris])
+        ->setPaper('A4', 'portrait'); 
+    return $pdf->stream('RIS-'.$ris->ris_number.'.pdf');
+}
+
 
 
     public function store_ics(Request $request)
@@ -280,6 +301,25 @@ class IssuanceController extends Controller
             DB::rollBack();
             return back()->withErrors(['error' => 'Failed to store ICS. ' . $e->getMessage()]);
         }
+    }
+    public function print_ics($id)
+    {
+        $ics = ICS::with([
+            'receivedBy.division',
+            'receivedFrom.division',
+            'po.details.prDetail' => function ($query) {
+                $query->select('id', 'pr_id', 'product_id', 'quantity');
+            },
+            'po.details.prDetail.purchaseRequest',
+            'po.details.prDetail.purchaseRequest.division',
+            'items.inventoryItem.unit',
+            'items.inventoryItem.poDetail.prDetail.product',
+        ])->findOrFail($id);
+
+
+        $pdf = Pdf::loadView('pdf.print_ics', ['ics' => $ics])
+            ->setPaper('A4', 'portrait'); 
+        return $pdf->stream('ICS-'.$ics->ics_number.'.pdf');
     }
 
 
@@ -455,6 +495,25 @@ public function store_par(Request $request)
         return back()->withErrors(['error' => 'Failed to store PAR. ' . $e->getMessage()]);
     }
 }
+    public function print_par($id)
+    {
+        $par = PAR::with([
+            'receivedBy.division',
+            'issuedBy.division',
+            'po.details.prDetail' => function ($query) {
+                $query->select('id', 'pr_id', 'product_id', 'quantity');
+            },
+            'po.details.prDetail.purchaseRequest',
+            'po.details.prDetail.purchaseRequest.division',
+            'items.inventoryItem.unit',
+            'items.inventoryItem.poDetail.prDetail.product',
+        ])->findOrFail($id);
+
+
+        $pdf = Pdf::loadView('pdf.print_par', ['par' => $par])
+            ->setPaper('A4', 'portrait'); 
+        return $pdf->stream('PAR-'.$par->par_number.'.pdf');
+    }
 
 public function par_issuance(Request $request)
 {
@@ -549,4 +608,6 @@ public function par_issuance(Request $request)
             $fileName
         );
     }
+
+
 }

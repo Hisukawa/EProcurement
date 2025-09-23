@@ -1,1 +1,0 @@
-import{b as n}from"./transition-C1HWJ4cq.js";import{r as o}from"./app-CsTVGbv7.js";function l(e){var r,t;return n.isServer?null:e?"ownerDocument"in e?e.ownerDocument:"current"in e?(t=(r=e.current)==null?void 0:r.ownerDocument)!=null?t:document:null:document}let u=o.createContext(void 0);function m(){return o.useContext(u)}export{m as a,l as o};
