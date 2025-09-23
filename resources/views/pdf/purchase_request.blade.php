@@ -57,7 +57,7 @@
             <td colspan="4">Responsibility Center Code: ____________________</td>
         </tr>
     </table>
-
+    
 
     <!-- Items Table -->
     <table class="with-border" style="margin-top:8px;">
@@ -71,12 +71,12 @@
         </tr>
         @forelse($pr['details'] as $detail)
         <tr class="text-center">
-            <td style="border-bottom:none !important; border-top: none !important;"></td>
-            <td style="border-bottom:none !important; border-top: none !important;">{{ $detail['unit'] }}</td>
-            <td style="border-bottom:none !important; border-top: none !important;" class="text-left">{{ $detail['item'] }}</td>
-            <td style="border-bottom:none !important; border-top: none !important;">{{ number_format($detail['quantity'], 0) }}</td>
-            <td style="border-bottom:none !important; border-top: none !important;">{{ number_format($detail['unit_price'], 2) }}</td>
-            <td style="border-bottom:none !important; border-top: none !important;">{{ number_format($detail['unit_price'] * $detail['quantity'], 2) }}</td>
+            <td></td>
+            <td>{{ $detail['unit'] }}</td>
+            <td class="text-left">{{ $detail['item'] }}</td>
+            <td>{{ number_format($detail['quantity'], 0) }}</td>
+            <td>{{ number_format($detail['unit_price'], 2) }}</td>
+            <td>{{ number_format($detail['unit_price'] * $detail['quantity'], 2) }}</td>
         </tr>
         @empty
         <tr>
@@ -84,60 +84,60 @@
         </tr>
         @endforelse
         <tr>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
         </tr>
         <tr>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
         </tr>
         <tr>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
         </tr>
         <tr>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
         </tr>
         <tr>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
         </tr>
         <tr>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
         </tr>
         <tr>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
-            <td style="border-bottom:none !important; border-top: none !important; border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
+            <td style="border-left: 1px solid !important; border-right: 1px solid !important;">&nbsp;</td>
         </tr>
 
         <!-- Grand Total Row -->

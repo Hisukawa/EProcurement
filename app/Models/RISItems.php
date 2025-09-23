@@ -14,6 +14,8 @@ class RISItems extends Model
     protected $fillable = [
         'ris_id',
         'inventory_item_id',
+        'unit_cost',
+        'total_cost',
         'quantity',
     ];
 

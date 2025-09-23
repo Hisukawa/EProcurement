@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('tbl_divisions', function (Blueprint $table) {
             $table->id();
             $table->string('division', 10);
+            $table->string('meaning')->nullable();
             $table->timestamps();
         });
     }

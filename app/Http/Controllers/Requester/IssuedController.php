@@ -22,7 +22,7 @@ class IssuedController extends Controller
         $ris = RIS::with([
             'issuedTo.division',
             'issuedBy.division',
-            'inventoryItem',
+            'items.inventoryItem',
             'po.details.prDetail.purchaseRequest.division'
         ])
         ->where('issued_to', $userId)

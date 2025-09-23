@@ -56,47 +56,90 @@
     </table>
 
     @php
-        $awarded = collect($quotes)->firstWhere('is_winner', 1);
+        $awarded = collect($suppliers)->firstWhere('is_winner', 1);
     @endphp
 
     <p>
-        Awarded to:
+        Awarded to
         <span style="text-decoration:underline; font-weight:bold;">
-            {{ $awarded['supplier']['company_name'] ?? '__________' }}
+            {{ $awarded['supplier']->company_name ?? '__________' }}
         </span>
         @if(isset($awarded['remarks']) && !empty($awarded['remarks']))
-            offering the <em>{{ $awarded['remarks'] }}</em>.
+            <em>{{ $awarded['remarks'] }}</em>.
         @endif
     </p>
-
+    @php
+        $secretariat = $committee->members->firstWhere('position', 'secretariat');
+    @endphp
     <div style="margin-top:40px; font-size:12px;">
         <p><strong>Prepared by:</strong></p>
-        <p style="margin-top:20px; text-decoration:underline;">BAC Secretariat - Member</p>
+        <p style="margin-top:20px;">BAC Secretariat - {{ strtoupper(optional($secretariat)->name ?? '__________________') }}</p>
     </div>
 
-    <div style="margin-top:60px; font-size:12px;">
-        <p class="bold center" style="margin-bottom:15px;">BIDS AND AWARDS COMMITTEE</p>
-        <table style="border:none; text-align:center; margin:0 auto;">
-            <tr>
-                <td style="border:none; width:33%;">BAC Member</td>
-                <td style="border:none; width:33%;">BAC Member</td>
-                <td style="border:none; width:33%;">BAC Member</td>
-            </tr>
-            <tr>
-                <td style="border:none;"></td>
-                <td style="border:none;">Vice Chairperson</td>
-                <td style="border:none;"></td>
-            </tr>
-            <tr>
-                <td colspan="3" style="border:none; padding-top:40px;">BAC Chairperson</td>
-            </tr>
-        </table>
-    </div>
-
-    <table class="footer-table">
+<div style="margin-top:20px; font-size:12px;">
+    <p class="bold center" style="margin-bottom:15px;">BIDS AND AWARDS COMMITTEE</p>
+    <table style="border:none; width:100%; text-align:center; margin:0 auto;">
         <tr>
-            <td>ASDS-QF-003</td>
-            <td style="text-align:right;">Rev:00</td>
+            @php
+                $vice = $committee->members->firstWhere('position', 'vice_chair');
+                $chair = $committee->members->firstWhere('position', 'chair');
+                $members = $committee->members->filter(fn($m) => str_starts_with($m->position, 'member'));
+            @endphp
+
+            <td style="border:none; width:33%;">
+                <span style="display:inline-block; text-decoration:underline; min-width:150px;">
+                    {{ strtoupper(optional($members->shift())->name ?? '__________________') }}
+                </span><br>
+                BAC Member
+            </td>
+            <td style="border:none; width:33%;">
+                <span style="display:inline-block; text-decoration:underline; min-width:150px;">
+                    {{ strtoupper(optional($vice)->name ?? '__________________') }}
+                </span><br>
+                Vice Chairperson
+            </td>
+            <td style="border:none; width:33%;">
+                <span style="display:inline-block; text-decoration:underline; min-width:150px;">
+                    {{ strtoupper(optional($members->shift())->name ?? '__________________') }}
+                </span><br>
+                BAC Member
+            </td>
+        </tr>
+
+        <tr>
+            <td colspan="3" style="border:none; padding-top:20px;">
+                <span style="display:inline-block; text-decoration:underline; min-width:200px;">
+                    {{ strtoupper(optional($chair)->name ?? '__________________') }}
+                </span><br>
+                BAC Chairperson
+            </td>
+        </tr>
+    </table>
+</div>
+
+
+
+    <table class="footer-table" style="width:100%; margin-top:40px; font-size:11px; border:none;">
+        <tr>
+            <!-- Left logos -->
+            <td style="width:40%; text-align:left; border:none;">
+                <img src="file://{{ public_path('deped-matatag.png') }}" alt="DepEd Logo" style="height:70px; margin-right:5px;">
+                <img src="file://{{ public_path('bagong-pilipinas.png') }}" alt="Philippines Logo" style="height:70px; margin-right:5px;">
+                <img src="file://{{ public_path('ilagan.png') }}" alt="Ilagan Logo" style="height:70px;">
+                <div>ASDS-QF-003</div>
+            </td>
+
+            <!-- Office info -->
+            <td style="width:60%; text-align:right; border:none; line-height:1.3;">
+                <div><strong>INHS Compound, Claravall St., San Vicente, City of Ilagan, Isabela</strong></div>
+                <div>Telephone Nos: (078) 624-0077</div>
+                <div>
+                    <span style="margin-right:10px;">www.facebook.com/sdoilagan</span> 
+                    <span style="margin-right:10px;">ilagan@deped.gov.ph</span> 
+                    <span>www.sdoilagan.gov.ph</span>
+                </div>
+                <div style="margin-top:5px;">Rev:00</div>
+            </td>
         </tr>
     </table>
 </body>

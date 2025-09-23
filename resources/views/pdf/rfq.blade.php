@@ -139,8 +139,8 @@
 
     <tr>
       <td colspan="2" class="font-bold text-left">Supplier's Company Name:</td>
-      <td colspan="4">&nbsp;</td>
-      <td colspan="2">TIN</td>
+      <td colspan="4" >&nbsp;</td>
+      <td colspan="2" class="text-left">TIN</td>
       <td colspan="2">&nbsp;</td>
     </tr>
 

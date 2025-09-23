@@ -19,58 +19,56 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class IssuanceController extends Controller
 {
-public function issuance($po_detail_id, $inventory_id)
-{
-    $inventoryItem = Inventory::findOrFail($inventory_id);
+    public function issuance($po_detail_id, $inventory_id)
+    {
+        $inventoryItem = Inventory::findOrFail($inventory_id);
 
-    // Find PO Detail and load its Purchase Order
-    $poDetail = PurchaseOrderDetail::with([
-        'purchaseOrder.supplier',
-        'purchaseOrder.details.prDetail.product.category',
-        'purchaseOrder.details.prDetail.product.unit',
-        'purchaseOrder.details.prDetail.purchaseRequest.division',
-        'purchaseOrder.details.prDetail.purchaseRequest.focal_person',
-    ])->findOrFail($po_detail_id);
+        // Find PO Detail and load its Purchase Order
+        $poDetail = PurchaseOrderDetail::with([
+            'purchaseOrder.supplier',
+            'purchaseOrder.details.prDetail.product.category',
+            'purchaseOrder.details.prDetail.product.unit',
+            'purchaseOrder.details.prDetail.purchaseRequest.division',
+            'purchaseOrder.details.prDetail.purchaseRequest.focal_person',
+        ])->findOrFail($po_detail_id);
 
-    $po = $poDetail->purchaseOrder; // ✅ now you have the PO
+        $po = $poDetail->purchaseOrder; // ✅ now you have the PO
 
-    // Ensure the PO detail matches the inventory item
-    $correctDetail = $po->details->firstWhere('id', $inventoryItem->po_detail_id);
+        // Ensure the PO detail matches the inventory item
+        $correctDetail = $po->details->firstWhere('id', $inventoryItem->po_detail_id);
 
-    if (!$correctDetail) {
-        return redirect()->back()->with('error', 'No matching PO detail found for this inventory item.');
+        if (!$correctDetail) {
+            return redirect()->back()->with('error', 'No matching PO detail found for this inventory item.');
+        }
+
+        $product = $correctDetail->prDetail->product;
+        $categoryName = strtolower($product->category->name ?? '');
+        $totalPricePO = $correctDetail->total_price;
+
+        $props = [
+            'purchaseOrder' => [
+                'id' => $po->id,
+                'po_number' => $po->po_number,
+                'detail' => $correctDetail,
+            ],
+            'inventoryItem' => $inventoryItem,
+            'user' => Auth::user(),
+        ];
+
+        if ($categoryName === 'consumable') {
+            return Inertia::render('Supply/RisForm', $props);
+        }
+
+        if ($categoryName === 'semi-expendable' && $totalPricePO < 50000) {
+            return Inertia::render('Supply/IcsForm', $props);
+        }
+
+        if ($categoryName === 'non-expendable' && $totalPricePO >= 50000) {
+            return Inertia::render('Supply/ParForm', $props);
+        }
+
+        return redirect()->back()->with('error', "No appropriate issuance form found for this item's category ({$categoryName}) and price (₱{$totalPricePO}).");
     }
-
-    $product = $correctDetail->prDetail->product;
-    $categoryName = strtolower($product->category->name ?? '');
-    $totalPricePO = $correctDetail->total_price;
-
-    $props = [
-        'purchaseOrder' => [
-            'id' => $po->id,
-            'po_number' => $po->po_number,
-            'detail' => $correctDetail,
-        ],
-        'inventoryItem' => $inventoryItem,
-        'user' => Auth::user(),
-    ];
-
-    if ($categoryName === 'consumable') {
-        return Inertia::render('Supply/RisForm', $props);
-    }
-
-    if ($categoryName === 'semi-expendable' && $totalPricePO < 50000) {
-        return Inertia::render('Supply/IcsForm', $props);
-    }
-
-    if ($categoryName === 'non-expendable' && $totalPricePO >= 50000) {
-        return Inertia::render('Supply/ParForm', $props);
-    }
-
-    return redirect()->back()->with('error', "No appropriate issuance form found for this item's category ({$categoryName}) and price (₱{$totalPricePO}).");
-}
-
-
 
     public function store_ris(Request $request)
     {
@@ -82,6 +80,8 @@ public function issuance($po_detail_id, $inventory_id)
 
             'items'                     => 'required|array|min:1',
             'items.*.inventory_item_id' => 'required|integer|exists:tbl_inventory,id',
+            'items.*.unit_cost'         => 'required|numeric|min:0.01',
+            'items.*.total_cost'        => 'required|numeric|min:0.01',
             'items.*.quantity'          => 'required|numeric|min:0.01',
         ]);
 
@@ -105,21 +105,28 @@ public function issuance($po_detail_id, $inventory_id)
 
             foreach ($groupedItems as $inventoryId => $items) {
                 $quantity = $items->sum('quantity');
+                $unitCost = $items->first()['unit_cost']; // ✅ take from user input
+                $totalCost = $unitCost * $quantity;       // ✅ always recalc backend
+
                 $inventory = Inventory::findOrFail($inventoryId);
 
                 if ($inventory->total_stock < $quantity) {
                     throw new \Exception("Not enough stock for {$inventory->item_desc}");
                 }
 
-                // Update existing item or create new
+                // Update existing RIS item or create new
                 $risItem = $ris->items()->where('inventory_item_id', $inventoryId)->first();
                 if ($risItem) {
-                    $risItem->quantity += $quantity;
+                    $risItem->quantity   += $quantity;
+                    $risItem->total_cost += $totalCost;
+                    $risItem->unit_cost   = $unitCost; // ✅ update to last input
                     $risItem->save();
                 } else {
                     $ris->items()->create([
                         'inventory_item_id' => $inventoryId,
                         'quantity'          => $quantity,
+                        'unit_cost'         => $unitCost,
+                        'total_cost'        => $totalCost,
                     ]);
                 }
 
@@ -129,6 +136,7 @@ public function issuance($po_detail_id, $inventory_id)
                 $inventory->save();
             }
 
+
             DB::commit();
             return redirect()->route('supply_officer.ris_issuance')
                 ->with('success', "RIS {$ris->ris_number} successfully recorded.");
@@ -137,8 +145,6 @@ public function issuance($po_detail_id, $inventory_id)
             return back()->withErrors(['error' => 'Failed to store RIS. ' . $e->getMessage()]);
         }
     }
-
-
 
     public function ris_issuance(Request $request)
     {
