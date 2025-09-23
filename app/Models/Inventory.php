@@ -26,6 +26,18 @@ class Inventory extends Model
     public function product() {
         return $this->belongsTo(Products::class);
     }
+    public function prDetail()
+    {
+        return $this->hasOneThrough(
+            PurchaseRequestDetail::class,
+            PurchaseOrderDetail::class,
+            'id',           // Foreign key on tbl_po_details
+            'id',           // Foreign key on tbl_pr_details
+            'po_detail_id', // Local key on tbl_inventory
+            'pr_detail_id'  // Local key on tbl_po_details
+        );
+    }
+
 
     public function poDetail()
     {

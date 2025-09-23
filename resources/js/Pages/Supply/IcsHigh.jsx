@@ -2,7 +2,7 @@ import IssuanceTabs from '@/Layouts/IssuanceTabs';
 import SupplyOfficerLayout from '@/Layouts/SupplyOfficerLayout';
 import { TrashIcon } from "@heroicons/react/16/solid";
 import { Head, Link, useForm } from '@inertiajs/react';
-import { PenBoxIcon, PrinterCheckIcon } from 'lucide-react';
+import { PenBoxIcon, PrinterCheck, PrinterCheckIcon } from 'lucide-react';
 import { useEffect, useState } from 'react'; // Only need useEffect
 
 // A small helper function to safely get nested data. This is crucial to prevent crashes.
@@ -203,9 +203,13 @@ export default function IcsHigh({ ics, user, filters }) {
 
                       {/* Actions */}
                       <td className="px-4 py-2 text-center space-x-2">
-                        <button className="text-blue-600 hover:underline">Edit</button>
-                        <button className="text-green-600 hover:underline">Copy</button>
-                        <button className="text-red-600 hover:underline">Delete</button>
+                        <a
+                          href={route("supply_officer.print_ics", record.id)}
+                          className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-1"
+                          target="_blank"
+                        >
+                          <PrinterCheck size={16} /> Print
+                        </a>
                       </td>
                     </tr>
                   );
