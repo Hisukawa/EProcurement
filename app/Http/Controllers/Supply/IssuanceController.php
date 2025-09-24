@@ -206,125 +206,152 @@ public function print_ris($id)
 
 
 
-    public function store_ics(Request $request)
-    {
-        $validated = $request->validate([
-            'po_id' => 'required|integer|exists:tbl_purchase_orders,id',
-            'ics_number' => 'required|string|max:20',
-            'received_by' => 'required|integer|exists:users,id',
-            'received_from' => 'required|integer|exists:users,id',
-            'remarks' => 'nullable|string|max:255',
-            'items' => 'required|array|min:1',
-            'items.*.inventory_item_id' => 'required|integer|exists:tbl_inventory,id',
-            'items.*.quantity' => 'required|numeric|min:0.01',
-            'items.*.unit_cost' => 'required|numeric|min:0.01',
-            'items.*.total_cost' => 'required|numeric|min:0.01',
-        ]);
+public function store_ics(Request $request)
+{
+    $validated = $request->validate([
+        'po_id' => 'required|integer|exists:tbl_purchase_orders,id',
+        'ics_number' => 'required|string|max:20',
+        'received_by' => 'required|integer|exists:users,id',
+        'received_from' => 'required|integer|exists:users,id',
+        'remarks' => 'nullable|string|max:255',
+        'items' => 'required|array|min:1',
+        'items.*.inventory_item_id' => 'required|integer|exists:tbl_inventory,id',
+        'items.*.quantity' => 'required|numeric|min:0.01',
+        'items.*.unit_cost' => 'required|numeric|min:0.01',
+        'items.*.total_cost' => 'required|numeric|min:0.01',
+    ]);
 
-        DB::beginTransaction();
-        try {
-            $po = PurchaseOrder::with([
-                'details.prDetail.product.category',
-            ])->findOrFail($validated['po_id']);
+    DB::beginTransaction();
+    try {
+        $po = PurchaseOrder::with(['details.prDetail.product.category'])->findOrFail($validated['po_id']);
 
-            // Determine ICS type based on first item's category
-            $firstPoDetail = $po->details->first();
-            $firstCategory = optional($firstPoDetail?->prDetail?->product?->category)->name;
-            $icsType = null;
-            if ($firstCategory === 'Semi-Expendable') { // Title Case match
-                $unitCost = $validated['items'][0]['unit_cost'];
-                $icsType = $unitCost < 5000 ? 'low' : 'high';
+        // Get or create ICS header
+        $ics = ICS::firstOrCreate(
+            ['po_id' => $po->id],
+            [
+                'ics_number' => $validated['ics_number'],
+                'received_by' => $validated['received_by'],
+                'received_from' => $validated['received_from'],
+                'remarks' => $validated['remarks'] ?? null,
+            ]
+        );
+
+        foreach ($validated['items'] as $item) {
+            $inventory = Inventory::findOrFail($item['inventory_item_id']);
+            $quantity = $item['quantity'];
+            $unitCost = $item['unit_cost'];
+            $totalCost = $item['total_cost'];
+
+            if ($inventory->total_stock < $quantity) {
+                throw new \Exception("Not enough stock for {$inventory->item_desc}");
             }
 
-            // Get or create ICS for this PO
-            $ics = ICS::firstOrCreate(
-                ['po_id' => $po->id], // unique per PO
-                [
-                    'ics_number' => $validated['ics_number'],
-                    'received_by' => $validated['received_by'],
-                    'received_from' => $validated['received_from'],
-                    'remarks' => $validated['remarks'] ?? null,
-                    'type' => $icsType, // store type in ICS header
-                ]
-            );
+            // 🔑 Find the PO detail corresponding to this inventory item
+            $poDetail = $po->details->firstWhere('id', $inventory->po_detail_id);
 
-            // Group duplicate items by inventory_item_id
-            $groupedItems = collect($validated['items'])->groupBy('inventory_item_id');
 
-            foreach ($groupedItems as $inventoryId => $items) {
-                $quantity = $items->sum('quantity');
-                $unitCost = $items->first()['unit_cost'];
-                $totalCost = $items->sum('total_cost');
-
-                $inventory = Inventory::findOrFail($inventoryId);
-
-                if ($inventory->total_stock < $quantity) {
-                    throw new \Exception("Not enough stock for {$inventory->item_desc}");
-                }
-
-                // Create ICS item
-                $icsItem = $ics->items()->firstOrCreate(
-                    ['inventory_item_id' => $inventoryId],
-                    [
-                        'quantity' => 0,
-                        'unit_cost' => $unitCost,
-                        'total_cost' => 0,
-                    ]
-                );
-
-                $icsItem->quantity += $quantity;
-                $icsItem->unit_cost = $unitCost;
-                $icsItem->total_cost += $totalCost;
-                $icsItem->save();
-
-                // Deduct stock
-                $inventory->total_stock -= $quantity;
-                $inventory->status = $inventory->total_stock > 0 ? 'Available' : 'Issued';
-                $inventory->save();
+            if (!$poDetail) {
+                throw new \Exception("No matching PO detail found for {$inventory->item_desc}");
             }
 
-            DB::commit();
+            $categoryName = optional($poDetail->prDetail->product->category)->name;
 
-            // Redirect based on ICS type
-            if ($icsType === 'low') {
-                return redirect()->route('supply_officer.ics_issuance_low')
-                    ->with('success', 'ICS (Low) successfully recorded.');
-            } elseif ($icsType === 'high') {
-                return redirect()->route('supply_officer.ics_issuance_high')
-                    ->with('success', 'ICS (High) successfully recorded.');
+            // Determine ICS item type
+            $itemType = null;
+            if (strtolower($categoryName) === 'semi-expendable') {
+                $itemType = $unitCost < 5000 ? 'low' : 'high';
             }
 
-            return redirect()->route('supply_officer.ics_issuance_low')
-                ->with('success', 'ICS successfully recorded.');
+            // Create separate ICS item for this type
+            $icsItem = $ics->items()->create([
+                'inventory_item_id' => $inventory->id,
+                'quantity' => $quantity,
+                'unit_cost' => $unitCost,
+                'total_cost' => $totalCost,
+                'type' => $itemType,
+            ]);
 
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withErrors(['error' => 'Failed to store ICS. ' . $e->getMessage()]);
+            // Deduct stock
+            $inventory->total_stock -= $quantity;
+            $inventory->status = $inventory->total_stock > 0 ? 'Available' : 'Issued';
+            $inventory->save();
         }
+
+        DB::commit();
+
+        // Redirect based on types included
+        $hasLow = $ics->items()->where('type', 'low')->exists();
+        $hasHigh = $ics->items()->where('type', 'high')->exists();
+
+        if ($hasLow && $hasHigh) {
+            return redirect()->route('supply_officer.ics_issuance_low')
+                ->with('success', 'ICS successfully recorded with both Low and High items.');
+        } elseif ($hasLow) {
+            return redirect()->route('supply_officer.ics_issuance_low')
+                ->with('success', 'ICS successfully recorded with Low items.');
+        } elseif ($hasHigh) {
+            return redirect()->route('supply_officer.ics_issuance_high')
+                ->with('success', 'ICS successfully recorded with High items.');
+        }
+
+        return redirect()->back()->with('success', 'ICS successfully recorded.');
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return back()->withErrors(['error' => 'Failed to store ICS. ' . $e->getMessage()]);
     }
-    public function print_ics($id)
-    {
-        $ics = ICS::with([
-            'receivedBy.division',
-            'receivedFrom.division',
-            'po.details.prDetail' => function ($query) {
-                $query->select('id', 'pr_id', 'product_id', 'quantity');
-            },
-            'po.details.prDetail.purchaseRequest',
-            'po.details.prDetail.purchaseRequest.division',
-            'items.inventoryItem.unit',
-            'items.inventoryItem.poDetail.prDetail.product',
-        ])->findOrFail($id);
+}
 
 
-        $pdf = Pdf::loadView('pdf.print_ics', ['ics' => $ics])
-            ->setPaper('A4', 'portrait'); 
-        return $pdf->stream('ICS-'.$ics->ics_number.'.pdf');
+public function print_ics($id, $types = null)
+{
+    $ics = ICS::with([
+        'receivedBy.division',
+        'receivedFrom.division',
+        'po.details.prDetail' => function ($query) {
+            $query->select('id', 'pr_id', 'product_id', 'quantity');
+        },
+        'po.details.prDetail.purchaseRequest',
+        'po.details.prDetail.purchaseRequest.division',
+        'items.inventoryItem.unit',
+        'items.inventoryItem.poDetail.prDetail.product',
+    ])->findOrFail($id);
+
+    // Filter items if types are provided
+    if ($types) {
+        $ics->items = $ics->items->whereIn('type', (array) $types)->values();
     }
 
+    $pdf = Pdf::loadView('pdf.print_ics', ['ics' => $ics])
+        ->setPaper('A4', 'portrait');
 
+    $typeSuffix = $types ? '-'.implode('-', (array)$types) : '';
+    return $pdf->stream('ICS-'.$ics->ics_number.$typeSuffix.'.pdf');
+}
 
-    public function ics_issuance_low(Request $request)
+public function print_ics_all($id)
+{
+    $ics = ICS::with([
+        'receivedBy.division',
+        'receivedFrom.division',
+        'po.details.prDetail' => fn($q) => $q->select('id','pr_id','product_id','quantity'),
+        'po.details.prDetail.purchaseRequest',
+        'po.details.prDetail.purchaseRequest.division',
+        'items.inventoryItem.unit',
+        'items.inventoryItem.poDetail.prDetail.product',
+    ])->findOrFail($id);
+
+    // Include all items regardless of type
+    // Optional: you could still sort by type if needed
+    $ics->items = $ics->items->sortBy('type')->values();
+
+    $pdf = Pdf::loadView('pdf.print_ics', ['ics' => $ics])
+        ->setPaper('A4', 'portrait');
+
+    return $pdf->stream('ICS-'.$ics->ics_number.'-all.pdf');
+}
+
+public function ics_issuance_low(Request $request)
     {
         $search = $request->input('search');
 
@@ -335,10 +362,17 @@ public function print_ris($id)
             'details.prDetail.purchaseRequest.division',
             'details.prDetail.purchaseRequest.focal_person'
         ])->paginate(10);
-        $ics = ICS::where('type', 'low')->with(['receivedBy','items.inventoryItem.unit','po.rfq.purchaseRequest.division',
-            'po.rfq.purchaseRequest.focal_person',])->latest()->paginate(10);
-        // Map all related inventory items (optional)
-        $inventoryItems = [];
+        $ics = ICS::whereHas('items', function ($q) {
+                $q->where('type', 'low');
+            })
+            ->with([
+                'receivedBy',
+                'items.inventoryItem.unit',
+                'po.rfq.purchaseRequest.division',
+                'po.rfq.purchaseRequest.focal_person',
+            ])
+            ->latest()
+            ->paginate(10);
 
         foreach ($purchaseOrders as $po) {
             foreach ($po->details as $detail) {
@@ -377,14 +411,17 @@ public function print_ris($id)
             'details.prDetail.purchaseRequest.focal_person'
         ])->paginate(10);
 
-        $ics = ICS::where('type', 'high')->with([
-            'receivedBy',
-            'items.inventoryItem.unit',
-            'po.rfq.purchaseRequest.division',
-            'po.rfq.purchaseRequest.focal_person',
-        ])
-        ->latest()
-        ->paginate(10);
+        $ics = ICS::whereHas('items', function ($q) {
+                $q->where('type', 'high');
+            })
+            ->with([
+                'receivedBy',
+                'items.inventoryItem.unit',
+                'po.rfq.purchaseRequest.division',
+                'po.rfq.purchaseRequest.focal_person',
+            ])
+            ->latest()
+            ->paginate(10);
 
         // Map all related inventory items (optional)
         $inventoryItems = [];
@@ -406,14 +443,13 @@ public function print_ris($id)
             }
         }
 
-        return Inertia::render('Supply/Ics', [
+        return Inertia::render('Supply/IcsHigh', [
             'purchaseOrders' => $purchaseOrders,
             'inventoryItems' => $inventoryItems,
             'ics' => $ics,
             'user' => Auth::user(),
         ]);
     }
-
 
 public function store_par(Request $request)
 {

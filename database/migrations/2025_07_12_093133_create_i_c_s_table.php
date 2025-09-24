@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('ics_number')->unique();
             $table->foreignId('received_by')->constrained('users');
             $table->foreignId('received_from')->constrained('users');
-            $table->enum('type', ['low', 'high'])->nullable();
+            
             $table->text('remarks')->nullable();
             $table->timestamps();
         });
@@ -31,6 +31,7 @@ return new class extends Migration
             $table->integer('quantity');
             $table->decimal('unit_cost', 12, 2);
             $table->decimal('total_cost', 14, 2);
+            $table->enum('type', ['low', 'high'])->nullable();
             $table->timestamps();
         });
     }

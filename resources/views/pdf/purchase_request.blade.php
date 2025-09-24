@@ -22,11 +22,10 @@
         td, th { padding: 4px; vertical-align: middle; }
         .with-border td, .with-border th { border: 1px solid black; }
         .signature-line {
-            display:inline-block; 
-            border-bottom:1px solid black; 
-            min-width:180px; 
-            text-align:center;
-            padding: 0 10px;
+            display: block;
+            border-bottom: 1px solid black;
+            margin: 8px 18px;
+            background-color: #fff; /* white space for signature */
         }
     </style>
 </head>
@@ -142,7 +141,7 @@
 
         <!-- Grand Total Row -->
         <tr class="font-bold">
-            <td colspan="5" class="text-right"></td>
+            <td colspan="5" class="text-right">Total</td>
             <td class="text-center">
                 {{ number_format(collect($pr['details'])->sum(function($d) { 
                     return $d['quantity'] * $d['unit_price']; 
@@ -199,8 +198,8 @@
         </td>
 
         <!-- Date of Implementation -->
-        <td style="width:35%; vertical-align:top; padding:6px;">
-            <div style="text-align:right;">Date of Implementation: __________</div>
+        <td style="width:35%; vertical-align:bottom; padding:6px;">
+            <div style="text-align:left;">Date of Implementation: ____________________</div>
         </td>
 
         <!-- Certified Allotment -->
@@ -208,6 +207,7 @@
             <div class="font-bold">Certified Allotment Available:</div>
             <br><br>
             <div class="font-bold">VLADIMIR B. BICLAR</div>
+            <div class="signature-line"></div>
             <div>Budget Officer III</div>
         </td>
     </tr>
