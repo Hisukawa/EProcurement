@@ -608,42 +608,5 @@ public function par_issuance(Request $request)
 
 
 
-    public function export_excel(Request $request)
-    {
-        $month = $request->input('month');
-        $year  = $request->input('year');
-
-        // Default filename (with date if provided)
-        $fileName = 'RIS_Report';
-        if ($month && $year) {
-            $fileName .= '_' . date("F", mktime(0, 0, 0, $month, 10)) . '_' . $year;
-        } elseif ($year) {
-            $fileName .= '_' . $year;
-        }
-
-        return Excel::download(
-            new RISExport($month, $year),
-            $fileName . '.xlsx'
-        );
-    }
-
-    public function export_excel_monthly(Request $request)
-    {
-        $month = $request->input('month'); // Example: 3 (March)
-        $year  = $request->input('year');  // Example: 2025
-
-        if (!$month || !$year) {
-            return back()->with('error', 'Please select both month and year.');
-        }
-
-        // File name example: RIS_Report_March_2025.xlsx
-        $fileName = 'RIS_Report_' . date("F", mktime(0, 0, 0, $month, 10)) . '_' . $year . '.xlsx';
-
-        return Excel::download(
-            new RISExportMonthly($month, $year),
-            $fileName
-        );
-    }
-
 
 }

@@ -152,7 +152,7 @@ const groupByPO = (inventory) => {
                         <td className="px-6 py-4">
                           {inv.status === "Issued" ? (
                             <span className="bg-gray-300 text-gray-600 px-3 py-2 rounded cursor-not-allowed flex items-center justify-center gap-1">
-                              <PackageCheck size={16} /> Already Issued
+                              <PackageCheck size={16} /> All Items Are Issued
                             </span>
                           ) : (
                             <a

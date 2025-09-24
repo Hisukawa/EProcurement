@@ -11,6 +11,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Supply\ExcelReportsController;
 use App\Http\Controllers\Supply\SupplyController;
 use App\Models\PurchaseRequest;
 use Illuminate\Support\Facades\Auth;
@@ -139,8 +140,8 @@ Route::middleware(['auth', 'role:supply_officer'])->prefix('supply_officer')->gr
     Route::get('/ics_issuance_low', [IssuanceController::class, 'ics_issuance_low'])->name('supply_officer.ics_issuance_low');
     Route::get('/ics_issuance_high', [IssuanceController::class, 'ics_issuance_high'])->name('supply_officer.ics_issuance_high');
     Route::get('/par_issuance', [IssuanceController::class, 'par_issuance'])->name('supply_officer.par_issuance');
-    Route::get('/export_excel', [IssuanceController::class, 'export_excel'])->name('supply_officer.export_excel');
-    Route::get('/export_excel_monthly', [IssuanceController::class, 'export_excel_monthly'])->name('supply_officer.export_excel_monthly');
+    Route::get('/export_excel', [ExcelReportsController::class, 'export_excel'])->name('supply_officer.export_excel');
+    Route::get('/generate_report', [ExcelReportsController::class, 'generate_report'])->name('supply_officer.generate_report');
     Route::post('/inspection-committee/{id}/replace-member', [SupplyController::class, 'replaceMember'])->name('inspection.committee.save');
     Route::get('/print_ris/{id}', [IssuanceController::class, 'print_ris'])->name('supply_officer.print_ris');
     Route::get('/print_ics/{id}/{type?}', [IssuanceController::class, 'print_ics'])->name('supply_officer.print_ics');

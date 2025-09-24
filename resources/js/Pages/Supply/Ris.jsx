@@ -45,14 +45,14 @@ ris?.data?.forEach(r => {
             </button>
             <button
               onClick={() =>
-                window.location.href = route("supply_officer.export_excel", {
+                window.location.href = route("supply_officer.generate_report", {
                   month: filterMonth,
                   year: filterYear
                 })
               }
               className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm shadow"
             >
-              Export Excel
+              Generate Report
             </button>
           </div>
         </div>
