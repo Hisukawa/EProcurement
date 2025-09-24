@@ -87,25 +87,25 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($ics->po->details as $detail)
+            @foreach($ics->items as $issued)
                 @php
-                    $issued = $ics->items->first(function ($item) use ($detail) {
-                        return optional($item->inventoryItem)->po_detail_id == $detail->id;
-                    });
+                    $detail = $issued->inventoryItem->poDetail ?? null;
+                    $product = optional($detail->prDetail)->product;
+                    $unit = optional($product->unit)->unit ?? '';
                 @endphp
             <tr class="text-center">
                 <td>{{ (int) ($issued->quantity ?? 0) }}</td>
-                <td>{{ $detail->prDetail->product->unit->unit ?? '' }}</td>
-                <td>{{ number_format($issued->unit_cost, 2) }}</td>
-                <td>{{ number_format($issued->total_cost, 2) }}</td>
+                <td>{{ $unit }}</td>
+                <td>{{ number_format($issued->unit_cost ?? 0, 2) }}</td>
+                <td>{{ number_format($issued->total_cost ?? 0, 2) }}</td>
                 <td class="text-left" style="padding-left:8px;">
-                    {{ $detail->prDetail->product->name ?? '' }}
-                    {{ $detail->prDetail->product->specs ?? '' }}
+                    {{ $product->name ?? '' }} {{ $product->specs ?? '' }}
                 </td>
-                <td></td>
-                <td></td>
+                <td>{{ $issued->inventoryItem->inventory_number ?? '' }}</td>
+                <td>{{ $issued->inventoryItem->estimated_useful_life ?? '' }}</td>
             </tr>
             @endforeach
+
             @for($i = 0; $i < 6; $i++)
                 <tr class="with-border">
                     <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>

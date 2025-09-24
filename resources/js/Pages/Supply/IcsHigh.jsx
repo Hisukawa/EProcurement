@@ -4,6 +4,7 @@ import { TrashIcon } from "@heroicons/react/16/solid";
 import { Head, Link, useForm } from '@inertiajs/react';
 import { PenBoxIcon, PrinterCheck, PrinterCheckIcon } from 'lucide-react';
 import { useEffect, useState } from 'react'; // Only need useEffect
+import Ics from './Ics';
 
 // A small helper function to safely get nested data. This is crucial to prevent crashes.
 const getSafe = (fn, defaultValue = "N/A") => {
@@ -67,9 +68,10 @@ export default function IcsHigh({ ics, user, filters }) {
             <select
               id="month-filter"
               className="border border-gray-300 rounded-md px-2 py-1 text-sm shadow-sm"
-              value={data.month} // Use data.month
-              onChange={(e) => setData('month', e.target.value)} // Use setData
+              value={filterMonth} // <-- use local state
+              onChange={(e) => setFilterMonth(e.target.value)} // <-- update local state
             >
+
               <option value="">All</option>
               {[
                 'January', 'February', 'March', 'April', 'May', 'June',
@@ -84,9 +86,10 @@ export default function IcsHigh({ ics, user, filters }) {
               id="year-filter"
               type="number"
               className="border border-gray-300 rounded-md px-2 py-1 w-24 text-sm shadow-sm"
-              value={data.year} // Use data.year
-              onChange={(e) => setData('year', e.target.value)} // Use setData
+              value={filterYear} // <-- use local state
+              onChange={(e) => setFilterYear(e.target.value)} // <-- update local state
             />
+
           </div>
 
           <div>
@@ -94,9 +97,10 @@ export default function IcsHigh({ ics, user, filters }) {
               type="text"
               placeholder="Search ICS number, item..."
               className="border border-gray-300 rounded-md px-3 py-2 w-full md:w-64 text-sm shadow-sm"
-              value={data.search}
-              onChange={(e) => setData('search', e.target.value)}
+              value={search} // <-- use local state
+              onChange={(e) => setSearch(e.target.value)} // <-- update local state
             />
+
           </div>
         </div>
 
@@ -130,7 +134,9 @@ export default function IcsHigh({ ics, user, filters }) {
                     );
                   };
 
-                  const itemsWithDetails = record.items?.map(item => ({
+                  const itemsWithDetails = record.items
+                  ?.filter(item => item.type === 'high') // or 'high' for IcsHigh component
+                  .map(item => ({
                     description: item.inventoryItem?.product?.name ?? item.inventory_item?.item_desc ?? 'N/A',
                     specs: item.inventoryItem?.product?.specs ?? '',
                     quantity: item.quantity,
@@ -202,13 +208,20 @@ export default function IcsHigh({ ics, user, filters }) {
                       </td>
 
                       {/* Actions */}
-                      <td className="px-4 py-2 text-center space-x-2">
+                      <td className="flex px-4 py-2 text-center space-x-2">
                         <a
-                          href={route("supply_officer.print_ics", record.id)}
+                          href={route("supply_officer.print_ics", { id: record.id, type: "high" })}
                           className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-1"
                           target="_blank"
                         >
                           <PrinterCheck size={16} /> Print
+                        </a>
+                        <a
+                          href={route("supply_officer.print_ics_all", record.id)}
+                          className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-1"
+                          target="_blank"
+                        >
+                          <PrinterCheck size={16} /> Print All
                         </a>
                       </td>
                     </tr>
@@ -223,9 +236,9 @@ export default function IcsHigh({ ics, user, filters }) {
 
           </table>
         </div>
-        {icsRecords?.links?.length > 3 && (
+        {ics?.links?.length > 3 && (
           <nav className="mt-4 flex justify-center items-center space-x-2">
-            {icsRecords.links.map((link, index) => (
+            {ics.links.map((link, index) => (
               <Link
                 key={index}
                 href={link.url || '#'} // Use '#' for disabled links

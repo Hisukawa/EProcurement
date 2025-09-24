@@ -83,30 +83,34 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($par->po->details as $detail)
+            @foreach($par->items as $issued)
                 @php
-                    $issued = $par->items->first(function ($item) use ($detail) {
-                        return optional($item->inventoryItem)->po_detail_id == $detail->id;
-                    });
+                    $detail = $issued->inventoryItem->poDetail ?? null;
+                    $product = optional($detail->prDetail)->product;
+                    $unit = optional($product->unit)->unit ?? '';
+                    $quantity = $issued->quantity ?? 0;
+                    $propertyNo = $issued->property_no ?? '';
+                    $totalCost = $issued->total_cost ?? 0;
                 @endphp
             <tr class="text-center">
-                <td>{{ (int) ($issued->quantity ?? 0)}}</td>
-                <td>{{ $detail->prDetail->product->unit->unit ?? '' }}</td>
+                <td>{{ (int) $quantity }}</td>
+                <td>{{ $unit }}</td>
                 <td class="text-left" style="padding-left:8px;">
-                    {{ $detail->prDetail->product->name ?? '' }}
-                    {{ $detail->prDetail->product->specs ?? '' }}
+                    {{ $product->name ?? '' }} {{ $product->specs ?? '' }}
                 </td>
-                <td>{{ $issued->property_no }}</td>
+                <td>{{ $propertyNo }}</td>
                 <td>{{ $par->created_at->format('y-m-d') }}</td>
-                <td>{{ number_format($issued->total_cost, 2) }}</td>
+                <td>{{ number_format($totalCost, 2) }}</td>
             </tr>
             @endforeach
+
             @for($i = 0; $i < 6; $i++)
-                <tr class="with-border">
-                    <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
-                    <td>&nbsp;</td><td>&nbsp;</td>
-                </tr>
+            <tr class="with-border">
+                <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+                <td>&nbsp;</td><td>&nbsp;</td>
+            </tr>
             @endfor
+
         </tbody>
     </table>
 

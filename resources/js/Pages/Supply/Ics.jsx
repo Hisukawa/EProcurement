@@ -1,13 +1,24 @@
 import IssuanceTabs from '@/Layouts/IssuanceTabs';
 import SupplyOfficerLayout from '@/Layouts/SupplyOfficerLayout';
-import { TrashIcon } from '@heroicons/react/16/solid';
-import { Head, Link } from '@inertiajs/react';
+import { TrashIcon } from "@heroicons/react/16/solid";
+import { Head, Link, useForm } from '@inertiajs/react';
 import { PenBoxIcon, PrinterCheck, PrinterCheckIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react'; // Only need useEffect
+import Ics from './Ics';
 
+// A small helper function to safely get nested data. This is crucial to prevent crashes.
+const getSafe = (fn, defaultValue = "N/A") => {
+  try {
+    const value = fn();
+    return value === null || value === undefined ? defaultValue : value;
+  } catch (e) {
+    return defaultValue;
+  }
+};
 
-export default function Ics({ purchaseOrders, inventoryItems, ics, user }) {
-  console.log(ics);
+// The component now accepts a simple `icsRecords` prop, plus filters and user.
+export default function IcsHigh({ ics, user, filters }) {
+
   const [search, setSearch] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
@@ -30,62 +41,83 @@ export default function Ics({ purchaseOrders, inventoryItems, ics, user }) {
     return matchesSearch && matchesMonth && matchesYear;
   });
 
+
+
   return (
-    <SupplyOfficerLayout header="Schools Divisions Office - ICS LOW">
-      <Head title="ICS - LOW" />
+    <SupplyOfficerLayout header="Schools Divisions Office - Ilagan | Inventory Custodian Slip (ICS) - LOW">
+      <Head title='ICS - LOW' />
       <IssuanceTabs />
 
-      <div className="bg-white rounded-lg p-6 shadow space-y-4">
-        {/* Filters */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="bg-white rounded-lg p-6 shadow-md space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+          <h2 className="text-xl font-bold text-gray-800">Inventory Custodian Slip (ICS) - LOW VALUE</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm shadow">
+              Monthly Report
+            </button>
+            <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm shadow">
+              Export PDF
+            </button>
+          </div>
+        </div>
+        
+        {/* Filter Controls now use `data` and `setData` from the single useForm hook */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4 border-t">
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium">Month:</label>
+            <label htmlFor="month-filter" className="text-sm font-medium">Month:</label>
             <select
-              className="border border-gray-300 rounded-md px-2 py-1 text-sm"
-              value={filterMonth}
-              onChange={(e) => setFilterMonth(e.target.value)}
+              id="month-filter"
+              className="border border-gray-300 rounded-md px-2 py-1 text-sm shadow-sm"
+              value={filterMonth} // <-- use local state
+              onChange={(e) => setFilterMonth(e.target.value)} // <-- update local state
             >
+
               <option value="">All</option>
-              {[...Array(12)].map((_, i) => (
-                <option key={i} value={i + 1}>
-                  {new Date(0, i).toLocaleString('en', { month: 'long' })}
-                </option>
+              {[
+                'January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'
+              ].map((month, idx) => (
+                <option key={idx} value={idx + 1}>{month}</option>
               ))}
             </select>
 
-            <label className="text-sm font-medium ml-4">Year:</label>
+            <label htmlFor="year-filter" className="text-sm font-medium ml-4">Year:</label>
             <input
+              id="year-filter"
               type="number"
-              className="border border-gray-300 rounded-md px-2 py-1 w-20 text-sm"
-              value={filterYear}
-              onChange={(e) => setFilterYear(e.target.value)}
+              className="border border-gray-300 rounded-md px-2 py-1 w-24 text-sm shadow-sm"
+              value={filterYear} // <-- use local state
+              onChange={(e) => setFilterYear(e.target.value)} // <-- update local state
             />
+
           </div>
 
-          <input
-            type="text"
-            placeholder="Search ICS number, item..."
-            className="border border-gray-300 rounded-md px-3 py-2 w-full md:w-64 text-sm"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <div>
+            <input
+              type="text"
+              placeholder="Search ICS number, item..."
+              className="border border-gray-300 rounded-md px-3 py-2 w-full md:w-64 text-sm shadow-sm"
+              value={search} // <-- use local state
+              onChange={(e) => setSearch(e.target.value)} // <-- update local state
+            />
+
+          </div>
         </div>
 
-        {/* Table */}
         <div className="overflow-x-auto mt-4">
           <table className="min-w-full divide-y divide-gray-200 text-sm text-left text-gray-700">
             <thead className="bg-gray-100 text-xs font-semibold uppercase tracking-wider text-gray-600">
               <tr>
-                <th className="px-4 py-2">#</th>
-                <th className="px-4 py-2">ICS No.</th>
-                <th className="px-4 py-2">Division</th>
-                <th className="px-4 py-2">Received By/Focal Person</th>
-                <th className="px-4 py-2">Item Description</th>
-                <th className="px-4 py-2">Quantity</th>
-                <th className="px-4 py-2">Unit Cost</th>
-                <th className="px-4 py-2">Total Cost</th>
-                <th className="px-4 py-2">Date</th>
-                <th className="px-4 py-2 text-center">Actions</th>
+                <th className="px-4 py-3">#</th>
+                <th className="px-4 py-3">ICS No.</th>
+                <th className="px-4 py-3">Division</th>
+                <th className="px-4 py-3">Received By</th>
+                <th className="px-4 py-3">Item Description</th>
+                <th className="px-4 py-3 text-center">Quantity</th>
+                <th className="px-4 py-3 text-right">Unit Cost</th>
+                <th className="px-4 py-3 text-right">Total Cost</th>
+                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-3 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -102,7 +134,9 @@ export default function Ics({ purchaseOrders, inventoryItems, ics, user }) {
                     );
                   };
 
-                  const itemsWithDetails = record.items?.map(item => ({
+                  const itemsWithDetails = record.items
+                  ?.filter(item => item.type === 'low') // or 'high' for IcsHigh component
+                  .map(item => ({
                     description: item.inventoryItem?.product?.name ?? item.inventory_item?.item_desc ?? 'N/A',
                     specs: item.inventoryItem?.product?.specs ?? '',
                     quantity: item.quantity,
@@ -120,9 +154,7 @@ export default function Ics({ purchaseOrders, inventoryItems, ics, user }) {
                       <td className="px-4 py-2">{index + 1}</td>
                       <td className="px-4 py-2">{record.ics_number}</td>
                       <td className="px-4 py-2">{record.po?.rfq?.purchase_request?.division?.division ?? "N/A"}</td>
-                      <td className="px-4 py-2">
-                        {record.received_by?.firstname} {record.received_by?.lastname}
-                      </td>
+                      <td className="px-4 py-2">{record.received_by?.firstname} {record.received_by?.lastname}</td>
 
                       {/* Item Description */}
                       <td className="px-4 py-2">
@@ -140,12 +172,11 @@ export default function Ics({ purchaseOrders, inventoryItems, ics, user }) {
                         {isExpanded &&
                           itemsWithDetails.slice(2).map((item, idx) => (
                             <div key={idx + 2}>{item.description}{item.specs && ` - ${item.specs}`}</div>
-                          ))
-                        }
+                          ))}
                       </td>
 
                       {/* Quantity */}
-                      <td className="px-4 py-2">
+                      <td className="px-4 py-2 text-center">
                         {itemsWithDetails.slice(0, 2).map((item, idx) => <div key={idx}>{item.quantity}</div>)}
                         {isExpanded &&
                           itemsWithDetails.slice(2).map((item, idx) => <div key={idx + 2}>{item.quantity}</div>)
@@ -153,7 +184,7 @@ export default function Ics({ purchaseOrders, inventoryItems, ics, user }) {
                       </td>
 
                       {/* Unit Cost */}
-                      <td className="px-4 py-2">
+                      <td className="px-4 py-2 text-right">
                         {itemsWithDetails.slice(0, 2).map((item, idx) => <div key={idx}>₱{item.unitCost.toFixed(2)}</div>)}
                         {isExpanded &&
                           itemsWithDetails.slice(2).map((item, idx) => <div key={idx + 2}>₱{item.unitCost.toFixed(2)}</div>)
@@ -161,7 +192,7 @@ export default function Ics({ purchaseOrders, inventoryItems, ics, user }) {
                       </td>
 
                       {/* Total Cost */}
-                      <td className="px-4 py-2">
+                      <td className="px-4 py-2 text-right">
                         {itemsWithDetails.slice(0, 2).map((item, idx) => <div key={idx}>₱{item.totalCost.toFixed(2)}</div>)}
                         {isExpanded &&
                           itemsWithDetails.slice(2).map((item, idx) => <div key={idx + 2}>₱{item.totalCost.toFixed(2)}</div>)
@@ -177,13 +208,20 @@ export default function Ics({ purchaseOrders, inventoryItems, ics, user }) {
                       </td>
 
                       {/* Actions */}
-                      <td className="px-4 py-2 text-center space-x-2">
+                      <td className="flex px-4 py-2 text-center space-x-2">
                         <a
-                          href={route("supply_officer.print_ics", record.id)}
+                          href={route("supply_officer.print_ics", { id: record.id, type: "low" })}
                           className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-1"
                           target="_blank"
                         >
                           <PrinterCheck size={16} /> Print
+                        </a>
+                        <a
+                          href={route("supply_officer.print_ics_all", record.id)}
+                          className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-1"
+                          target="_blank"
+                        >
+                          <PrinterCheck size={16} /> Print All
                         </a>
                       </td>
                     </tr>
@@ -196,24 +234,23 @@ export default function Ics({ purchaseOrders, inventoryItems, ics, user }) {
               )}
             </tbody>
 
-
-
           </table>
         </div>
-
-        {/* Pagination */}
-        {ics?.links?.length > 0 && (
+        {ics?.links?.length > 3 && (
           <nav className="mt-4 flex justify-center items-center space-x-2">
-            {ics.links.map((link, idx) => (
+            {ics.links.map((link, index) => (
               <Link
-                key={idx}
-                href={link.url || '#'}
-                className={`px-3 py-1 text-sm rounded-md ${
-                  link.active
+                key={index}
+                href={link.url || '#'} // Use '#' for disabled links
+                className={`
+                  px-3 py-1 text-sm rounded-md
+                  ${link.active
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                } ${!link.url && 'opacity-50 cursor-not-allowed'}`}
-                dangerouslySetInnerHTML={{ __html: link.label }}
+                  }
+                  ${!link.url && 'opacity-50 cursor-not-allowed'}
+                `}
+                dangerouslySetInnerHTML={{ __html: link.label }} // Render HTML entities like &laquo;
               />
             ))}
           </nav>

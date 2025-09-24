@@ -108,26 +108,26 @@
             <td style="width: 18%;">Remarks</td>
         </tr>
 
-        @foreach($ris->po->details as $detail)
+        @foreach($ris->items as $issued)
             @php
-                $issued = $ris->items->first(function ($item) use ($detail) {
-                    return optional($item->inventoryItem)->po_detail_id == $detail->id;
-                });
+                $detail = $issued->inventoryItem->poDetail ?? null;
+                $product = optional($detail->prDetail)->product;
+                $unit = optional($product)->unit->unit ?? '';
             @endphp
             <tr class="text-center with-border">
                 <td></td>
-                <td>{{ $detail->prDetail->product->unit->unit ?? '' }}</td>
+                <td>{{ $unit }}</td>
                 <td class="text-left" style="padding-left:8px;">
-                    {{ $detail->prDetail->product->name ?? '' }}
-                    {{ $detail->prDetail->product->specs ?? '' }}
+                    {{ $product->name ?? '' }} {{ $product->specs ?? '' }}
                 </td>
-                <td>{{(int) ($detail->prDetail->quantity ?? 0) }}</td>
+                <td>{{ optional($detail->prDetail)->quantity ?? 0 }}</td>
                 <td></td>
                 <td></td>
                 <td>{{ $issued->quantity ?? 0 }}</td>
                 <td></td>
             </tr>
         @endforeach
+
 
         <!-- some reserved rows (kept) -->
         @for($i = 0; $i < 8; $i++)

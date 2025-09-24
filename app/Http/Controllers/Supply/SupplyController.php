@@ -37,8 +37,14 @@ $totalStock = Inventory::sum('total_stock');
 $pendingDeliveries = PurchaseOrder::where("status", "Not yet Delivered")->count();
 $totalIcs = ICS::count();
 $totalRis = RIS::count();
-$totalIcsHigh = ICS::where('type', 'high')->count();
-$totalIcsLow = ICS::where('type', 'low')->count();
+$totalIcsHigh = ICS::whereHas('items', function($query) {
+    $query->where('type', 'high');
+})->count();
+
+$totalIcsLow = ICS::whereHas('items', function($query) {
+    $query->where('type', 'low');
+})->count();
+
 $totalPar = PAR::count();
 
 $totalIssued = $totalIcs + $totalRis + $totalPar;
