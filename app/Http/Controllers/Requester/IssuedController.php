@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Requester;
 
 use App\Http\Controllers\Controller;
 use App\Models\ICS;
+use App\Models\ICSItems;
 use App\Models\Inventory;
 use App\Models\PAR;
 use App\Models\PurchaseOrder;
@@ -39,17 +40,20 @@ class IssuedController extends Controller
         ]);
     }
 
-    public function ics_issued_low(Request $request){
-        $search = $request->input('search');
-        $userId = Auth::id();
+public function ics_issued_low(Request $request)
+{
+    $search = $request->input('search');
+    $userId = Auth::id();
 
-        $ics = ICS::with([
-            'receivedBy.division',
-            'receivedFrom.division',
-            'items.inventoryItem',
-            'po.details.prDetail.purchaseRequest.division'
+    $icsItems = ICSItems::with([
+            'ics.receivedBy.division',
+            'ics.receivedFrom.division',
+            'inventoryItem.unit',
+            'ics.po.details.prDetail.purchaseRequest.division',
         ])
-        ->where('received_by', $userId)
+        ->whereHas('ics', function ($q) use ($userId) {
+            $q->where('received_by', $userId);
+        })
         ->where('type', 'low')
         ->when($search, function ($query, $search) {
             $query->whereHas('inventoryItem', function ($q) use ($search) {
@@ -58,21 +62,26 @@ class IssuedController extends Controller
         })
         ->latest()
         ->paginate(10);
-        return Inertia::render('Requester/IcsIssuedLow',[
-            'ics' => $ics,
-        ]);
-    }
-    public function ics_issued_high(Request $request){
-        $search = $request->input('search');
-        $userId = Auth::id();
 
-        $ics = ICS::with([
-            'receivedBy.division',
-            'receivedFrom.division',
-            'items.inventoryItem',
-            'po.details.prDetail.purchaseRequest.division'
+    return Inertia::render('Requester/IcsIssuedLow', [
+        'ics' => $icsItems,
+    ]);
+}
+
+public function ics_issued_high(Request $request)
+{
+    $search = $request->input('search');
+    $userId = Auth::id();
+
+    $icsItems = ICSItems::with([
+            'ics.receivedBy.division',
+            'ics.receivedFrom.division',
+            'inventoryItem.unit',
+            'ics.po.details.prDetail.purchaseRequest.division',
         ])
-        ->where('received_by', $userId)
+        ->whereHas('ics', function ($q) use ($userId) {
+            $q->where('received_by', $userId);
+        })
         ->where('type', 'high')
         ->when($search, function ($query, $search) {
             $query->whereHas('inventoryItem', function ($q) use ($search) {
@@ -81,10 +90,12 @@ class IssuedController extends Controller
         })
         ->latest()
         ->paginate(10);
-        return Inertia::render('Requester/IcsIssuedHigh',[
-            'ics' => $ics
-        ]);
-    }
+
+    return Inertia::render('Requester/IcsIssuedHigh', [
+        'ics' => $icsItems,
+    ]);
+}
+
     public function par_issued(Request $request){
         $search = $request->input('search');
         $userId = Auth::id();
