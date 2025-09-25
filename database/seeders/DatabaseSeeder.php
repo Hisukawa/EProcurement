@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             // Master data first
             UnitSeeder::class,      // if you have tbl_units
             CategorySeeder::class,  // if you have tbl_categories
+            SupplierCategorySeeder::class,
             SupplierSeeder::class,
             ProductSeeder::class,
             DivisionSeeder::class,  // if you have tbl_divisions
