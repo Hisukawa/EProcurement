@@ -43,7 +43,7 @@ export default function IcsIssuedHigh({ ics }) {
               }
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm shadow"
             >
-              Monthly Report
+              Monthly <Reporting></Reporting>
             </button>
             <button
               onClick={() =>
