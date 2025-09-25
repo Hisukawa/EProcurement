@@ -351,52 +351,52 @@ public function print_ics_all($id)
     return $pdf->stream('ICS-'.$ics->ics_number.'-all.pdf');
 }
 
-public function ics_issuance_low(Request $request)
-    {
-        $search = $request->input('search');
+    public function ics_issuance_low(Request $request)
+        {
+            $search = $request->input('search');
 
-        // Get ALL POs with nested relationships
-        $purchaseOrders = PurchaseOrder::with([
-            'details.prDetail.product.category', 
-            'details.prDetail.product.unit',
-            'details.prDetail.purchaseRequest.division',
-            'details.prDetail.purchaseRequest.focal_person'
-        ])->paginate(10);
-        $ics = ICS::whereHas('items', function ($q) {
-                $q->where('type', 'low');
-            })
-            ->with([
-                'receivedBy',
-                'items.inventoryItem.unit',
-                'po.rfq.purchaseRequest.division',
-                'po.rfq.purchaseRequest.focal_person',
-            ])
-            ->latest()
-            ->paginate(10);
+            // Get ALL POs with nested relationships
+            $purchaseOrders = PurchaseOrder::with([
+                'details.prDetail.product.category', 
+                'details.prDetail.product.unit',
+                'details.prDetail.purchaseRequest.division',
+                'details.prDetail.purchaseRequest.focal_person'
+            ])->paginate(10);
+            $ics = ICS::whereHas('items', function ($q) {
+                    $q->where('type', 'low');
+                })
+                ->with([
+                    'receivedBy',
+                    'items.inventoryItem.unit',
+                    'po.rfq.purchaseRequest.division',
+                    'po.rfq.purchaseRequest.focal_person',
+                ])
+                ->latest()
+                ->paginate(10);
 
-        foreach ($purchaseOrders as $po) {
-            foreach ($po->details as $detail) {
-                $product = $detail->prDetail->product ?? null;
+            foreach ($purchaseOrders as $po) {
+                foreach ($po->details as $detail) {
+                    $product = $detail->prDetail->product ?? null;
 
-                if ($product) {
-                    $inventory = Inventory::where('item_desc', $product->specs)
-                        ->where('unit_id', $product->unit_id)
-                        ->first();
+                    if ($product) {
+                        $inventory = Inventory::where('item_desc', $product->specs)
+                            ->where('unit_id', $product->unit_id)
+                            ->first();
 
-                    $inventoryItems[] = [
-                        'po_id' => $po->id,
-                        'item_desc' => $product->specs,
-                        'inventory' => $inventory,
-                    ];
+                        $inventoryItems[] = [
+                            'po_id' => $po->id,
+                            'item_desc' => $product->specs,
+                            'inventory' => $inventory,
+                        ];
+                    }
                 }
             }
-        }
-        return Inertia::render('Supply/Ics', [
-            'purchaseOrders' => $purchaseOrders,
-            'inventoryItems' => $inventoryItems,
-            'ics' => $ics,
-            'user' => Auth::user(), 
-        ]);
+            return Inertia::render('Supply/Ics', [
+                'purchaseOrders' => $purchaseOrders,
+                'inventoryItems' => $inventoryItems,
+                'ics' => $ics,
+                'user' => Auth::user(), 
+            ]);
     }
 
     public function ics_issuance_high(Request $request)

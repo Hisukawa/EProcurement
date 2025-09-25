@@ -171,19 +171,56 @@ class RequesterController extends Controller
             'categories' => Category::all() // tbl_categories
         ]);
     }
-    
+    // RequesterController.php
+public function storeUnit(Request $request)
+{
+    $validated = $request->validate([
+        'unit' => 'required|string|max:255|unique:tbl_units,unit',
+    ]);
+
+    $unit = Unit::create([
+        'unit' => $validated['unit'],
+    ]);
+
+    return response()->json($unit);
+}
+
 public function store_product(Request $request)
 {
     $validated = $request->validate([
         'name' => 'required|string|max:255',
         'specs' => 'nullable|string',
-        'unit_id' => 'required|exists:tbl_units,id',
+        'unit_id' => 'nullable|exists:tbl_units,id',
+        'custom_unit' => 'nullable|string|max:255',
         'category_id' => 'required|exists:tbl_categories,id',
         'supply_category_id' => 'required|exists:tbl_supply_categories,id',
         'default_price' => 'nullable|numeric|min:0',
     ]);
 
-    $product = Products::create($validated)->load('unit');
+    // ✅ If custom unit is provided, insert into tbl_units
+    if (!empty($request->custom_unit)) {
+        $newUnit = Unit::create([
+            'unit' => $request->custom_unit,
+        ]);
+        $validated['unit_id'] = $newUnit->id; // replace with new unit id
+    }
+
+    // Ensure unit_id is not empty
+    if (empty($validated['unit_id'])) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Please select or provide a unit.',
+        ], 422);
+    }
+
+    $product = Products::create([
+        'name' => $validated['name'],
+        'specs' => $validated['specs'] ?? null,
+        'unit_id' => $validated['unit_id'],   // always integer FK
+        'category_id' => $validated['category_id'],
+        'supply_category_id' => $validated['supply_category_id'],
+        'default_price' => $validated['default_price'] ?? 0,
+    ])->load('unit');
 
     return response()->json([
         'success' => true,
@@ -191,6 +228,7 @@ public function store_product(Request $request)
         'product' => $product,
     ]);
 }
+
 
 
 public function store(Request $request)

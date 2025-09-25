@@ -17,14 +17,16 @@ import axios from "axios";
 
 
 function CreateProductModal({ open, onClose, units, categories, onProductSaved, supplyCategories }) {
-  const { data, setData, post, processing, errors, reset } = useForm({
-    name: "",
-    specs: "",
-    unit_id: "",
-    category_id: "",
-    default_price: "",
-    supply_category_id: ""
-  });
+const { data, setData, post, processing, errors, reset } = useForm({
+  name: "",
+  specs: "",
+  unit_id: "",      // dropdown selection
+  custom_unit: "",  // user-typed
+  category_id: "",
+  default_price: "",
+  supply_category_id: ""
+});
+
    const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   // Reset form whenever modal closes
@@ -32,15 +34,24 @@ function CreateProductModal({ open, onClose, units, categories, onProductSaved, 
     if (!open) reset();
   }, [open]);
 
-  const handleSave = async (e) => {
+    const handleSave = async (e) => {
     e.preventDefault();
 
     try {
-        const response = await axios.post(route("requester.store_product"), data);
-        const newProduct = response.data.product;
+        // Decide which unit value to send
+        const payload = {
+        ...data,
+        unit: data.custom_unit && data.custom_unit.trim() !== "" 
+            ? data.custom_unit 
+            : data.unit_id,  // fallback to dropdown
+        };
 
+        // Send product data
+        const response = await axios.post(route("requester.store_product"), payload);
+
+        const newProduct = response.data.product;
         if (newProduct) {
-        onProductSaved(newProduct); // ✅ trigger your dialog flow
+        onProductSaved(newProduct);
         }
 
         onClose();
@@ -49,11 +60,13 @@ function CreateProductModal({ open, onClose, units, categories, onProductSaved, 
     }
     };
 
+
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Add New Product</DialogTitle>
+          <DialogTitle>Add New Item</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSave} className="space-y-4">
@@ -82,22 +95,41 @@ function CreateProductModal({ open, onClose, units, categories, onProductSaved, 
           </div>
 
           {/* Unit */}
-          <div>
-            <label className="text-sm font-medium">Unit</label>
-            <select
-              value={data.unit_id}
-              onChange={(e) => setData("unit_id", e.target.value)}
-              className="w-full border rounded px-3 py-2"
-            >
-              <option value="">-- Select Unit --</option>
-              {units.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.unit}
-                </option>
-              ))}
-            </select>
-            {errors.unit_id && <p className="text-red-600 text-sm">{errors.unit_id}</p>}
-          </div>
+            <div className="grid grid-cols-2 gap-4">
+            {/* Unit dropdown */}
+            <div className="flex flex-col">
+                <label className="text-sm font-medium mb-1">Unit</label>
+                <select
+                value={data.unit_id}
+                onChange={(e) => setData("unit_id", e.target.value)}
+                className="w-full border rounded px-3 py-2"
+                >
+                <option value="">-- Select Unit --</option>
+                {units.map((u) => (
+                    <option key={u.id} value={u.id}>
+                    {u.unit}
+                    </option>
+                ))}
+                </select>
+                {errors.unit_id && (
+                <p className="text-red-600 text-xs mt-1">{errors.unit_id}</p>
+                )}
+            </div>
+
+            {/* Custom Unit input */}
+            <div className="flex flex-col">
+                <label className="text-sm font-medium mb-1">Unit if not in database</label>
+                <input
+                type="text"
+                value={data.custom_unit}
+                onChange={(e) => setData("custom_unit", e.target.value)}
+                className="w-full border rounded px-3 py-2"
+                placeholder="Enter custom unit"
+                />
+            </div>
+            </div>
+
+
 
           {/* Category */}
           <div>
@@ -224,13 +256,13 @@ function ProductTable({ products, handleProductSelect, setOpenProductModal  }) {
         <div className="flex flex-col md:col-span-2">
             {/* Header + Add Button */}
             <div className="flex items-center justify-between mb-3">
-                <h4 className="text-xl font-semibold text-gray-800">Available Products</h4>
+                <h4 className="text-xl font-semibold text-gray-800">Available Items</h4>
                 <button
                     type="button"
                     onClick={() => setOpenProductModal(true)}
                     className="text-sm bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition"
                 >
-                    Add New Product
+                    Add New Item
                 </button>
 
             </div>
@@ -358,7 +390,7 @@ function ProductModal({ isOpen, onClose, onConfirm, product }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-lg">
-                <h3 className="text-xl font-semibold text-gray-800 mb-4">Add Product to PR</h3>
+                <h3 className="text-xl font-semibold text-gray-800 mb-4">Add Item to PR</h3>
                 <div className="space-y-3 text-sm text-gray-700">
                     <p><strong>Item:</strong> {product.name}</p>
                     <p><strong>Specs:</strong> {product.specs}</p>
@@ -605,7 +637,7 @@ useEffect(() => {
                     </div>
                     {/*Selected Product Preview*/}
                     <div className="flex flex-col md:col-span-2">
-                        <h4 className="text-lg font-semibold mb-2 text-gray-800">Selected Products</h4>
+                        <h4 className="text-lg font-semibold mb-2 text-gray-800">Selected Items</h4>
                         <table className="w-full border border-gray-200 rounded-lg shadow text-sm mb-4">
                             <thead className="bg-gray-100 text-gray-700">
                                 <tr>
@@ -641,7 +673,7 @@ useEffect(() => {
                                     </tr>
                                 )) : (
                                     <tr>
-                                        <td colSpan="6" className="text-center text-gray-500 py-4">No products added yet.</td>
+                                        <td colSpan="6" className="text-center text-gray-500 py-4">No Items added yet.</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -740,10 +772,10 @@ useEffect(() => {
             <Dialog open={showSavedDialog} onOpenChange={setShowSavedDialog}>
             <DialogContent className="max-w-md">
                 <DialogHeader>
-                <DialogTitle className="text-green-600">Product saved!</DialogTitle>
+                <DialogTitle className="text-green-600">Item saved!</DialogTitle>
                 </DialogHeader>
                 <p className="text-sm text-gray-600 mt-2">
-                Do you want to add this product to your PR?
+                Do you want to add this item to your PR?
                 </p>
                 <DialogFooter className="mt-4 flex justify-end gap-3">
                 <Button
@@ -814,11 +846,11 @@ useEffect(() => {
             <DialogContent className="max-w-lg">
                 <DialogHeader>
                 <DialogTitle className="text-yellow-600">
-                    Product already added
+                    Item already added
                 </DialogTitle>
                 </DialogHeader>
                 <p className="text-sm text-gray-600 mt-2">
-                This product is already in your PR. What would you like to do?
+                This item is already in your PR. What would you like to do?
                 </p>
                 <DialogFooter className="mt-4 flex justify-end gap-3">
                 <Button
