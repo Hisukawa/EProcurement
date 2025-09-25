@@ -88,6 +88,10 @@ Route::middleware(['auth', 'role:requester'])->prefix('requester')->group(functi
     Route::get('/ics_issued_low', [IssuedController::class, 'ics_issued_low'])->name('requester.ics_issued_low');
     Route::get('/ics_issued_high', [IssuedController::class, 'ics_issued_high'])->name('requester.ics_issued_high');
     Route::get('/par_issued', [IssuedController::class, 'par_issued'])->name('requester.par_issued');
+
+    // routes/web.php
+    Route::post('/units', [RequesterController::class, 'storeUnit'])->name('requester.store_unit');
+
 });
 
 // Approver routes
@@ -145,9 +149,10 @@ Route::middleware(['auth', 'role:supply_officer'])->prefix('supply_officer')->gr
     Route::post('/inspection-committee/{id}/replace-member', [SupplyController::class, 'replaceMember'])->name('inspection.committee.save');
     Route::get('/print_ris/{id}', [IssuanceController::class, 'print_ris'])->name('supply_officer.print_ris');
     Route::get('/print_ics/{id}/{type?}', [IssuanceController::class, 'print_ics'])->name('supply_officer.print_ics');
-    Route::get('/print_ics_all/{id}', [IssuanceController::class, 'print_ics_all'])
-    ->name('supply_officer.print_ics_all');
+    Route::get('/print_ics_all/{id}', [IssuanceController::class, 'print_ics_all'])->name('supply_officer.print_ics_all');
     Route::get('/print_par/{id}', [IssuanceController::class, 'print_par'])->name('supply_officer.print_par');
+    Route::get('/supply-officer/generate-ics-report-high', [ExcelReportsController::class, 'generateIcsReportHigh'])->name('supply_officer.generate_ics_report_high');
+
 });
 // Shared dashboard route
 Route::get('/dashboard', function () {

@@ -523,21 +523,28 @@ const [skippedItems, setSkippedItems] = useState([]);
                     {detail.item}
                     <span className="text-sm text-gray-500 ml-2">({detail.specs})</span>
                   </h3>
+                  
                   <div className="text-sm text-gray-600 mt-2 grid grid-cols-3 gap-4">
                     <div><strong>Unit:</strong> {detail.unit}</div>
                     <div><strong>Quantity:</strong> {detail.quantity}</div>
                     <div><strong>Est. Price per Unit:</strong> ₱{Number(detail.unit_price || 0).toLocaleString()}</div>
                   </div>
                 </div>
-
-                <div className="mt-4 text-right">
+                <div className="mt-4 flex justify-end gap-2">
                   <button
                     onClick={() => openModalForItem(detail.id)}
                     className="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm shadow-sm"
                   >
                     Choose Supplier
                   </button>
+                  <button
+                    onClick={() => setShowAddSupplierModal(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-md text-sm shadow-sm"
+                  >
+                    ➕ Add New Supplier
+                  </button>
                 </div>
+
 
                 <div className="space-y-6 mt-6">
                   {Array.isArray(selectedSuppliersByItem[detail.id]) &&

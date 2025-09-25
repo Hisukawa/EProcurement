@@ -114,10 +114,11 @@ public function purchase_requests(Request $request)
 
     if ($request->filled('focalPerson')) {
         $query->whereHas('focal_person', function ($q) use ($request) {
-            $q->where('firstname', 'like', '%' . $request->input('focalPerson') . '%')
-            ->orWhere('lastname', 'like', '%' . $request->input('focalPerson') . '%');
+            $search = $request->input('focalPerson');
+            $q->whereRaw("CONCAT(firstname, ' ', lastname) LIKE ?", ["%{$search}%"]);
         });
     }
+
 
     if ($request->filled('division')) {
         $query->where('division_id', $request->input('division'));
@@ -131,17 +132,35 @@ public function purchase_requests(Request $request)
     ]);
 }
 
-    public function for_review()
-    {
-        $sentPRs = PurchaseRequest::with(['details', 'division', 'focal_person'])
-                        ->where('is_sent', 1)
-                        ->where('status', 'pending')
-                        ->get();
+public function for_review(Request $request)
+{
+    $query = PurchaseRequest::with(['details', 'division', 'focal_person'])
+        ->where('is_sent', 1)
+        ->where('status', 'pending');
 
-        return Inertia::render('BacApprover/ForReview', [
-            'sentPurchaseRequests' => $sentPRs,
-        ]);
+    if ($request->filled('prNumber')) {
+        $query->where('pr_number', 'like', '%' . $request->input('prNumber') . '%');
     }
+
+    if ($request->filled('focalPerson')) {
+        $query->whereHas('focal_person', function ($q) use ($request) {
+            $q->where('firstname', 'like', '%' . $request->input('focalPerson') . '%')
+              ->orWhere('lastname', 'like', '%' . $request->input('focalPerson') . '%');
+        });
+    }
+
+    if ($request->filled('division')) {
+        $query->where('division_id', $request->input('division'));
+    }
+
+    $sentPRs = $query->latest()->paginate(10)->withQueryString();
+
+    return Inertia::render('BacApprover/ForReview', [
+        'sentPurchaseRequests' => $sentPRs,
+        'filters' => $request->only(['prNumber', 'focalPerson', 'division']),
+    ]);
+}
+
 
     public function approve(PurchaseRequest $pr)
     {
@@ -190,14 +209,34 @@ public function purchase_requests(Request $request)
             ],
         ]);
     }
-    public function approved_requests(){
-        $purchaseRequests = PurchaseRequest::with(['details', 'division', 'focal_person', 'rfqs'])->where('status', 'Approved')
-                        ->get();
+public function approved_requests(Request $request)
+{
+    $query = PurchaseRequest::with(['details', 'division', 'focal_person', 'rfqs'])
+        ->where('status', 'Approved');
 
-        return Inertia::render('BacApprover/Approved', [
-            'purchaseRequests' => $purchaseRequests,
-        ]);
+    if ($request->filled('prNumber')) {
+        $query->where('pr_number', 'like', '%' . $request->input('prNumber') . '%');
     }
+
+    if ($request->filled('focalPerson')) {
+        $query->whereHas('focal_person', function ($q) use ($request) {
+            $q->where('firstname', 'like', '%' . $request->input('focalPerson') . '%')
+              ->orWhere('lastname', 'like', '%' . $request->input('focalPerson') . '%');
+        });
+    }
+
+    if ($request->filled('division')) {
+        $query->where('division_id', $request->input('division'));
+    }
+
+    $purchaseRequests = $query->latest()->paginate(10)->withQueryString();
+
+    return Inertia::render('BacApprover/Approved', [
+        'purchaseRequests' => $purchaseRequests,
+        'filters' => $request->only(['prNumber', 'focalPerson', 'division']),
+    ]);
+}
+
     
 
 
@@ -388,20 +427,38 @@ public function print_rfq_per_item($rfqId, $detailId)
 
 
 
-    public function for_quotations()
-    {
-        $purchaseRequests = PurchaseRequest::with([
-    'details',
-    'division',
-    'focal_person',
-    'rfqs.details'  // <-- load rfq details
-])->where('status', 'Approved')->get();
+public function for_quotations(Request $request)
+{
+    $query = PurchaseRequest::with([
+        'details',
+        'division',
+        'focal_person',
+        'rfqs.details'
+    ])->where('status', 'Approved');
 
-
-        return Inertia::render('BacApprover/Quotations', [
-            'purchaseRequests' => $purchaseRequests,
-        ]);
+    if ($request->filled('prNumber')) {
+        $query->where('pr_number', 'like', '%' . $request->input('prNumber') . '%');
     }
+
+    if ($request->filled('focalPerson')) {
+        $query->whereHas('focal_person', function ($q) use ($request) {
+            $q->where('firstname', 'like', '%' . $request->input('focalPerson') . '%')
+              ->orWhere('lastname', 'like', '%' . $request->input('focalPerson') . '%');
+        });
+    }
+
+    if ($request->filled('division')) {
+        $query->where('division_id', $request->input('division'));
+    }
+
+    $purchaseRequests = $query->latest()->paginate(10)->withQueryString();
+
+    return Inertia::render('BacApprover/Quotations', [
+        'purchaseRequests' => $purchaseRequests,
+        'filters' => $request->only(['prNumber', 'focalPerson', 'division']),
+    ]);
+}
+
 
 
     public function quoted_price($id)

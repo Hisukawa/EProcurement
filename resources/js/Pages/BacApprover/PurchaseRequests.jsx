@@ -8,6 +8,7 @@ export default function PurchaseRequests({ purchaseRequests, filters = {} }) {
   const [focalPerson, setFocalPerson] = useState(filters.focalPerson || "");
   const [division, setDivision] = useState(filters.division || "");
 
+  // Debounced filter update
   useEffect(() => {
     const delay = setTimeout(() => {
       router.get(
@@ -24,51 +25,34 @@ export default function PurchaseRequests({ purchaseRequests, filters = {} }) {
       <Head title="Purchase Requests" />
 
       <div className="bg-white rounded-lg p-6 shadow space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-          <h2 className="text-lg font-bold text-gray-800">Purchase Requests</h2>
-
-          {/* Action Buttons */}
-          {/* <div className="flex flex-wrap items-center gap-2">
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm shadow">
-              Monthly Report
-            </button>
-            <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm shadow">
-              Export PDF
-            </button>
-            <button className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-md text-sm shadow">
-              Export Excel
-            </button>
-          </div> */}
-        </div>
+        <h2 className="text-lg font-bold text-gray-800">Purchase Requests</h2>
 
         {/* Filters */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="text"
-              value={prNumber}
-              onChange={(e) => setPrNumber(e.target.value)}
-              placeholder="Search PR Number..."
-              className="rounded-md border border-gray-300 px-4 py-2 text-sm shadow-sm w-60"
-            />
-            <input
-              type="text"
-              value={focalPerson}
-              onChange={(e) => setFocalPerson(e.target.value)}
-              placeholder="Search Focal Person..."
-              className="rounded-md border border-gray-300 px-4 py-2 text-sm shadow-sm w-60"
-            />
-            <select
-              value={division}
-              onChange={(e) => setDivision(e.target.value)}
-              className="rounded-md border border-gray-300 px-4 py-2 text-sm shadow-sm w-44"
-            >
-              <option value="">All Divisions</option>
-              <option value="1">SGOD</option>
-              <option value="2">OSDS</option>
-              <option value="3">CID</option>
-            </select>
-          </div>
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <input
+            type="text"
+            value={prNumber}
+            onChange={(e) => setPrNumber(e.target.value)}
+            placeholder="Search PR Number..."
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm shadow-sm w-60"
+          />
+          <input
+            type="text"
+            value={focalPerson}
+            onChange={(e) => setFocalPerson(e.target.value)}
+            placeholder="Search Focal Person..."
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm shadow-sm w-60"
+          />
+          <select
+            value={division}
+            onChange={(e) => setDivision(e.target.value)}
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm shadow-sm w-44"
+          >
+            <option value="">All Divisions</option>
+            <option value="1">SGOD</option>
+            <option value="2">OSDS</option>
+            <option value="3">CID</option>
+          </select>
         </div>
 
         {/* Table */}
@@ -126,39 +110,42 @@ export default function PurchaseRequests({ purchaseRequests, filters = {} }) {
                         {pr.status}
                       </span>
                     </td>
-                    <td colSpan={6} className="px-6 py-4 text-gray-700 italic text-left">
-                      {pr.details.length > 0 ? pr.details[0].item + (pr.details.length > 1 ? ` and ${pr.details.length - 1} more...` : "") : "No items"}
+                    <td className="px-6 py-4 text-gray-700 text-left">
+                      {pr.details.length > 0
+                        ? pr.details.map((d, index) => (
+                            <div key={index} className="italic">
+                              {d.item} {pr.details.length > 1 && index === 0 ? `and ${pr.details.length - 1} more...` : ""}
+                            </div>
+                          ))
+                        : "No items"}
                     </td>
                   </tr>
                 ))}
               </tbody>
-
             </table>
 
             {/* Pagination */}
-            {purchaseRequests.links.length > 10 && (
-              <div className="flex justify-center items-center gap-2 my-6 flex-wrap">
-                {purchaseRequests.links.map((link, i) => (
-                  <button
-                    key={i}
-                    disabled={!link.url}
-                    onClick={() =>
-                      link.url &&
-                      router.visit(link.url, {
-                        preserveScroll: true,
-                        preserveState: true,
-                      })
-                    }
-                    className={`px-4 py-2 text-sm rounded-md border transition ${
-                      link.active
-                        ? "bg-indigo-600 text-white border-indigo-600"
-                        : "bg-white text-gray-700 hover:bg-gray-100 border-gray-300"
-                    } ${!link.url && "opacity-50 cursor-not-allowed"}`}
-                    dangerouslySetInnerHTML={{ __html: link.label }}
-                  />
-                ))}
-              </div>
-            )}
+            <div className="flex justify-center items-center gap-2 my-6 flex-wrap">
+              {purchaseRequests.links.map((link, i) => (
+                <button
+                  key={i}
+                  disabled={!link.url}
+                  onClick={() =>
+                    link.url &&
+                    router.visit(link.url, {
+                      preserveScroll: true,
+                      preserveState: true,
+                    })
+                  }
+                  className={`px-4 py-2 text-sm rounded-md border transition ${
+                    link.active
+                      ? "bg-indigo-600 text-white border-indigo-600"
+                      : "bg-white text-gray-700 hover:bg-gray-100 border-gray-300"
+                  } ${!link.url && "opacity-50 cursor-not-allowed"}`}
+                  dangerouslySetInnerHTML={{ __html: link.label }}
+                />
+              ))}
+            </div>
           </div>
         )}
       </div>
