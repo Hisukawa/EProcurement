@@ -151,6 +151,7 @@ Route::middleware(['auth', 'role:supply_officer'])->prefix('supply_officer')->gr
     Route::get('/print_ics/{id}/{type?}', [IssuanceController::class, 'print_ics'])->name('supply_officer.print_ics');
     Route::get('/print_ics_all/{id}', [IssuanceController::class, 'print_ics_all'])->name('supply_officer.print_ics_all');
     Route::get('/print_par/{id}', [IssuanceController::class, 'print_par'])->name('supply_officer.print_par');
+    Route::get('/supply-officer/generate-ics-report', [ExcelReportsController::class, 'generateIcsReport'])->name('supply_officer.generate_ics_report');
     Route::get('/supply-officer/generate-ics-report-high', [ExcelReportsController::class, 'generateIcsReportHigh'])->name('supply_officer.generate_ics_report_high');
 
 });
