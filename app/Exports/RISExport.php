@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Models\PAR;
 use App\Models\RIS;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithEvents;
@@ -111,44 +112,40 @@ class RISExport implements FromCollection, WithHeadings, WithEvents, WithMapping
     /**
      * Map each flattened row (stdClass with ris + item) to the final array
      */
-    public function map($row): array
-    {
-        $ris = $row->ris;
-        $itm = $row->item;
-        $division = $row->division ?? '';
+public function map($row): array
+{
+    $ris = $row->ris;
+    $itm = $row->item;
 
-        // stock no
-        $stockNo = optional($itm?->inventoryItem)->stock_no ?? '';
+    $inventoryItem = $itm?->inventoryItem;
 
-        // product can be on the inventoryItem or (fallback) on PO->prDetail->product
-        $product = optional($itm?->inventoryItem)->product
-            ?? optional($ris->po->details->first()?->prDetail)->product;
+    // ✅ Use item_desc directly, fallback if missing
+    $itemDesc = $inventoryItem?->item_desc
+        ?? optional($ris->po->details->first()?->prDetail?->product)->name
+        ?? '';
 
-        $itemDesc = trim(($product?->name ?? '') . ' ' . ($product?->specs ?? ''));
-        $unit = optional($product?->unit)->unit ?? '';
+    $unit     = $inventoryItem?->unit?->unit ?? '';
+    $quantity = $itm?->quantity ?? 0;
+    $unitCost = $itm?->unit_cost ?? 0;
+    $amount   = $quantity * $unitCost;
 
-        // quantity and costs: prefer item-level quantity and inventory unit_cost
-        $quantity = $itm?->quantity ?? $ris->quantity ?? 0;
-        $unitCost = optional($itm?->inventoryItem)->unit_cost ?? 0;
-        $amount = $quantity * $unitCost;
-
-        // control repetition: only show RIS number & division on the first row for that RIS
-        $showRis = $this->lastRisNo !== $ris->ris_number;
-        if ($showRis) {
-            $this->lastRisNo = $ris->ris_number;
-        }
-
-        return [
-            $showRis ? $ris->ris_number : '',
-            $showRis ? $division : '',
-            $stockNo,
-            $itemDesc,
-            $unit,
-            $quantity,
-            $unitCost ? number_format((float)$unitCost, 2, '.', ',') : '',
-            $amount ? number_format((float)$amount, 2, '.', ',') : '',
-        ];
+    // only show RIS number once
+    $showRis = $this->lastRisNo !== $ris->ris_number;
+    if ($showRis) {
+        $this->lastRisNo = $ris->ris_number;
     }
+
+    return [
+        $showRis ? $ris->ris_number : '',
+        '', // Responsibility Center Code
+        $inventoryItem?->stock_no ?? '', // Stock No
+        $itemDesc, // ✅ Description from item_desc
+        $unit,
+        $quantity,
+        $unitCost ? number_format((float)$unitCost, 2, '.', ',') : '',
+        $amount ? number_format((float)$amount, 2, '.', ',') : '',
+    ];
+}
 
     /**
      * Styling, merging and totals after sheet is filled
