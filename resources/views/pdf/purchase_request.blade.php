@@ -42,7 +42,7 @@
                 Entity Name: <span class="underline">SDO City of Ilagan</span>
             </td>
             <td class="font-semibold">
-                Fund Cluster: <span class="underline">MOOE</span>
+                Fund Cluster: ____________________
             </td>
         </tr>
 

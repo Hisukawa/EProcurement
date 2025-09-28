@@ -28,7 +28,6 @@ import {
 
 export default function Dashboard({stats, documents, stockData, recentActivity, user}) {
     
-    const stockDataArray = Object.values(stockData);
     const iconMap = {
         Boxes: Boxes,
         Truck: Truck,
@@ -104,28 +103,6 @@ export default function Dashboard({stats, documents, stockData, recentActivity, 
 
             {/* Data Visualizations */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                {/* Bar Chart - Stock Levels */}
-                <Card className="rounded-2xl shadow">
-                    <CardContent className="p-4">
-                        <h2 className="text-lg font-semibold text-gray-800 mb-4">Stock Levels by Category</h2>
-                        <ResponsiveContainer width="100%" height={250}>
-                            <BarChart width={500} height={300} data={stockDataArray || []}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="category" />
-                                <YAxis />
-                                <Tooltip />
-
-                                <Bar dataKey="qty" fill="#2563eb">
-                                    <LabelList
-                                    dataKey="qty"
-                                    position="insideTop" // you can also try "insideBottom", "center"
-                                    style={{ fontSize: 14, fontWeight: 600, fill: "#fff" }}
-                                    />
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </CardContent>
-                </Card>
 
                 {/* Pie Chart - Request Handling */}
                 <Card className="rounded-2xl shadow">

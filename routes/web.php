@@ -5,6 +5,7 @@ use App\Http\Controllers\Approver\ApproverController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Requester\IssuedController;
 use App\Http\Controllers\Requester\RequesterController;
+use App\Http\Controllers\SearchController;
 use App\Http\Controllers\Supply\IssuanceController;
 use Barryvdh\Snappy\Facades\SnappyPdf;
 use Illuminate\Foundation\Application;
@@ -102,7 +103,8 @@ Route::middleware(['auth', 'role:bac_approver'])->prefix('bac_approver')->group(
     Route::get('/generate_rfq/{pr}', [ApproverController::class, 'generate_rfq'])->name('bac_approver.generate_rfq');
     Route::post('/store_rfq', [ApproverController::class, 'store_rfq'])->name('bac_approver.store_rfq');
     Route::get('/print_rfq/{id}', [ApproverController::class, 'print_rfq'])->name('bac_approver.print_rfq');
-    Route::get('/print_rfq_per_item/{rfq}/{detail}', [ApproverController::class, 'print_rfq_per_item'])->name('bac_approver.print_rfq_per_item');
+    Route::get('/print_rfq_selected/{pr}', [ApproverController::class, 'print_rfq_selected'])
+    ->name('bac_approver.print_rfq_selected');
     Route::get('/for_review', [ApproverController::class, 'for_review'])->name('bac_approver.for_review');
     Route::post('/approve/{pr}', [ApproverController::class, 'approve'])->name('bac_approver.approve');
     Route::get('/show_details/{pr}', [ApproverController::class, 'show_details'])->name('bac_approver.show_details');
@@ -111,14 +113,21 @@ Route::middleware(['auth', 'role:bac_approver'])->prefix('bac_approver')->group(
     Route::post('/submit_quoted', [ApproverController::class, 'submit_quoted'])->name('bac_approver.submit_quoted');
     Route::post('/submit_bulk_quoted', [ApproverController::class, 'submit_bulk_quoted'])->name('bac_approver.submit_bulk_quoted');
     Route::get('/abstract/{pr}', [ApproverController::class, 'abstract_of_quotations'])->name('bac_approver.abstract_of_quotations');
+    Route::get('/abstract/{pr}/calculated', [ApproverController::class, 'abstract_of_quotations_calculated'])->name('bac_approver.abstract_of_quotations_calculated');
+    Route::post('/abstract/{id}/save-unit-price', [ApproverController::class, 'saveUnitPrice'])->name('bac_approver.save_unit_price');
     Route::post('/mark-winner/{id}/{pr_detail_id?}', [ApproverController::class, 'markWinner'])->name('bac_approver.mark_winner');
+    Route::post('/mark-winner-as-calculated/{id}/{pr_detail_id?}', [ApproverController::class, 'markWinnerAsCalculated'])
+    ->name('bac_approver.mark_winner_as_calculated');
     Route::get('/approver/print_aoq/{id}/{pr_detail_id?}', [ApproverController::class, 'printAOQ'])->name('bac_approver.print_aoq');
+    Route::get('/approver/print_aoq_calculated/{id}/{pr_detail_id?}', [ApproverController::class, 'printAOQCalculated'])->name('bac_approver.print_aoq_calculated');
     Route::post('/store_supplier', [ApproverController::class, 'store_supplier'])->name('bac_approver.store_supplier');
     Route::post('/requests/{id}/send_back', [ApproverController::class, 'send_back'])->name('requester.send_back');
     Route::delete('/delete_quoted', [ApproverController::class, 'delete_quoted'])->name('bac_approver.delete_quoted');
     Route::post('/bac-committee/save', [ApproverController::class, 'save_committee'])->name('bac.committee.save');
     Route::post('/rollback-winner/{id}', [ApproverController::class, 'rollbackWinner'])
         ->name('bac_approver.rollback_winner');
+    Route::post('/save-remarks/{id}/{pr_detail_id?}', [ApproverController::class, 'saveRemarks'])
+    ->name('bac_approver.save_remarks');
 
 
 });
@@ -169,6 +178,13 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
+
+Route::get('/api/ppe-search', [SearchController::class, 'searchPpe']); 
+Route::get('/api/gl-search', [SearchController::class, 'searchGl']); 
+Route::get('/api/office-search', [SearchController::class, 'searchOffice']); 
+Route::get('/api/school-search', [SearchController::class, 'searchSchool']);
+Route::get('/api/ics-next-series', [SearchController::class, 'getNextSeries']);
+
 
 Route::get('/updates', function () {
     return response()->json([

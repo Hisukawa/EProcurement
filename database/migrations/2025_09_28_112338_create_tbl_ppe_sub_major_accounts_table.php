@@ -11,16 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('tbl_products', function (Blueprint $table) {
+        Schema::create('tbl_ppe_sub_major_accounts', function (Blueprint $table) {
             $table->id();
-            $table->string('name');      
-            $table->text('specs')->nullable();
-            $table->foreignId('unit_id')  
-                    ->constrained('tbl_units')
-                    ->onDelete('cascade');
-            $table->decimal('default_price', 10, 2)->nullable();
+            $table->string('name');   // e.g., Building, Machinery
+            $table->string('code');   // e.g., 40, 50
             $table->timestamps();
         });
+
     }
 
     /**
@@ -28,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('tbl_products');
+        Schema::dropIfExists('tbl_ppe_sub_major_accounts');
     }
 };

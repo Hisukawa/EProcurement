@@ -1,12 +1,18 @@
 import { useToast } from "@/hooks/use-toast";
-import SupplyOfficerLayout from "@/Layouts/SupplyOfficerLayout";
-import { Head, useForm } from "@inertiajs/react";
+import { useForm } from "@inertiajs/react";
 import { FileText, SendHorizonal } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import AutoCompleteInput from "./AutoCompleteInput";
 
-export default function IcsForm({ purchaseOrder, inventoryItem, user }) {
-  const [showConfirm, setShowConfirm] = useState(false);
+export default function ICSForm({ purchaseOrder, inventoryItem, user }) {
+const [showConfirm, setShowConfirm] = useState(false);
   const { toast } = useToast();
+  const [ppe, setPpe] = useState(null);
+  const [gl, setGl] = useState(null);
+  const [office, setOffice] = useState(null);
+  const [school, setSchool] = useState(null);
+  const [series, setSeries] = useState("0001");
+  const [generatedNumber, setGeneratedNumber] = useState("");
 
   const detail = purchaseOrder.detail;
   const pr = detail?.pr_detail?.purchase_request;
@@ -19,20 +25,83 @@ export default function IcsForm({ purchaseOrder, inventoryItem, user }) {
   const itemDesc = product ? `${product.name} (${product.specs})` : "N/A";
 
   const { data, setData, post, processing, errors } = useForm({
-    po_id: detail.po_id,
-    ics_number: purchaseOrder.po_number,
-    received_by: pr.focal_person.id,
-    received_from: user.id,
+    po_id: detail?.po_id ?? null,
+    ics_number: purchaseOrder?.po_number ?? "",
+    received_by: pr?.focal_person?.id ?? null,
+    received_from: user?.id ?? null,
     remarks: "",
     items: [
       {
-        inventory_item_id: inventoryItem.id,
-        quantity: detail?.quantity,
-        unit_cost: detail?.unit_price,
-        total_cost: detail?.total_price,
+        inventory_item_id: inventoryItem?.id ?? null,
+        inventory_item_number: "",
+        ppe_sub_major_account: "",
+        general_ledger_account: "",
+        office: "",
+        quantity: detail?.quantity ?? 0,
+        unit_cost: detail?.unit_price ?? 0,
+        total_cost: detail?.total_price ?? 0,
+        series_number: series,
       },
     ],
   });
+const itemType = data.items[0].unit_cost <= 5000 ? "low" : "high";
+useEffect(() => {
+  if (!ppe || !gl || !itemType) return;
+
+  fetch(`/api/ics-next-series?ppe=${encodeURIComponent(ppe.name.trim())}&gl=${encodeURIComponent(gl.name.trim())}&type=${itemType}`)
+    .then((res) => res.json())
+    .then((data) => {
+      if (data.series) {
+        setSeries(data.series); // string "0008"
+        setData("items.0.series_number", data.series); // store as string
+      }
+
+    })
+    .catch(() => {
+      setSeries(1);
+      setData("items.0.series_number", 1);
+    });
+}, [ppe, gl, itemType, office, school]);
+
+
+
+
+useEffect(() => {
+  if (!ppe || !gl || !series) return;
+
+  const year = new Date().getFullYear().toString();
+  const ppeCode = ppe.code?.padStart(2, "0") || "00";
+  const glCode = gl.code?.padStart(2, "0") || "00";
+  const seriesCode = series?.toString().padStart(4, "0");// keep "0008"
+
+
+
+  // location (office)
+  const locationCode = office?.code?.padStart(2, "0") || "";
+
+  // if office is "Schools", append school code
+  const schoolCode =
+    office?.name === "Schools" && school?.code
+      ? school.code.padStart(2, "0")
+      : "";
+
+
+  let parts = [year, ppeCode, glCode, seriesCode, locationCode];
+  if (schoolCode) parts.push(schoolCode);
+
+  const fullNumber = parts.filter(Boolean).join("-");
+
+  setGeneratedNumber(fullNumber);
+
+  // keep form data in sync
+  setData("items.0.inventory_item_number", fullNumber);
+  setData("items.0.ppe_sub_major_account", ppe.name || "");
+  setData("items.0.general_ledger_account", gl.name || "");
+  setData("items.0.office", office?.name || "");
+  setData("items.0.series_number", parseInt(series, 10));
+  if (school) setData("items.0.school", school.name || "");
+}, [ppe, gl, office, school, series]);
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -62,157 +131,193 @@ export default function IcsForm({ purchaseOrder, inventoryItem, user }) {
   };
 
   return (
-    <SupplyOfficerLayout header="Schools Divisions Office - Ilagan | Inventory Custodian Slip">
-      <Head title="ICS Form" />
+    <div className="bg-blue-50 p-8 rounded-xl shadow-md">
+      <h2 className="text-3xl font-bold text-blue-800 mb-1 flex items-center gap-2">
+        <FileText size={24} /> Inventory Custodian Slip (ICS)
+      </h2>
+      <p className="text-sm text-gray-700 mb-6">
+        <strong>Note:</strong> This is the Inventory Custodian Slip (ICS) form page. 
+        Fill out the details below to record an ICS issuance.
+      </p>
 
-      <button
-        type="button"
-        onClick={() => window.history.back()}
-        className="inline-flex items-center px-4 py-2 bg-white text-blue-800 border border-blue-300 text-sm font-semibold rounded-md hover:bg-blue-100 hover:border-blue-400 mr-4 mb-4 shadow-sm transition"
-      >
-        ← Back
-      </button>
 
-      <div className="bg-blue-50 p-8 rounded-xl shadow-md">
-        <h2 className="text-3xl font-bold text-blue-800 mb-1 flex items-center gap-2">
-          <FileText size={24} /> Inventory Custodian Slip (ICS)
-        </h2>
-        <p className="text-sm text-gray-700 mb-6">
-          <strong>Note:</strong> This item is categorized as{" "}
-          <em>Semi-Expendable (Below 50k)</em> and will be issued using an ICS form.
-        </p>
+      {/* Errors */}
+      {Object.keys(errors).length > 0 && (
+        <div className="col-span-2 bg-red-100 text-red-700 p-4 rounded mb-4">
+          <ul className="list-disc list-inside">
+            {Object.entries(errors).map(([key, message]) => (
+              <li key={key}>{message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
-        {/* Errors */}
-        {Object.keys(errors).length > 0 && (
-          <div className="col-span-2 bg-red-100 text-red-700 p-4 rounded mb-4">
-            <ul className="list-disc list-inside">
-              {Object.entries(errors).map(([key, message]) => (
-                <li key={key}>{message}</li>
-              ))}
-            </ul>
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Left Section */}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Designation</label>
+            <input
+              value={pr?.division?.division ?? "N/A"}
+              readOnly
+              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
+            />
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">ICS No.</label>
+            <input
+              type="text"
+              placeholder="ICS Number"
+              value={data.ics_number}
+              onChange={(e) => setData("ics_number", e.target.value)}
+              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Description</label>
+            <input
+              value={itemDesc}
+              readOnly
+              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Quantity</label>
+              <input
+                type="number"
+                value={data.items[0].quantity}
+                onChange={(e) => setData("items.0.quantity", e.target.value)}
+                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Unit</label>
+              <input
+                value={product?.unit?.unit ?? "N/A"}
+                readOnly
+                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Unit Cost</label>
+              <input
+                type="number"
+                value={data.items[0].unit_cost}
+                onChange={(e) => setData("items.0.unit_cost", e.target.value)}
+                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Total Cost</label>
+              <input
+                type="number"
+                value={data.items[0].total_cost}
+                onChange={(e) => setData("items.0.total_cost", e.target.value)}
+                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Requested By</label>
+            <input
+              type="text"
+              value={focal}
+              readOnly
+              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Recipient</label>
+            <input
+              type="text"
+              value={focal}
+              readOnly
+              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
+            />
+          </div>
+        </div>
+
+        {/* Right Section */}
+        <div className="space-y-4">
+          
+
+          
+          <AutoCompleteInput
+          label="PPE Sub-major Account"
+          apiRoute="/api/ppe-search"
+          value={ppe?.name || ""}
+          onChange={setPpe}
+          placeholder="Type PPE Sub-major Account..."
+        />
+        <AutoCompleteInput
+          label="General Ledger Account"
+          apiRoute="/api/gl-search"
+          value={gl?.name || ""}
+          onChange={setGl}
+          placeholder="Type General Ledger Account..."
+        />
+        <AutoCompleteInput
+          label="Location Office"
+          apiRoute="/api/office-search"
+          value={office?.name || ""}
+          onChange={setOffice}
+          placeholder="Type Location Office..."
+        />
+
+        {office?.name === "Schools" && (
+          <AutoCompleteInput
+            label="School"
+            apiRoute="/api/school-search"
+            value={school?.name || ""}
+            onChange={setSchool}
+            placeholder="Type School..."
+          />
         )}
 
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Left Section */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Designation</label>
-              <input
-                value={pr?.division?.division ?? "N/A"}
-                readOnly
-                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
-              />
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">ICS No.</label>
-              <input
-                type="text"
-                placeholder="ICS Number"
-                value={data.ics_number}
-                onChange={(e) => setData("ics_number", e.target.value)}
-                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
-              />
-            </div>
+        {/* Generated Inventory Number */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Inventory Item No.</label>
+          <input
+            type="text"
+            value={generatedNumber}
+            readOnly
+            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100"
+          />
+        </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Description</label>
-              <input
-                value={itemDesc}
-                readOnly
-                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
-              />
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Quantity</label>
-                <input
-                  type="number"
-                  value={data.items[0].quantity}
-                  onChange={(e) => setData("items.0.quantity", e.target.value)}
-                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Unit</label>
-                <input
-                  value={product?.unit?.unit ?? "N/A"}
-                  readOnly
-                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
-                />
-              </div>
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Remarks</label>
+            <textarea
+              value={data.remarks}
+              onChange={(e) => setData("remarks", e.target.value)}
+              rows="4"
+              placeholder="Enter remarks (optional)"
+              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
+            />
           </div>
+        </div>
 
-          {/* Right Section */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Unit Cost</label>
-                <input
-                  type="number"
-                  value={data.items[0].unit_cost}
-                  onChange={(e) => setData("items.0.unit_cost", e.target.value)}
-                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Total Cost</label>
-                <input
-                  type="number"
-                  value={data.items[0].total_cost}
-                  onChange={(e) => setData("items.0.total_cost", e.target.value)}
-                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Requested By</label>
-              <input
-                type="text"
-                value={focal}
-                readOnly
-                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Recipient</label>
-              <input
-                type="text"
-                value={focal}
-                readOnly
-                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Remarks</label>
-              <textarea
-                value={data.remarks}
-                onChange={(e) => setData("remarks", e.target.value)}
-                rows="4"
-                placeholder="Enter remarks (optional)"
-                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
-              ></textarea>
-            </div>
-          </div>
-
-          <div className="col-span-full flex justify-end mt-4">
-            <button
-              type="submit"
-              disabled={processing}
-              className="inline-flex items-center px-6 py-2 bg-blue-700 text-white text-sm font-medium rounded-md hover:bg-blue-800 transition disabled:opacity-50"
-            >
-              <SendHorizonal size={16} className="mr-2" />
-              {processing ? "Submitting..." : "Submit Issuance"}
-            </button>
-          </div>
-        </form>
-      </div>
+        <div className="col-span-full flex justify-end mt-4">
+          <button
+            type="submit"
+            disabled={processing}
+            className="inline-flex items-center px-6 py-2 bg-blue-700 text-white text-sm font-medium rounded-md hover:bg-blue-800 transition disabled:opacity-50"
+          >
+            <SendHorizonal size={16} className="mr-2" />
+            {processing ? "Submitting..." : "Submit Issuance"}
+          </button>
+        </div>
+      </form>
 
       {/* Confirmation Modal */}
       {showConfirm && (
@@ -241,6 +346,6 @@ export default function IcsForm({ purchaseOrder, inventoryItem, user }) {
           </div>
         </div>
       )}
-    </SupplyOfficerLayout>
+    </div>
   );
 }

@@ -88,8 +88,8 @@ class ICSReportExport implements FromCollection, WithHeadings, WithMapping, With
     $productDesc = $inventoryItem?->item_desc ?? '';
 
     return [
-        $inventoryItem?->id ?? '',                   // Inventory Item No.
-        $ics->ics_number,                            // ICS No./PAR No.
+        $item->inventory_item_number ?? '',                   // Inventory Item No.
+        'L-' . $ics->ics_number,                           // ICS No./PAR No.
         $ics->created_at?->format('Y-m-d') ?? '',    // Date
         $ics->po?->po_number ?? '',                  // PO No.
         $productDesc,                                // ✅ Description from item_desc

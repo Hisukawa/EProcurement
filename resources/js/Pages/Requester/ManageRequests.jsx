@@ -258,12 +258,12 @@ useEffect(() => {
             <tbody className="bg-white divide-y divide-gray-200">
               {purchaseRequests.data.map((pr) => (
                 <tr
-      id={`pr-${pr.id}`}
-      key={pr.id}
-      className={`hover:bg-indigo-50 transition duration-200 ${
-        pr.id === highlightPrId ? "bg-green-100" : ""
-      }`}
-    >
+                  id={`pr-${pr.id}`}
+                  key={pr.id}
+                  className={`hover:bg-indigo-50 transition duration-200 ${
+                    pr.id === highlightPrId ? "bg-green-100" : ""
+                  }`}
+                >
 
                   {/* PR Number */}
                   <td className="px-6 py-4 text-center text-indigo-600 font-medium">
@@ -332,17 +332,19 @@ useEffect(() => {
                         </div>
                       )}
 
-                      <div className="relative group inline-block">
-                        <button
-                          onClick={() => handlePrint(pr.id)}
-                          className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded-md text-sm"
-                        >
-                          <PrinterIcon />
-                        </button>
-                        <span className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
-                          Print
-                        </span>
-                      </div>
+                      {pr.status === "Approved" && (
+                          <div className="relative group inline-block">
+                            <button
+                              onClick={() => handlePrint(pr.id)}
+                              className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded-md text-sm"
+                            >
+                              <PrinterIcon />
+                            </button>
+                            <span className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+                              Print
+                            </span>
+                          </div>
+                        )}
                     </td>
 
                 </tr>

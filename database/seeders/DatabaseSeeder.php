@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use phpDocumentor\Reflection\Location;
 
 class DatabaseSeeder extends Seeder
 {
@@ -14,9 +15,11 @@ class DatabaseSeeder extends Seeder
         // Run all your seeders in proper order (respecting foreign keys)
         $this->call([
             // Master data first
-            UnitSeeder::class,      // if you have tbl_units
-            CategorySeeder::class,  // if you have tbl_categories
-            SupplierCategorySeeder::class,
+            PPESubMajorAccountSeeder::class,
+            GeneralLedgerAccountSeeder::class,
+            LocationOfficeSeeder::class,
+            SchoolsSeeder::class,
+            UnitSeeder::class,
             SupplierSeeder::class,
             ProductSeeder::class,
             DivisionSeeder::class,  // if you have tbl_divisions

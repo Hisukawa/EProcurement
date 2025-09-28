@@ -29,7 +29,7 @@
 
 
         <h3 class="uppercase bold" style="margin-top:15px; font-size:13px;">ABSTRACT OF QUOTATIONS</h3>
-        <p style="font-size:14px;">(AS READ BID PRICE)</p>
+        <p style="font-size:14px;">(AS CALCULATED BID PRICE)</p>
     </div>
 
     <div style="font-size:12px; margin:15px 0;">
@@ -68,19 +68,17 @@
         <span style="text-decoration:underline; font-weight:bold;">
             {{ $awarded['supplier']->company_name ?? '__________' }}
         </span>
-        @if(isset($awarded['remarks']) && !empty($awarded['remarks']))
-            <em>{{ $awarded['remarks'] }}</em>.
-        @endif
+        offering the Lowest Calculated Bid.
     </p>
     @php
         $secretariat = $committee->members->firstWhere('position', 'secretariat');
     @endphp
     <div style="margin-top:40px; font-size:12px;">
         <p><strong>Prepared by:</strong></p>
-        <span style="display:inline-block; text-decoration:underline; min-width:150px;">
+        <span style="display:inline-block; text-decoration:underline; min-width:150px; margin-left: 80px;">
             {{ strtoupper(optional($secretariat)->name ?? '__________________') }}
         </span><br>
-        <p style="margin-top:20px;">BAC Secretariat - Member</p>
+        <p style="margin-left:50px;">BAC Secretariat - Member</p>
     </div>
 
 <div style="margin-top:20px; font-size:12px;">

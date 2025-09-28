@@ -16,7 +16,6 @@ export default function CreateProduct({ units, categories }) {
         name: "",
         specs: "",
         unit_id: "",
-        category_id: "",
         default_price: "",
     });
 

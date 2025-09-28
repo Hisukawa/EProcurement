@@ -19,7 +19,6 @@ use App\Models\PurchaseRequest;
 use App\Models\RFQ;
 use App\Models\RIS;
 use App\Models\Supplier;
-use App\Models\SupplyCategory;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Support\Facades\DB;
@@ -49,7 +48,6 @@ $totalPar = PAR::count();
 
 $totalIssued = $totalIcs + $totalRis + $totalPar;
 $totalPo = PurchaseOrder::count();
-$categories = SupplyCategory::all();
 
 $user = Auth::user();
 
@@ -107,17 +105,6 @@ $recentActivity = $risActivity->concat($icsActivity)->concat($parActivity)
     ->take(5)
     ->values();
 
-// ---- Total Stock per Category ----
-$totalStockPerCategory = $categories->map(function ($category) {
-    $qty = Inventory::whereHas('poDetail.prDetail.product.supplier_category', function ($query) use ($category) {
-        $query->where('id', $category->id);
-    })->sum('total_stock');
-
-    return [
-        'category' => $category->name,
-        'qty' => $qty,
-    ];
-});
 
 
         return Inertia::render('Supply/Dashboard', [
@@ -185,7 +172,6 @@ $totalStockPerCategory = $categories->map(function ($category) {
                     'color'=> "bg-sky-100 text-sky-600" 
                 ],
             ],
-            'stockData' => $totalStockPerCategory,
             'recentActivity' => $recentActivity,
             'user' => $user
         ]);
@@ -200,7 +186,7 @@ public function purchase_orders(Request $request){
         'focal_person',
         'details.product.unit',
         'rfqs.details.supplier'
-    ])
+    ])->latest('created_at')
     ->whereHas('rfqs.details', fn ($q) => $q->where('is_winner', true))
     ->when($search, function ($query, $search) {
         $query->where(function ($q) use ($search) {
@@ -222,8 +208,21 @@ public function purchase_orders(Request $request){
     $purchaseRequests->getCollection()->transform(function ($pr) use ($poRfqs) {
         $rfqIds = $pr->rfqs->pluck('id')->toArray();
         $pr->has_po = count(array_intersect($rfqIds, $poRfqs)) > 0;
+
+        // Add computed winners info
+        $pr->winners = $pr->rfqs
+            ->flatMap(fn($rfq) => $rfq->details)
+            ->filter(fn($d) => $d->is_winner)
+            ->map(fn($w) => [
+                'pr_detail_id'  => $w->pr_details_id,
+                'supplier_name' => $w->supplier->company_name ?? 'N/A',
+                'unit_price'    => $w->unit_price_edited ?? $w->quoted_price ?? 0,
+            ])
+            ->values();
+
         return $pr;
     });
+
 
     $divisions = Division::select('id', 'division')->get();
 
@@ -239,44 +238,67 @@ public function purchase_orders(Request $request){
 
 
 
-    public function create_po($prId){
-        $pr = PurchaseRequest::with(['details.product.unit', 'focal_person', 'division'])
-        ->findOrFail($prId);
+public function create_po($prId)
+{
+    $pr = PurchaseRequest::with([
+        'details.product.unit', 
+        'focal_person', 
+        'division'
+    ])->findOrFail($prId);
 
-        $rfq = RFQ::with(['details.supplier'])->where('pr_id', $prId)->firstOrFail();
+    $rfq = RFQ::with(['details.supplier'])
+        ->where('pr_id', $prId)
+        ->firstOrFail();
 
+    $winners = $rfq->details
+        ->filter(fn($d) => $d->is_winner)
+        ->map(function ($winner) use ($pr, $rfq) {
+            $prDetail = $pr->details?->firstWhere('id', $winner->pr_details_id);
 
-        $winners = $rfq->details
-            ->filter(fn($d) => $d->is_winner)
-            ->map(function ($winner) use ($pr) {
-                $prDetail = $pr->details->firstWhere('id', $winner->pr_details_id);
-
+            if (!$prDetail && $rfq->award_mode === 'per-item') {
+                // fallback: skip or provide default values
                 return [
-                    'pr_detail_id' => $winner->pr_details_id,
-                    'item' => $prDetail->product->name ?? 'N/A',
-                    'specs' => $prDetail->product->specs ?? '',
-                    'quantity' => $prDetail->quantity,
-                    'unit' => $prDetail->product->unit->unit ?? '',
-                    'quoted_price' => $winner->quoted_price,
-                    'supplier_id' => $winner->supplier_id,
-                    'supplier_name' => $winner->supplier->company_name ?? '',
+                    'pr_detail_id'          => $winner->pr_details_id,
+                    'item'                  => 'N/A',
+                    'specs'                 => '',
+                    'quantity'              => 0,
+                    'unit'                  => '',
+                    'unit_price'            => $winner->quoted_price ?? 0,
+                    'supplier_id'           => $winner->supplier_id,
+                    'supplier_name'         => $winner->supplier->company_name ?? '',
+                    'mode'                  => $rfq->mode ?? 'as-read',
+                    'total_price_calculated'=> $rfq->total_price_calculated ?? 0,
                 ];
-            })->values();
+            }
 
-        $allQuotations = [];
-        foreach ($rfq->details as $detail) {
-            $allQuotations[$detail->supplier_id][$detail->pr_details_id] = $detail->quoted_price;
-        }
+            // Determine effective unit price (edited or quoted)
+            $unitPrice = $winner->unit_price_edited ?? $winner->quoted_price ?? 0;
 
-        return Inertia::render('Supply/CreatePurchaseOrder', [
-            'pr' => $pr,
-            'rfq' => $rfq,
-            'winners' => $winners,
-            'supplier' => Supplier::find($winners->first()['supplier_id'] ?? null),
-            'suppliers' => Supplier::all(['id', 'company_name']),
-            'supplierQuotedPrices' => $allQuotations, 
-        ]);
-    }
+            return [
+                'pr_detail_id'          => $winner->pr_details_id,
+                'item'                  => $prDetail?->product->name ?? 'N/A',
+                'specs'                 => $prDetail?->product->specs ?? '',
+                'quantity'              => $prDetail->quantity ?? 0,
+                'unit'                  => $prDetail?->product->unit?->unit ?? '',
+                'unit_price'            => $unitPrice,
+                'supplier_id'           => $winner->supplier_id,
+                'supplier_name'         => $winner->supplier->company_name ?? '',
+                'mode'                  => $rfq->mode ?? 'as-read',
+                'total_price_calculated'=> $rfq->total_price_calculated ?? 0,
+            ];
+        })
+        ->filter(fn($w) => $w !== null)
+        ->values();
+
+    return inertia('Supply/CreatePurchaseOrder', [
+        'pr'        => $pr,
+        'rfq'       => $rfq,
+        'suppliers' => $rfq->details->pluck('supplier')->unique('id')->values(),
+        'winners'   => $winners,
+    ]);
+}
+
+
 
 public function store_po(Request $request)
 {
@@ -291,10 +313,10 @@ public function store_po(Request $request)
 
     DB::transaction(function () use ($request) {
         $firstPrDetailId = $request->items[0]['pr_detail_id'];
+
         $purchaseRequest = PurchaseRequest::with(['focal_person', 'details'])
-            ->whereHas('details', function ($q) use ($firstPrDetailId) {
-                $q->where('id', $firstPrDetailId);
-            })->firstOrFail();
+            ->whereHas('details', fn($q) => $q->where('id', $firstPrDetailId))
+            ->firstOrFail();
 
         $userId = is_object($purchaseRequest->focal_person)
             ? $purchaseRequest->focal_person->id
@@ -304,14 +326,14 @@ public function store_po(Request $request)
             throw new \Exception("Focal person not assigned to this Purchase Request.");
         }
 
-        // --- Group items by supplier ---
         $itemsBySupplier = collect($request->items)->groupBy('supplier_id');
 
-        $basePoNumber = $purchaseRequest->pr_number; // e.g. 25-09-001
+        $basePoNumber = $purchaseRequest->pr_number;
         $suffix = 'a';
 
+        $rfq = RFQ::findOrFail($request->rfq_id);
+
         foreach ($itemsBySupplier as $supplierId => $supplierItems) {
-            // If only one supplier won, use base PO number (no suffix)
             $poNumber = $itemsBySupplier->count() === 1
                 ? $basePoNumber
                 : $basePoNumber . $suffix++;
@@ -328,7 +350,7 @@ public function store_po(Request $request)
                 $prDetail = $purchaseRequest->details->firstWhere('id', $item['pr_detail_id']);
                 $user = Auth::user();
 
-                // Audit log if qty differs
+                // Audit log if quantity differs from PR
                 if ($prDetail && $prDetail->quantity != $item['quantity']) {
                     AuditLogs::create([
                         'action' => 'quantity_changed',
@@ -348,9 +370,10 @@ public function store_po(Request $request)
                     'po_id' => $po->id,
                     'pr_detail_id' => $item['pr_detail_id'],
                     'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                    'total_price' => $item['total_price'],
+                    'unit_price' => $item['unit_price'],  // supports edited price
+                    'total_price' => $item['total_price'], // already computed on frontend
                 ]);
+
             }
         }
     });
@@ -359,8 +382,6 @@ public function store_po(Request $request)
         ->route('supply_officer.purchase_orders_table')
         ->with('success', 'Purchase Order(s) successfully created with auditing.');
 }
-
-
 
     public function purchase_orders_table(Request $request){
         $search = $request->input('search');
@@ -513,7 +534,7 @@ public function store_iar(Request $request)
 
     }
     return redirect()
-        ->route('supply_officer.inventory')
+        ->route('supply_officer.iar_table')
         ->with('success', 'Inventory updated successfully.');
 
 }
@@ -559,7 +580,7 @@ public function iar_table(Request $request)
         'purchaseOrder.supplier',
         'purchaseOrder.rfq.purchaseRequest.division',
         'purchaseOrder.rfq.purchaseRequest.focal_person',
-    ])
+    ])->latest('created_at')
     ->when($search, function ($query, $search) {
         $query->where('iar_number', 'like', "%$search%")
               ->orWhereHas('purchaseOrder.supplier', function ($q) use ($search) {
@@ -610,7 +631,7 @@ public function inventory(Request $request)
         'requestedBy',
         'poDetail.purchaseOrder.supplier', // ✅ load purchase order & supplier
         'poDetail.prDetail.product',
-    ])->when($search, function ($query, $search) {
+    ])->latest('created_at')->when($search, function ($query, $search) {
         $query->where(function ($q) use ($search) {
             $q->where('item_desc', 'like', "%$search%")
               ->orWhereHas('requestedBy', function ($subQuery) use ($search) {

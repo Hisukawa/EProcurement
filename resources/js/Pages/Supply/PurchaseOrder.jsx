@@ -102,10 +102,12 @@ export default function PurchaseOrder({ purchaseRequests, filters }) {
                   .filter((d) => winningDetails.some((wd) => wd.id === d.pr_details_id) && d.is_winner);
 
                 // Total quoted price
-                const totalQuotedPrice = winners.reduce(
-                  (sum, w) => sum + parseFloat(w.quoted_price || 0),
-                  0
-                );
+                const totalQuotedPrice = pr.winners.reduce(
+                  (sum, w) => sum + parseFloat(w.unit_price),
+                    0
+                  );
+
+
 
                 return (
                   <tr key={`pr-${pr.id}`} className="hover:bg-blue-50 transition duration-200">

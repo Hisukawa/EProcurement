@@ -144,31 +144,19 @@ class RequesterController extends Controller
         $requestedBy = $division?->requestedBy ?? null;
         $prNumber = $this->generatePrNumber();
         $units = Unit::all();
-        $categories = Category::all();
-        $supplyCategory = SupplyCategory::all();
         $products = Products::with('unit')
                     ->select('id', 'name', 'specs', 'unit_id', 'default_price')
                     ->get();
         $latestPr = PurchaseRequest::latest()->value('pr_number'); 
         $units = Unit::all();
-        $categories = Category::all();
 
         return Inertia::render('Requester/Create', [
             'units' => $units,
-            'categories' => $categories,
-            'supplyCategories' => $supplyCategory,
             'requestedBy' => $requestedBy,
             'auth' => ['user' => $user],
             'pr_number' => $prNumber,
             'products' => $products,
             'latestPr' => $latestPr,
-        ]);
-    }
-    public function create_product()
-    {
-        return Inertia::render('Requester/CreateProduct', [
-            'units' => Unit::all(),         // tbl_units
-            'categories' => Category::all() // tbl_categories
         ]);
     }
     // RequesterController.php
@@ -192,8 +180,6 @@ public function store_product(Request $request)
         'specs' => 'nullable|string',
         'unit_id' => 'nullable|exists:tbl_units,id',
         'custom_unit' => 'nullable|string|max:255',
-        'category_id' => 'required|exists:tbl_categories,id',
-        'supply_category_id' => 'required|exists:tbl_supply_categories,id',
         'default_price' => 'nullable|numeric|min:0',
     ]);
 
@@ -216,9 +202,7 @@ public function store_product(Request $request)
     $product = Products::create([
         'name' => $validated['name'],
         'specs' => $validated['specs'] ?? null,
-        'unit_id' => $validated['unit_id'],   // always integer FK
-        'category_id' => $validated['category_id'],
-        'supply_category_id' => $validated['supply_category_id'],
+        'unit_id' => $validated['unit_id'],
         'default_price' => $validated['default_price'] ?? 0,
     ])->load('unit');
 

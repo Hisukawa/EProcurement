@@ -20,6 +20,8 @@ class UnitSeeder extends Seeder
             'ream',       // paper ream
             'roll',       // roll (e.g., tape)
             'bottle',     // liquid bottles
+            'lot',
+            'unit'
         ];
 
         foreach ($units as $unit) {

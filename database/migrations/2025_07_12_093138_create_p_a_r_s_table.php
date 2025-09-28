@@ -16,7 +16,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('po_id')->constrained('tbl_purchase_orders')->onDelete('cascade');
             $table->string('par_number')->unique();
-            $table->foreignId('received_by')->constrained('users');
+            $table->foreignId('received_by')->nullable()->constrained('users');
+            $table->string('recipient')->nullable();
             $table->foreignId('issued_by')->constrained('users');
             $table->text('remarks')->nullable();
             $table->date('date_acquired')->nullable();

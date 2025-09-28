@@ -22,7 +22,7 @@ import Swal from "sweetalert2";
 import { PencilSquareIcon } from "@heroicons/react/24/solid";
 import { useToast } from "@/hooks/use-toast";
 
-export default function EnterQuotedPrices({ pr, suppliers, rfqs, purchaseRequest, rfq_details, categories }) {
+export default function EnterQuotedPrices({ pr, suppliers, rfqs, purchaseRequest, rfq_details }) {
   const { toast } = useToast();
 useEffect(() => {
   if (rfq_details && rfq_details.length > 0) {
@@ -74,7 +74,6 @@ const [entirePRSupplier, setEntirePRSupplier] = useState(null);
     company_name: "",
     address: "",
     tin_num: "",
-    category_id: ""
   });
   // Estimated prices per item
   const [estimatedPrice, setEstimatedPrice] = useState(() => {
@@ -333,7 +332,6 @@ const handleSubmitAll = () => {
         address: "",
         tin_num: "",
         representative_name: "",
-        category_id: null,
       });
 
       setShowAddSupplierModal(false);
@@ -564,11 +562,11 @@ const [skippedItems, setSkippedItems] = useState([]);
                         if (isNaN(value)) value = "";
 
                         if (value > unitPrice) {
-                          value = unitPrice; // clamp to max
+                          // ✅ Only warn, don’t block
                           Swal.fire({
-                            icon: "warning",
-                            title: "Exceeded Unit Price",
-                            text: `Quoted price cannot exceed ₱${unitPrice.toLocaleString()}.`,
+                            icon: "info",
+                            title: "Notice",
+                            text: `Quoted price is higher than the estimated ₱${unitPrice.toLocaleString()}.`,
                             timer: 2000,
                             showConfirmButton: false,
                           });
@@ -576,6 +574,7 @@ const [skippedItems, setSkippedItems] = useState([]);
 
                         setQuotedPrices((prev) => ({ ...prev, [uniqueId]: value }));
                       };
+
 
                       return (
                         <form
@@ -602,13 +601,13 @@ const [skippedItems, setSkippedItems] = useState([]);
                               type="number"
                               step="0.01"
                               placeholder="₱ Quoted Price"
-                              max={unitPrice} // browser hint
                               disabled={alreadySubmitted && !editingQuotes[uniqueId]}
                               value={
                                 alreadySubmitted && !editingQuotes[uniqueId]
                                   ? parseFloat(quoted).toFixed(2)
                                   : quotedPrices[uniqueId] || ""
                               }
+                              onWheel={(e) => e.currentTarget.blur()}
                               onChange={handleInputChange}
                               className={`w-full border rounded-md px-4 py-2 text-sm shadow-sm ${
                                 alreadySubmitted && !editingQuotes[uniqueId]
@@ -616,6 +615,7 @@ const [skippedItems, setSkippedItems] = useState([]);
                                   : "border-gray-300 focus:ring-2 focus:ring-indigo-500"
                               }`}
                             />
+
                             {alreadySubmitted && !editingQuotes[uniqueId] && (
                               <span className="absolute top-1/2 right-3 -translate-y-1/2 text-xs font-medium text-green-600">
                                 Already submitted
@@ -742,7 +742,6 @@ const [skippedItems, setSkippedItems] = useState([]);
                     <th className="py-3 px-4 text-left">ID</th>
                     <th className="py-3 px-4 text-left">Name</th>
                     <th className="py-3 px-4 text-left">Company</th>
-                    <th className="py-3 px-4 text-left">Category</th>
                     <th className="py-3 px-4 text-left">Address</th>
                     <th className="py-3 px-4 text-left">TIN</th>
                     <th className="py-3 px-4 text-left">Action</th>
@@ -758,9 +757,6 @@ const [skippedItems, setSkippedItems] = useState([]);
                         <td className="py-3 px-4">{supplier.id}</td>
                         <td className="py-3 px-4">{supplier.representative_name}</td>
                         <td className="py-3 px-4">{supplier.company_name}</td>
-                        <td className="py-3 px-4">
-                          {categories.find(c => String(c.id) === String(supplier.category_id))?.name || "N/A"}
-                        </td>
 
 
                         <td className="py-3 px-4">{supplier.address}</td>
@@ -854,7 +850,7 @@ const [skippedItems, setSkippedItems] = useState([]);
                         className="text-center py-6 text-gray-400 italic"
                       >
                         No suppliers available for this{" "}
-                        {showAllSuppliers ? "search" : "category"}.
+                        
                       </td>
                     </tr>
                   )}
@@ -964,20 +960,6 @@ const [skippedItems, setSkippedItems] = useState([]);
                   onChange={e => setNewSupplier(prev => ({ ...prev, tin_num: e.target.value }))}
                   className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Category</label>
-                <select
-                  required
-                  value={newSupplier.category_id}
-                  onChange={e => setNewSupplier(prev => ({ ...prev, category_id: e.target.value }))}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="">Select Category</option>
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
               </div>
               <div className="flex justify-end gap-2">
                 <button
