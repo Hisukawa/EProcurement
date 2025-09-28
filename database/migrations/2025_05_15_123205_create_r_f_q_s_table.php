@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('tbl_rfqs', function (Blueprint $table) {
@@ -17,16 +14,17 @@ return new class extends Migration
             $table->foreignId('pr_id')->constrained('tbl_purchase_requests')->restrictOnDelete();
             $table->boolean('grouped')->default(true);
             $table->enum('award_mode', ['whole-pr', 'per-item'])->nullable();
+            $table->decimal('total_price_calculated', 12, 2)->nullable();
+            $table->enum('mode', ['as-read', 'as-calculated'])->default('as-read');
             $table->timestamps();
         });
 
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
+        Schema::dropIfExists('tbl_rfq_supplier_totals');
         Schema::dropIfExists('tbl_rfqs');
     }
 };
+

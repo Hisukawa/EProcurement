@@ -329,6 +329,7 @@ return (
                             type="text"
                             className="text-center font-bold h-12 border-gray-200 cursor-not-allowed"
                             value={item.quantity_ordered}
+                            onWheel={(e) => e.currentTarget.blur()}
                             readOnly
                           />
                         </LabeledInput>
@@ -353,6 +354,7 @@ return (
                                 e.target.value
                               )
                             }
+                            onWheel={(e) => e.currentTarget.blur()}
                             min="0"
                             placeholder="Quantity Received"
                             required

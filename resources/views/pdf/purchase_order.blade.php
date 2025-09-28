@@ -51,7 +51,7 @@
 
         <tr class="with-border">
             <td style="border-top: none !important;" colspan="3">TIN: <span class="underline font-semibold">{{ $po->supplier->tin_num }}</span></td>
-            <td style="border-top: none !important;" colspan="3">Mode of Procurement: <span class="underline font-semibold">SVP</span></td>
+            <td style="border-top: none !important;" colspan="3">Mode of Procurement: ____________________</td>
         </tr>
         <tr style="margin-top:8px; margin-left: 10px; font-size:11px; border-left:1px solid; border-right:1px solid;height: 2%;">
             <td colspan="6">

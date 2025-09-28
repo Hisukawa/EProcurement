@@ -35,7 +35,7 @@
     </div>
 
     <table>
-        <thead style="background:#f2f2f2;">
+        <thead>
             <tr>
                 <th style="width:8%;">No.</th>
                 <th>Name of Contractor / Offeror</th>
@@ -45,29 +45,46 @@
         </thead>
         <tbody>
             @foreach($quotes as $idx => $detail)
-                <tr @if($detail->is_winner) style="background:#d9f7d9;" @endif>
+                <tr>
                     <td>{{ $idx+1 }}</td>
                     <td>{{ $detail->supplier->company_name }}</td>
                     <td>₱{{ number_format($detail->quoted_price, 2) }}</td>
-                    <td>{{ $detail->is_winner ? 'Winner' : '' }}</td>
+                    <td>
+                        @if(!empty($detail->remarks))
+                            {{ $detail->remarks }}
+                        @else
+                            —
+                        @endif
+                    </td>
+
                 </tr>
             @endforeach
         </tbody>
     </table>
 
-    @php
-        $awarded = collect($suppliers)->firstWhere('is_winner', 1);
-    @endphp
+    @if($winner)
+        <p>
+            Awarded to
+            <span style="text-decoration:underline; font-weight:bold;">
+                {{ $winner->supplier?->company_name ?? 'N/A' }}
+            </span>
 
-    <p>
-        Awarded to
-        <span style="text-decoration:underline; font-weight:bold;">
-            {{ $awarded['supplier']->company_name ?? '__________' }}
-        </span>
-        @if(isset($awarded['remarks']) && !empty($awarded['remarks']))
-            <em>{{ $awarded['remarks'] }}</em>.
-        @endif
-    </p>
+            @if(!empty($winner->remarks))
+                &nbsp;<em>{{ $winner->remarks }}</em>.
+            @endif
+        </p>
+    @else
+        <p>
+            Awarded to
+            <span style="text-decoration:underline; font-weight:bold;">
+                __________
+            </span>
+        </p>
+    @endif
+
+
+
+
     @php
         $secretariat = $committee->members->firstWhere('position', 'secretariat');
     @endphp

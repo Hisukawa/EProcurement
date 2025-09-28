@@ -1,6 +1,6 @@
 import ApproverLayout from "@/Layouts/ApproverLayout";
 import { Head, router } from "@inertiajs/react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -14,18 +14,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import AOQTabs from "@/Layouts/AOQTabs";
 
-export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committee }) {
+export default function AbstractOfQuotationsCalculated({ rfq, groupedDetails = {}, committee }) {
   const pr = rfq.purchase_request;
 
   const [winnerDialogOpen, setWinnerDialogOpen] = useState(false);
   const [remarks, setRemarks] = useState("");
   const [resultDialog, setResultDialog] = useState({
-    open: false,
-    type: "success", // "success" | "error"
-    title: "",
-    description: "",
-  });
-
+  open: false,
+  type: "success", // "success" | "error"
+  title: "",
+  description: "",
+});
   const [selectedWinner, setSelectedWinner] = useState({
     rfqId: null,
     supplierId: null,
@@ -53,62 +52,99 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
       };
     });
 
+
     return { status: committee?.status || "draft", members };
   });
-  const [rollbackDialogOpen, setRollbackDialogOpen] = useState(false);
-  const [rollbackTarget, setRollbackTarget] = useState(null);
-  const [savingCommittee, setSavingCommittee] = useState(false);
-  const [rollingBack, setRollingBack] = useState(false);
-  const [confirmingWinner, setConfirmingWinner] = useState(false);
-  const [submissionType, setSubmissionType] = useState('as-read'); // default
+const [rollbackDialogOpen, setRollbackDialogOpen] = useState(false);
+const [rollbackTarget, setRollbackTarget] = useState(null);
+const [savingCommittee, setSavingCommittee] = useState(false);
+const [rollingBack, setRollingBack] = useState(false);
+const [confirmingWinner, setConfirmingWinner] = useState(false);
+const [savingPrices, setSavingPrices] = useState({});
+const handleSavePrice = async (supplierId, detailId) => {
+  const key = `${supplierId}-${detailId}`;
+  const price = parseFloat(editedPrices[key] ?? 0);
 
-  const handleOpenRollbackDialog = (rfqId, supplierId, detailId = null) => {
-    setRollbackTarget({ rfqId, supplierId, detailId });
-    setRemarks("");
-    setRollbackDialogOpen(true);
-  };
+  setSavingPrices((prev) => ({ ...prev, [key]: true }));
 
-  const handleConfirmRollback = () => {
-    setRollingBack(true);
-    const payload = {
-      remarks,
-      mode: awardMode,
-      ...(awardMode === "per-item" ? { detail_id: rollbackTarget.detailId } : {}),
-    };
+  try {
+    const { data } = await axios.post(
+      route("bac_approver.save_unit_price", { id: rfq.id }),
+      { supplier_id: supplierId, detail_id: detailId, unit_price: price }
+    );
 
-    router.post(route("bac_approver.rollback_winner", { id: rollbackTarget.rfqId }), payload, {
-      preserveScroll: true,
-      onSuccess: () => {
-        setRollbackDialogOpen(false);
-        setRollingBack(false);
-        setResultDialog({
-          open: true,
-          type: "success",
-          title: "Rollback Successful",
-          description: "Winner selection has been rolled back.",
-        });
-        toast({
-          title: "Rollback Successful",
-          description: "Winner selection has been rolled back.",
-          duration: 3000,
-        });
-      },
-      onError: () => {
-        setRollingBack(false);
-        setResultDialog({
-          open: true,
-          type: "error",
-          title: "Rollback Failed",
-          description: "Unable to rollback winner. Please try again.",
-        });
-      },
+    toast({
+      title: data.success ? "Price Saved" : "Save Failed",
+      description: data.message || `Unit price saved: ₱${price.toLocaleString()}`,
+      variant: data.success ? "default" : "destructive",
+      duration: 3000,
     });
+
+    if (data.success && data.total_price_calculated) {
+      handleTotalChange(supplierId, data.total_price_calculated);
+      router.reload({ preserveScroll: true });
+    }
+  } catch (err) {
+    toast({
+      title: "Save Failed",
+      description: err.response?.data?.message || err.message || "Unable to save unit price",
+      variant: "destructive",
+      duration: 3000,
+    });
+  } finally {
+    setSavingPrices((prev) => ({ ...prev, [key]: false }));
+  }
+};
+
+const handleOpenRollbackDialog = (rfqId, supplierId, detailId = null) => {
+  setRollbackTarget({ rfqId, supplierId, detailId });
+  setRemarks("");
+  setRollbackDialogOpen(true);
+};
+
+const handleConfirmRollback = () => {
+  setRollingBack(true);
+  const payload = {
+    remarks,
+    mode: awardMode,
+    ...(awardMode === "per-item" ? { detail_id: rollbackTarget.detailId } : {}),
   };
+
+  router.post(route("bac_approver.rollback_winner", { id: rollbackTarget.rfqId }), payload, {
+    preserveScroll: true,
+    onSuccess: () => {
+      setRollbackDialogOpen(false);
+      setRollingBack(false);
+      setResultDialog({
+        open: true,
+        type: "success",
+        title: "Rollback Successful",
+        description: "Winner selection has been rolled back.",
+      });
+      toast({
+        title: "Rollback Successful",
+        description: "Winner selection has been rolled back.",
+        duration: 3000,
+      });
+    },
+    onError: () => {
+      setRollingBack(false);
+      setResultDialog({
+        open: true,
+        type: "error",
+        title: "Rollback Failed",
+        description: "Unable to rollback winner. Please try again.",
+      });
+    },
+  });
+};
+
 
   const handlePrintAOQ = (rfqId) =>
-    window.open(route("bac_approver.print_aoq", { id: rfqId }), "_blank");
+    window.open(route("bac_approver.print_aoq_calculated", { id: rfqId }), "_blank");
   const handlePrintItemAOQ = (rfqId, detailId) =>
-    window.open(route("bac_approver.print_aoq", { id: rfqId, pr_detail_id: detailId }), "_blank");
+  window.open(route("bac_approver.print_aoq", { id: rfqId, pr_detail_id: detailId }), "_blank");
+
 
   const handleOpenWinnerDialog = (rfqId, supplierId, detailId = null) => {
     setSelectedWinner({ rfqId, supplierId, detailId });
@@ -116,73 +152,101 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
     setWinnerDialogOpen(true);
   };
 
-  const handleConfirmWinner = () => {
-    setConfirmingWinner(true);
+const handleConfirmWinner = async () => {
+  setConfirmingWinner(true);
 
-    const payload = {
-      supplier_id: selectedWinner.supplierId,
-      remarks,
-      mode: awardMode, // "whole-pr" or "per-item"
-      ...(awardMode === "per-item" ? { detail_id: selectedWinner.detailId } : {}),
-    };
-
-    router.post(route("bac_approver.mark_winner", { id: selectedWinner.rfqId }), payload, {
-      preserveScroll: true,
-      onSuccess: () => {
-        setWinnerDialogOpen(false);
-        setConfirmingWinner(false);
-        setResultDialog({
-          open: true,
-          type: "success",
-          title: "Winner Marked",
-          description:
-            awardMode === "per-item"
-              ? "Supplier has been awarded for the selected item."
-              : "Supplier has been awarded for the entire PR.",
-        });
-        toast({
-          title: "Winner Marked",
-          description:
-            awardMode === "per-item"
-              ? "Supplier has been awarded for the selected item."
-              : "Supplier has been awarded for the entire PR.",
-          duration: 3000,
-        });
-      },
-      onError: () => {
-        setConfirmingWinner(false);
-        setResultDialog({
-          open: true,
-          type: "error",
-          title: "Failed to Mark Winner",
-          description: "Something went wrong while marking the winner. Please try again.",
-        });
-      },
-    });
+  const payload = {
+    supplier_id: selectedWinner.supplierId,
+    remarks,
+    ...(awardMode === "per-item" ? { detail_id: selectedWinner.detailId } : {}),
+    // Send effective total for backend calculation if needed
+    total_price: getEffectiveTotal(
+      selectedWinner.supplierId,
+      supplierMap[selectedWinner.supplierId]?.total
+    ),
   };
 
-  // --- Process supplier data ---
-  const supplierMap = {};
-  const winnerCounts = {};
+  try {
+    const response = await axios.post(
+      route("bac_approver.mark_winner_as_calculated", { id: selectedWinner.rfqId }),
+      payload
+    );
+
+    if (response.data.success) {
+      setWinnerDialogOpen(false);
+      setResultDialog({
+        open: true,
+        type: "success",
+        title: "Winner Marked",
+        description:
+          awardMode === "per-item"
+            ? "Supplier has been awarded for the selected item."
+            : "Supplier has been awarded for the entire PR.",
+      });
+
+      toast({
+        title: "Winner Marked",
+        description:
+          awardMode === "per-item"
+            ? "Supplier has been awarded for the selected item."
+            : "Supplier has been awarded for the entire PR.",
+        duration: 3000,
+      });
+      router.reload({ preserveScroll: true });
+    } else {
+      throw new Error(response.data.message || "Unknown error");
+    }
+  } catch (error) {
+    console.error(error);
+    setResultDialog({
+      open: true,
+      type: "error",
+      title: "Failed to Mark Winner",
+      description:
+        error.response?.data?.message ||
+        "Something went wrong while marking the winner. Please try again.",
+    });
+  } finally {
+    setConfirmingWinner(false);
+  }
+};
+
+
+
+const { supplierMap, winnerCounts } = useMemo(() => {
+  const map = {};
+  const counts = {};
+
   pr.details.forEach((detail) => {
     const quotesForItem = groupedDetails[detail.id] || [];
+
     quotesForItem.forEach((quote) => {
       const sid = quote.supplier.id;
-      if (!supplierMap[sid]) {
-        supplierMap[sid] = { supplier: quote.supplier, detailIds: new Set(), total: 0, quotes: [] };
-        winnerCounts[sid] = 0;
+
+      if (!map[sid]) {
+        const backendTotal = rfq.supplier_totals?.find(t => t.supplier_id === sid)?.final_total_price;
+        map[sid] = {
+          supplier: quote.supplier,
+          detailIds: new Set(),
+          total: 0,
+          final_total_price: backendTotal ?? null,
+        };
+        counts[sid] = 0;
       }
-      supplierMap[sid].detailIds.add(detail.id);
-      supplierMap[sid].total += parseFloat(quote.quoted_price || 0);
-      supplierMap[sid].quotes.push(quote); // Store quotes for easy remark comparison
-      if (quote.is_winner) winnerCounts[sid]++;
+
+      map[sid].detailIds.add(detail.id);
+      map[sid].total += parseFloat(quote.quoted_price || 0);
+      if (quote.is_winner) counts[sid]++;
     });
   });
 
+  return { supplierMap: map, winnerCounts: counts };
+}, [pr.details, groupedDetails, rfq.supplier_totals]);
+
   const totalDetailsCount = pr.details.length;
-  const fullBidSuppliers = Object.values(supplierMap).filter(
-    (s) => s.detailIds.size === totalDetailsCount
-  );
+const fullBidSuppliers = Object.values(supplierMap).filter(
+  (s) => s.detailIds.size === totalDetailsCount
+);
 
   const hasFullBidSuppliers = fullBidSuppliers.length > 0;
 
@@ -192,58 +256,89 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
       setAwardMode("per-item");
     }
   }, [hasFullBidSuppliers, awardMode]);
-
   const hasAnyWinner = pr.details.some((detail) =>
-    (groupedDetails[detail.id] || []).some((q) => q.is_winner)
-  );
+  (groupedDetails[detail.id] || []).some((q) => q.is_winner)
+);
 
-  const [remarksDialogOpen, setRemarksDialogOpen] = useState(false);
-  const [remarksTarget, setRemarksTarget] = useState(null);
-  // { rfqId, supplierId, detailId (nullable), currentRemarks }
-  const [remarksInput, setRemarksInput] = useState("");
-  const [savingRemarks, setSavingRemarks] = useState(false);
+// Check if PR-wide winner is declared (all items for one supplier are marked)
+const hasWholePrWinner = Object.values(winnerCounts).some(
+  (count) => count === totalDetailsCount
+);
 
-  const handleSaveRemarks = () => {
-    setSavingRemarks(true);
-    const payload = {
-      supplier_id: remarksTarget.supplierId,
-      remarks: remarksInput,
-      mode: awardMode,
-      ...(remarksTarget.detailId !== null ? { detail_id: remarksTarget.detailId } : {}),
-    };
+// Check if per-item winners exist
+const hasPerItemWinners = pr.details.some((detail) =>
+  (groupedDetails[detail.id] || []).some((q) => q.is_winner)
+);
 
-    // If detailId is null, it means we are in "whole-pr" mode and want to update all item remarks
-    // for this supplier. THIS ASSUMES YOUR BACKEND CAN HANDLE `detail_id: null`
-    // to apply the remark to all quotes for that supplier within the RFQ.
-    // If your backend *only* updates a single item, you'll need to refactor this
-    // to loop through all supplierMap[remarksTarget.supplierId].quotes
-    // and send a separate request for each with its specific detail_id.
-    // For now, adhering to the assumption that `detail_id: null` applies broadly.
-    router.post(route("bac_approver.save_remarks", { id: remarksTarget.rfqId }), payload, {
-      preserveScroll: true,
-      onSuccess: () => {
-        setSavingRemarks(false);
-        setRemarksDialogOpen(false);
-        toast({
-          title: "Remarks Saved",
-          description: "Supplier remarks updated successfully.",
-          duration: 3000,
-        });
-        // IMPORTANT: Trigger a reload to get updated groupedDetails
-        // so the frontend reflects the changes.
-        router.reload({ only: ['rfq', 'groupedDetails'] });
-      },
-      onError: () => {
-        setSavingRemarks(false);
-        toast({
-          title: "Save Failed",
-          description: "Could not save remarks. Please try again.",
-          variant: "destructive",
-          duration: 3000,
-        });
-      },
-    });
+const [remarksDialogOpen, setRemarksDialogOpen] = useState(false);
+const [remarksTarget, setRemarksTarget] = useState(null); 
+// { rfqId, supplierId, detailId (nullable), currentRemarks }
+const [remarksInput, setRemarksInput] = useState("");
+const [savingRemarks, setSavingRemarks] = useState(false);
+const handleSaveRemarks = () => {
+  setSavingRemarks(true);
+  const payload = {
+    supplier_id: remarksTarget.supplierId,
+    remarks: remarksInput,
+    mode: awardMode,
+    ...(awardMode === "per-item" ? { detail_id: remarksTarget.detailId } : {}),
   };
+
+  router.post(route("bac_approver.save_remarks", { id: remarksTarget.rfqId }), payload, {
+    preserveScroll: true,
+    onSuccess: () => {
+      setSavingRemarks(false);
+      setRemarksDialogOpen(false);
+      toast({
+        title: "Remarks Saved",
+        description: "Supplier remarks updated successfully.",
+        duration: 3000,
+      });
+    },
+    onError: () => {
+      setSavingRemarks(false);
+      toast({
+        title: "Save Failed",
+        description: "Could not save remarks. Please try again.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    },
+  });
+};
+
+const [editableTotals, setEditableTotals] = useState({});
+const handleTotalChange = (supplierId, value) => {
+  setEditableTotals((prev) => ({
+    ...prev,
+    [supplierId]: value,
+  }));
+};
+// --- Add helper ---
+const getEffectiveTotal = (supplierId, fallbackTotal) => {
+  const detailIds = supplierMap[supplierId]?.detailIds || [];
+  let total = 0;
+
+  detailIds.forEach((detailId) => {
+    const editedKey = `${supplierId}-${detailId}`;
+    const editedPrice = editedPrices[editedKey];
+    const quote = groupedDetails[detailId]?.find((q) => q.supplier.id === supplierId);
+    const basePrice = quote?.unit_price_edited ?? quote?.quoted_price ?? 0;
+    total += parseFloat(editedPrice ?? basePrice);
+  });
+
+  return total;
+};
+
+const [editedPrices, setEditedPrices] = useState({});
+// Key format: `${supplierId}-${detailId}`
+const handlePriceChange = (supplierId, detailId, value) => {
+  setEditedPrices(prev => ({
+    ...prev,
+    [`${supplierId}-${detailId}`]: value,
+  }));
+};
+
 
   return (
     <ApproverLayout>
@@ -268,22 +363,22 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
           <Button
             variant={awardMode === "whole-pr" ? "default" : "outline"}
             onClick={() => setAwardMode("whole-pr")}
-            disabled={!!rfq.award_mode} // disable if mode already chosen
+            disabled={!!rfq.award_mode}
           >
             Winner for Entire PR
           </Button>
-          <Button
+          {/* <Button
             variant={awardMode === "per-item" ? "default" : "outline"}
             onClick={() => setAwardMode("per-item")}
-            disabled={!!rfq.award_mode} // disable if mode already chosen
+            disabled={!!rfq.award_mode}
           >
             Winner per Item
-          </Button>
+          </Button> */}
         </div>
 
-        {!hasFullBidSuppliers && (
+        {!hasFullBidSuppliers && awardMode === "whole-pr" && (
           <p className="text-sm text-red-600 mb-4">
-            ⚠️ No supplier quoted for all items. You can only declare winners per item.
+            ⚠️ No supplier quoted for all items. Consider declaring winners per item.
           </p>
         )}
 
@@ -316,7 +411,7 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
                 onClick={() => handlePrintAOQ(rfq.id)}
                 className="text-sm text-white bg-green-600 hover:bg-green-700 px-3 py-2 rounded-md h-fit"
               >
-                🖨️ Print Abstract as Read
+                🖨️ Print Abstract as Calculated
               </button>
             </div>
 
@@ -338,43 +433,66 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
                 {pr.details.map((detail, rowIndex) => {
                   const quotes = groupedDetails[detail.id] || [];
 
-                  // Find lowest quote for this item
-                  const lowestQuote = quotes.reduce((min, q) =>
-                    !min || parseFloat(q.quoted_price) < parseFloat(min.quoted_price)
-                      ? q
-                      : min,
-                    null
-                  );
+                  // Get all effective prices for this detail among full bid suppliers
+                  const effectivePrices = quotes
+                    .filter(q => fullBidSuppliers.some(s => s.supplier.id === q.supplier.id))
+                    .map(q => parseFloat(q.unit_price_edited ?? q.quoted_price));
+
+                  // Determine the lowest price (skip if empty)
+                  const lowestPrice = effectivePrices.length > 0 ? Math.min(...effectivePrices) : null;
 
                   return (
-                    <tr
-                      key={detail.id}
-                      className={rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                    >
-                      {/* Item Name */}
+                    <tr key={detail.id} className={rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                       <td className="border px-4 py-2 font-medium">{detail.item}</td>
 
-                      {/* Supplier Quotes (No item-level remarks here anymore) */}
                       {fullBidSuppliers.map((s) => {
-                        const quote = quotes.find((q) => q.supplier.id === s.supplier.id);
-                        const isLowest =
-                          quote && lowestQuote && quote.supplier.id === lowestQuote.supplier.id;
+                        const quote = quotes.find(q => q.supplier.id === s.supplier.id);
+                        const effectivePrice = quote ? parseFloat(quote.unit_price_edited ?? quote.quoted_price) : null;
+                        const isLowest = effectivePrice !== null && lowestPrice !== null && effectivePrice === lowestPrice;
 
                         return (
                           <td
                             key={s.supplier.id}
                             className={`border px-4 py-2 text-center align-top ${
-                              isLowest ? "bg-green-50" : ""
+                              isLowest ? "bg-blue-300" : ""
                             }`}
                           >
                             {quote ? (
-                              <span
-                                className={`font-semibold ${
-                                  isLowest ? "text-green-700" : "text-gray-800"
-                                }`}
-                              >
-                                ₱{parseFloat(quote.quoted_price).toLocaleString()}
-                              </span>
+                              <div className="flex flex-col gap-1 items-center">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  className="w-28 px-2 py-1 border rounded text-right font-semibold"
+                                  value={editedPrices[`${quote.supplier.id}-${detail.id}`] ?? effectivePrice}
+                                  onChange={(e) =>
+                                    handlePriceChange(
+                                      quote.supplier.id,
+                                      detail.id,
+                                      parseFloat(e.target.value) || 0
+                                    )
+                                  }
+                                  disabled={hasWholePrWinner} // <-- disable if PR-wide winner exists
+                                />
+
+                                {quote.unit_price_edited && quote.unit_price_edited !== quote.quoted_price ? (
+                                  <span className="text-xs text-gray-500 italic">
+                                    Original/Quoted:{" "}
+                                    <span className="font-semibold underline">
+                                      ₱{parseFloat(quote.quoted_price).toLocaleString()}
+                                    </span>
+                                  </span>
+                                ) : null}
+
+                                <Button
+                                  size="xs"
+                                  variant="outline"
+                                  className="px-2 py-1 bg-green-600 text-white"
+                                  onClick={() => handleSavePrice(quote.supplier.id, detail.id)}
+                                  disabled={savingPrices[`${quote.supplier.id}-${detail.id}`] || hasWholePrWinner} // <-- disable saving
+                                >
+                                  {savingPrices[`${quote.supplier.id}-${detail.id}`] ? "Saving..." : "Save"}
+                                </Button>
+                              </div>
                             ) : (
                               <span className="text-gray-400">—</span>
                             )}
@@ -385,32 +503,49 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
                   );
                 })}
 
-                {/* Totals Row */}
+
                 <tr className="bg-gray-200 font-semibold">
-                  <td className="border px-4 py-3 text-right">Total Quoted Price</td>
-                  {fullBidSuppliers.map((s) => (
-                    <td
-                      key={s.supplier.id}
-                      className="border px-4 py-3 text-right text-green-700"
-                    >
-                      ₱{parseFloat(s.total).toLocaleString()}
-                    </td>
-                  ))}
+                  <td className="border px-4 py-3 text-right">Total Price</td>
+                  {fullBidSuppliers.map((s) => {
+                    const effectiveTotal = getEffectiveTotal(s.supplier.id, s.total);
+
+                    // Determine the lowest effective total among fullBidSuppliers
+                    const allTotals = fullBidSuppliers.map((fs) => getEffectiveTotal(fs.supplier.id, fs.total));
+                    const minTotal = Math.min(...allTotals);
+                    const isLowest = effectiveTotal === minTotal;
+
+                    return (
+                      <td
+                        key={s.supplier.id}
+                        className={`border px-4 py-3 text-right ${isLowest ? "bg-green-200" : ""}`} // highlight lowest
+                      >
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-xs text-gray-500 italic">
+                            Quoted Total: ₱{parseFloat(s.total || 0).toLocaleString()}
+                          </span>
+                          <span className={`text-xs font-semibold ${isLowest ? "text-green-700" : "text-blue-600"}`}>
+                            Calculated Total: ₱{effectiveTotal.toLocaleString()}
+                          </span>
+                        </div>
+                      </td>
+                    );
+                  })}
                 </tr>
 
-                {/* New Remarks Row - per supplier, consolidated */}
+
                 <tr className="bg-gray-50">
                   <td className="border px-4 py-3 text-right font-semibold">Supplier Remarks</td>
                   {fullBidSuppliers.map((s) => {
-                    // Collect all remarks for this supplier across all items
-                    const supplierAllRemarks = s.quotes
-                      .filter(q => q.rfq_id === rfq.id) // Ensure quotes belong to current RFQ
-                      .map(q => q.remarks?.trim() || "");
+                    // Gather all remarks from groupedDetails for this supplier
+                    const supplierAllRemarks = Object.values(groupedDetails)
+                      .flat()
+                      .filter((q) => q.supplier.id === s.supplier.id)
+                      .map((q) => q.remarks?.trim() || "");
 
-                    // Check if all remarks are identical
-                    const allRemarksAreSame = supplierAllRemarks.every(
-                      (val, i, arr) => val === arr[0]
-                    );
+                    const allRemarksAreSame =
+                      supplierAllRemarks.length > 0 &&
+                      supplierAllRemarks.every((val) => val === supplierAllRemarks[0]);
+
                     const displayedRemarks =
                       allRemarksAreSame && supplierAllRemarks.length > 0
                         ? supplierAllRemarks[0] || "No remarks"
@@ -419,21 +554,19 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
                     return (
                       <td key={`remarks-${s.supplier.id}`} className="border px-4 py-3 text-center">
                         <div className="flex flex-col items-center gap-1">
-                          <span className="text-xs text-gray-600 italic">
-                            {displayedRemarks}
-                          </span>
+                          <span className="text-xs text-gray-600 italic">{displayedRemarks}</span>
                           <Button
                             size="xs"
                             variant="outline"
-                            className="px-2 py-1"
+                            className="px-2 py-1 bg-blue-500 text-white"
                             onClick={() => {
                               setRemarksTarget({
                                 rfqId: rfq.id,
                                 supplierId: s.supplier.id,
-                                detailId: null, // Critical: signal for PR-wide update
+                                detailId: null, // PR-wide remarks
                                 currentRemarks:
                                   displayedRemarks === "No remarks" || displayedRemarks.includes("Varying")
-                                    ? "" // Clear input if no remarks or varying
+                                    ? ""
                                     : displayedRemarks,
                               });
                               setRemarksInput(
@@ -452,6 +585,7 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
                   })}
                 </tr>
 
+
                 {/* Winner Row */}
                 <tr className="bg-gray-100">
                   <td className="border px-4 py-3 text-right font-semibold">Winner</td>
@@ -468,7 +602,7 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
                             Rollback
                           </Button>
                         </div>
-                      ) : hasAnyWinner ? (
+                      ) : hasWholePrWinner ? ( // Check for any PR-wide winner
                         "—"
                       ) : (
                         <Button
@@ -494,10 +628,7 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
               const itemHasWinner = quotes.some((q) => q.is_winner);
 
               return (
-                <div
-                  key={detail.id}
-                  className="border p-4 bg-white rounded-lg shadow-sm"
-                >
+                <div key={detail.id} className="border p-4 bg-white rounded-lg shadow-sm">
                   {/* Header with Print Button */}
                   <div className="flex justify-between items-center mb-2">
                     <h4 className="font-semibold">{detail.item}</h4>
@@ -517,32 +648,100 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
                   <table className="w-full text-sm border rounded-lg overflow-hidden shadow">
                     <thead className="bg-gray-100 text-gray-700">
                       <tr>
-                        <th className="px-4 py-2 text-left">Supplier</th>{" "}
+                        <th className="px-4 py-2 text-left w-auto">Item</th>
                         {quotes.map((q) => (
-                          <th
-                            key={q.supplier.id}
-                            className="px-4 py-2 text-center"
-                          >
+                          <th key={q.supplier.id} className="px-4 py-2 text-center w-56">
                             {q.supplier.company_name}
                           </th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
+                      {/* Supplier Quotes Row */}
                       <tr>
-                        <td className="px-4 py-2 font-medium">Quoted Price</td>
+                        <td className="border px-4 py-3 font-medium">{detail.item}</td>
                         {quotes.map((q) => (
                           <td
                             key={q.supplier.id}
-                            className="px-4 py-2 text-center align-top"
+                            className="border px-4 py-2 text-center align-top w-56"
                           >
-                            <span className="font-semibold text-gray-800">
-                              ₱{parseFloat(q.quoted_price || 0).toLocaleString()}
-                            </span>
+                            <div className="flex flex-col gap-1 items-center">
+                              {/* Replace the price display in table cells with editable inputs */}
+                              {q ? (
+                                <div className="flex flex-col gap-1 items-center">
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      className="w-28 px-2 py-1 border rounded text-right font-semibold"
+                                      value={editedPrices[`${q.supplier.id}-${detail.id}`] ?? q.quoted_price}
+                                      onChange={(e) => handlePriceChange(q.supplier.id, detail.id, parseFloat(e.target.value) || 0)}
+                                    />
+                                    <span className="text-xs text-gray-500 italic">
+                                      Original: ₱{parseFloat(q.quoted_price).toLocaleString()}
+                                    </span>
+                                    <Button
+                                      size="xs"
+                                      variant="outline"
+                                      className="px-2 py-1 bg-green-500 text-white"
+                                      onClick={() => handleSavePrice(q.supplier.id, detail.id)}
+                                      disabled={savingPrices[`${q.supplier.id}-${detail.id}`]}
+                                    >
+                                      {savingPrices[`${q.supplier.id}-${detail.id}`] ? "Saving..." : "Save"}
+                                    </Button>
+                                  </div>
+
+                              ) : (
+                                <span className="text-gray-400">—</span>
+                              )}
+
+                              <div className="text-xs text-gray-600 italic">
+                                {q.remarks || "No remarks"}
+                                <Button
+                                  size="xs"
+                                  variant="outline"
+                                  className="ml-2 px-2 py-1 bg-blue-500 text-white"
+                                  onClick={() => {
+                                    setRemarksTarget({
+                                      rfqId: rfq.id,
+                                      supplierId: q.supplier.id,
+                                      detailId: detail.id,
+                                      currentRemarks: q.remarks || "",
+                                    });
+                                    setRemarksInput(q.remarks || "");
+                                    setRemarksDialogOpen(true);
+                                  }}
+                                >
+                                  Edit
+                                </Button>
+                              </div>
+                            </div>
                           </td>
                         ))}
                       </tr>
-                      {/* Remarks row for per-item mode */}
+
+                      {/* Totals Row (for per-item, it's just the quoted price for that item) */}
+                      <tr className="bg-gray-200 font-semibold">
+                        <td className="border px-4 py-3 text-right">Effective Price</td>
+                        {quotes.map((q) => {
+                          const effectiveTotal = getEffectiveTotal(q.supplier.id, q.quoted_price);
+                          return (
+                            <td
+                              key={q.supplier.id}
+                              className="border px-4 py-3 text-right text-green-700"
+                            >
+                              <div className="flex flex-col items-end gap-1">
+                                <span className="text-xs text-gray-500 italic">
+                                  (Quoted Price: ₱
+                                  {parseFloat(q.quoted_price || 0).toLocaleString()})
+                                </span>
+                                <span className="text-xs text-blue-600 font-semibold">
+                                  Calculated: ₱{effectiveTotal.toLocaleString()}
+                                </span>
+                              </div>
+                            </td>
+                          );
+                        })}
+                      </tr>
                       <tr>
                         <td className="px-4 py-2 font-medium">Remarks</td>
                         {quotes.map((q) => {
@@ -576,14 +775,11 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
                         })}
                       </tr>
 
-                      {/* Winner controls row for per-item mode */}
-                      <tr>
-                        <td className="px-4 py-2 font-medium">Winner Status</td>
+                      {/* Winner Row */}
+                      <tr className="bg-gray-100">
+                        <td className="border px-4 py-3 text-right font-semibold">Winner</td>
                         {quotes.map((q) => (
-                          <td
-                            key={`item-winner-${q.supplier.id}`}
-                            className="px-4 py-2 text-center align-top"
-                          >
+                          <td key={q.supplier.id} className="border px-4 py-3 text-center">
                             {q.is_winner ? (
                               <div className="flex flex-col items-center gap-1">
                                 <span className="text-green-600 font-bold">✔ Winner</span>
@@ -598,13 +794,11 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
                                 </Button>
                               </div>
                             ) : itemHasWinner ? (
-                              <span className="text-gray-400">—</span>
+                              "—"
                             ) : (
                               <Button
                                 size="sm"
-                                onClick={() =>
-                                  handleOpenWinnerDialog(rfq.id, q.supplier.id, detail.id)
-                                }
+                                onClick={() => handleOpenWinnerDialog(rfq.id, q.supplier.id, detail.id)}
                               >
                                 Mark as Winner
                               </Button>
@@ -624,41 +818,45 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
         <div className="mb-8 p-4 border rounded-lg bg-gray-50 shadow-sm">
           <h3 className="text-lg font-semibold mb-4">BAC Committee</h3>
           <ul className="space-y-3">
-            {["chair", "vice_chair", "secretariat", "member1", "member2", "member3"].map(
-              (position) => {
-                const info = committeeState.members[position];
-                return (
-                  info?.status === "active" && ( // ✅ Only render if active
-                    <li
-                      key={position}
-                      className="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm"
+            {[
+              "chair",
+              "vice_chair",
+              "secretariat",
+              "member1",
+              "member2",
+              "member3",
+            ].map((position) => {
+              const info = committeeState.members[position];
+              return (
+                info?.status === "active" && (
+                  <li
+                    key={position}
+                    className="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm"
+                  >
+                    <div>
+                      <p className="font-semibold">{info.name || "—"}</p>
+                      <p className="text-sm text-gray-500">
+                        {position.replace("_", " ").toUpperCase()}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedMember({ position, current: info });
+                        setReplacementName("");
+                        setCommitteeDialogOpen(true);
+                      }}
                     >
-                      <div>
-                        <p className="font-semibold">{info.name || "—"}</p>
-                        <p className="text-sm text-gray-500">
-                          {position.replace("_", " ").toUpperCase()}
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedMember({ position, current: info });
-                          setReplacementName("");
-                          setCommitteeDialogOpen(true);
-                        }}
-                      >
-                        Replace
-                      </Button>
-                    </li>
-                  )
-                );
-              }
-            )}
+                      Replace
+                    </Button>
+                  </li>
+                )
+              );
+            })}
           </ul>
         </div>
       </div>
-
 
       {/* WINNER CONFIRMATION DIALOG */}
       <Dialog open={winnerDialogOpen} onOpenChange={setWinnerDialogOpen}>

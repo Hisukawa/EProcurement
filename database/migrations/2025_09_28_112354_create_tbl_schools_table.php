@@ -11,16 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('tbl_products', function (Blueprint $table) {
+        Schema::create('tbl_schools', function (Blueprint $table) {
             $table->id();
-            $table->string('name');      
-            $table->text('specs')->nullable();
-            $table->foreignId('unit_id')  
-                    ->constrained('tbl_units')
-                    ->onDelete('cascade');
-            $table->decimal('default_price', 10, 2)->nullable();
+            $table->string('name');
+            $table->integer('cluster');
+            $table->string('code');   // e.g., 101, 102
+            $table->string('district');
             $table->timestamps();
         });
+
     }
 
     /**
@@ -28,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('tbl_products');
+        Schema::dropIfExists('tbl_schools');
     }
 };

@@ -140,7 +140,7 @@ export default function IcsIssuedHigh({ ics }) {
                     >
                       <td className="px-4 py-2 border">{index + 1}</td>
                       <td className="px-4 py-2 border font-medium">
-                        {record.ics?.ics_number}
+                        H-{record.ics?.ics_number}
                       </td>
                       <td className="px-4 py-2 border">
                         {record.inventory_item?.item_desc ?? "N/A"}

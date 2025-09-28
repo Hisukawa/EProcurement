@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ICS;
 use App\Models\Inventory;
 use App\Models\PAR;
+use App\Models\PPESubMajorAccount;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderDetail;
 use App\Models\RIS;
@@ -20,56 +21,38 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class IssuanceController extends Controller
 {
-    public function issuance($po_detail_id, $inventory_id)
-    {
-        $inventoryItem = Inventory::findOrFail($inventory_id);
+public function issuance($po_detail_id, $inventory_id)
+{
+    $inventoryItem = Inventory::findOrFail($inventory_id);
 
-        // Find PO Detail and load its Purchase Order
-        $poDetail = PurchaseOrderDetail::with([
-            'purchaseOrder.supplier',
-            'purchaseOrder.details.prDetail.product.category',
-            'purchaseOrder.details.prDetail.product.unit',
-            'purchaseOrder.details.prDetail.purchaseRequest.division',
-            'purchaseOrder.details.prDetail.purchaseRequest.focal_person',
-        ])->findOrFail($po_detail_id);
+    $poDetail = PurchaseOrderDetail::with([
+        'purchaseOrder.supplier',
+        'purchaseOrder.details.prDetail.product.category',
+        'purchaseOrder.details.prDetail.product.unit',
+        'purchaseOrder.details.prDetail.purchaseRequest.division',
+        'purchaseOrder.details.prDetail.purchaseRequest.focal_person',
+    ])->findOrFail($po_detail_id);
 
-        $po = $poDetail->purchaseOrder; // ✅ now you have the PO
+    $po = $poDetail->purchaseOrder;
 
-        // Ensure the PO detail matches the inventory item
-        $correctDetail = $po->details->firstWhere('id', $inventoryItem->po_detail_id);
-
-        if (!$correctDetail) {
-            return redirect()->back()->with('error', 'No matching PO detail found for this inventory item.');
-        }
-
-        $product = $correctDetail->prDetail->product;
-        $categoryName = strtolower($product->category->name ?? '');
-        $totalPricePO = $correctDetail->total_price;
-
-        $props = [
-            'purchaseOrder' => [
-                'id' => $po->id,
-                'po_number' => $po->po_number,
-                'detail' => $correctDetail,
-            ],
-            'inventoryItem' => $inventoryItem,
-            'user' => Auth::user(),
-        ];
-
-        if ($categoryName === 'consumable') {
-            return Inertia::render('Supply/RisForm', $props);
-        }
-
-        if ($categoryName === 'semi-expendable' && $totalPricePO < 50000) {
-            return Inertia::render('Supply/IcsForm', $props);
-        }
-
-        if ($categoryName === 'non-expendable' && $totalPricePO >= 50000) {
-            return Inertia::render('Supply/ParForm', $props);
-        }
-
-        return redirect()->back()->with('error', "No appropriate issuance form found for this item's category ({$categoryName}) and price (₱{$totalPricePO}).");
+    $correctDetail = $po->details->firstWhere('id', $inventoryItem->po_detail_id);
+    if (!$correctDetail) {
+        return redirect()->back()->with('error', 'No matching PO detail found for this inventory item.');
     }
+
+    $props = [
+        'purchaseOrder' => [
+            'id' => $po->id,
+            'po_number' => $po->po_number,
+            'detail' => $correctDetail,
+        ],
+        'inventoryItem' => $inventoryItem,
+        'user'          => Auth::user(),
+    ];
+
+    return Inertia::render('Supply/IssuancePage', $props);
+}
+
 
     public function store_ris(Request $request)
     {
@@ -214,8 +197,16 @@ public function store_ics(Request $request)
         'received_by' => 'required|integer|exists:users,id',
         'received_from' => 'required|integer|exists:users,id',
         'remarks' => 'nullable|string|max:255',
+
         'items' => 'required|array|min:1',
         'items.*.inventory_item_id' => 'required|integer|exists:tbl_inventory,id',
+        'items.*.inventory_item_number' => 'nullable|string|max:50',
+        'items.*.ppe_sub_major_account' => 'nullable|string|max:100',
+        'items.*.general_ledger_account' => 'nullable|string|max:100',
+        'items.*.series_number' => 'nullable|string|max:100',
+        'items.*.office' => 'nullable|string|max:100',
+        'items.*.school' => 'nullable|string|max:100',
+
         'items.*.quantity' => 'required|numeric|min:0.01',
         'items.*.unit_cost' => 'required|numeric|min:0.01',
         'items.*.total_cost' => 'required|numeric|min:0.01',
@@ -223,9 +214,9 @@ public function store_ics(Request $request)
 
     DB::beginTransaction();
     try {
-        $po = PurchaseOrder::with(['details.prDetail.product.category'])->findOrFail($validated['po_id']);
+        $po = PurchaseOrder::with(['details.prDetail.product'])->findOrFail($validated['po_id']);
 
-        // Get or create ICS header
+        // 🔑 Always create new ICS (don’t reuse existing for same PO)
         $ics = ICS::firstOrCreate(
             ['po_id' => $po->id],
             [
@@ -238,41 +229,31 @@ public function store_ics(Request $request)
 
         foreach ($validated['items'] as $item) {
             $inventory = Inventory::findOrFail($item['inventory_item_id']);
-            $quantity = $item['quantity'];
-            $unitCost = $item['unit_cost'];
-            $totalCost = $item['total_cost'];
 
-            if ($inventory->total_stock < $quantity) {
+            if ($inventory->total_stock < $item['quantity']) {
                 throw new \Exception("Not enough stock for {$inventory->item_desc}");
             }
 
-            // 🔑 Find the PO detail corresponding to this inventory item
-            $poDetail = $po->details->firstWhere('id', $inventory->po_detail_id);
-
-
-            if (!$poDetail) {
-                throw new \Exception("No matching PO detail found for {$inventory->item_desc}");
-            }
-
-            $categoryName = optional($poDetail->prDetail->product->category)->name;
-
             // Determine ICS item type
-            $itemType = null;
-            if (strtolower($categoryName) === 'semi-expendable') {
-                $itemType = $unitCost < 5000 ? 'low' : 'high';
-            }
+            $itemType = $item['unit_cost'] <= 5000 ? 'low' : 'high';
 
-            // Create separate ICS item for this type
-            $icsItem = $ics->items()->create([
+            // Save ICS item with extended fields
+            $ics->items()->create([
                 'inventory_item_id' => $inventory->id,
-                'quantity' => $quantity,
-                'unit_cost' => $unitCost,
-                'total_cost' => $totalCost,
+                'inventory_item_number' => $item['inventory_item_number'] ?? null,
+                'ppe_sub_major_account' => $item['ppe_sub_major_account'] ?? null,
+                'general_ledger_account' => $item['general_ledger_account'] ?? null,
+                'series_number' => $item['series_number'] ?? null,
+                'office' => $item['office'] ?? null,
+                'school' => $item['school'] ?? null,
+                'quantity' => $item['quantity'],
+                'unit_cost' => $item['unit_cost'],
+                'total_cost' => $item['total_cost'],
                 'type' => $itemType,
             ]);
 
             // Deduct stock
-            $inventory->total_stock -= $quantity;
+            $inventory->total_stock -= $item['quantity'];
             $inventory->status = $inventory->total_stock > 0 ? 'Available' : 'Issued';
             $inventory->save();
         }
@@ -285,22 +266,22 @@ public function store_ics(Request $request)
 
         if ($hasLow && $hasHigh) {
             return redirect()->route('supply_officer.ics_issuance_low')
-                ->with('success', 'ICS successfully recorded with both Low and High items.');
+                ->with('success', 'ICS recorded with both Low and High items.');
         } elseif ($hasLow) {
             return redirect()->route('supply_officer.ics_issuance_low')
-                ->with('success', 'ICS successfully recorded with Low items.');
+                ->with('success', 'ICS recorded with Low items.');
         } elseif ($hasHigh) {
             return redirect()->route('supply_officer.ics_issuance_high')
-                ->with('success', 'ICS successfully recorded with High items.');
+                ->with('success', 'ICS recorded with High items.');
         }
 
         return redirect()->back()->with('success', 'ICS successfully recorded.');
-
     } catch (\Exception $e) {
         DB::rollBack();
         return back()->withErrors(['error' => 'Failed to store ICS. ' . $e->getMessage()]);
     }
 }
+
 
 
 public function print_ics($id, $types = null)

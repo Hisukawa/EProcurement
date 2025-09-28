@@ -1,13 +1,45 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { FilePlus2, ScrollText } from "lucide-react";
 import ApproverLayout from "@/Layouts/ApproverLayout";
 import { Head } from "@inertiajs/react";
 
 export default function GenerateRFQ({ pr, purchaseRequest }) {
-console.log(pr.id)
-  useEffect(() => {
-    console.log("Full Purchase Request Prop:", JSON.stringify(pr, null, 2));
-  }, [pr]);
+  const [selectedItems, setSelectedItems] = useState([]);
+
+  // Handle checkbox toggle
+  const toggleItem = (itemId) => {
+    setSelectedItems((prev) =>
+      prev.includes(itemId)
+        ? prev.filter((id) => id !== itemId)
+        : [...prev, itemId]
+    );
+  };
+
+  // Handle select all
+  const toggleSelectAll = () => {
+    if (selectedItems.length === pr.details.length) {
+      setSelectedItems([]);
+    } else {
+      setSelectedItems(pr.details.map((item) => item.id));
+    }
+  };
+
+const handlePrint = () => {
+  if (selectedItems.length === 0) {
+    // Print all items
+    window.open(route("bac_approver.print_rfq", { id: pr.id }), "_blank");
+  } else {
+    // Print only selected items
+    window.open(
+      route("bac_approver.print_rfq_selected", { pr: pr.id }) +
+        "?items[]=" +
+        selectedItems.join("&items[]="),
+      "_blank"
+    );
+
+  }
+};
+
 
   return (
     <ApproverLayout header={"Schools Divisions Office - Ilagan | Request for Quotation"}>
@@ -30,7 +62,7 @@ console.log(pr.id)
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          {/* Left: Purchase Request Details */}
+          {/* Left: PR Info */}
           <div className="xl-col-span-1 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center gap-2 border-b pb-2">
               <FilePlus2 className="w-5 h-5 text-indigo-600" />
@@ -45,8 +77,7 @@ console.log(pr.id)
               <p><strong>Focal Person:</strong>{" "}
                 {purchaseRequest.focal_person
                   ? `${purchaseRequest.focal_person.firstname} ${purchaseRequest.focal_person.middlename || ""} ${purchaseRequest.focal_person.lastname || ""}`
-                  : "N/A"
-                }
+                  : "N/A"}
               </p>
               {pr.approval_image && (
                 <div className="mt-4">
@@ -69,31 +100,43 @@ console.log(pr.id)
                 Purchase Request Items
               </h2>
 
-              {/* Print All Items */}
+              {/* Print Selected Button */}
               <button
-                onClick={() => window.open(route("bac_approver.print_rfq", pr.id), "_blank")}
+                onClick={handlePrint}
                 className="text-sm text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-md shadow-sm mb-4"
               >
-                🖨️ Print All Items
+                🖨️ Print {selectedItems.length > 0 ? "Selected Items" : "All Items"}
               </button>
-
 
               {/* Items Table */}
               {pr.details && pr.details.length > 0 ? (
                 <table className="min-w-full text-sm text-gray-700 border">
                   <thead className="bg-gray-100 text-gray-600 uppercase text-xs">
                     <tr>
+                      <th className="py-2 px-4 border">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.length === pr.details.length}
+                          onChange={toggleSelectAll}
+                        />
+                      </th>
                       <th className="py-2 px-4 border">Item Name</th>
                       <th className="py-2 px-4 border">Specs</th>
                       <th className="py-2 px-4 border">Quantity</th>
                       <th className="py-2 px-4 border">Unit</th>
                       <th className="py-2 px-4 border">Estimated Price (₱)</th>
-                      <th className="py-2 px-4 border">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {pr.details.map((item) => (
                       <tr key={item.id} className="hover:bg-indigo-50">
+                        <td className="py-2 px-4 border text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedItems.includes(item.id)}
+                            onChange={() => toggleItem(item.id)}
+                          />
+                        </td>
                         <td className="py-2 px-4 border">{item.product?.name || "N/A"}</td>
                         <td className="py-2 px-4 border">{item.product?.specs || "N/A"}</td>
                         <td className="py-2 px-4 border">{item.quantity}</td>
@@ -103,18 +146,6 @@ console.log(pr.id)
                             minimumFractionDigits: 2,
                           })}`}
                         </td>
-                          <td className="py-2 px-4 border">
-                            <button
-                              onClick={() => window.open(
-                                route("bac_approver.print_rfq_per_item", { rfq: pr.id, detail: item.id }),
-                                "_blank"
-                              )}
-                              className="text-sm text-white bg-green-600 hover:bg-green-700 px-3 py-1 rounded-md"
-                            >
-                              🖨️ Print
-                            </button>
-                          </td>
-
                       </tr>
                     ))}
                   </tbody>

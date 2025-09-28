@@ -12,11 +12,12 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-export default function CreatePurchaseOrder({ pr, rfq, suppliers, winners, supplierQuotedPrices }) {
+export default function CreatePurchaseOrder({ pr, rfq, suppliers, winners }) {
   const winningSupplierIds = useMemo(
     () => [...new Set(winners.map((w) => w.supplier_id))],
     [winners]
   );
+
   const winningSuppliers = useMemo(
     () => suppliers.filter((s) => winningSupplierIds.includes(s.id)),
     [suppliers, winningSupplierIds]
@@ -28,18 +29,30 @@ export default function CreatePurchaseOrder({ pr, rfq, suppliers, winners, suppl
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
 
 const getItemsForSupplier = (supplierId) => {
-  return winners
-    .filter((w) => w.supplier_id === supplierId)
-    .map((w) => ({
+  const supplierItems = winners.filter((w) => w.supplier_id === supplierId);
+
+  return supplierItems.map((w) => {
+    const unitPrice = Number(w.unit_price_edited ?? w.unit_price ?? w.quoted_price ?? 0);
+    const totalPrice =
+      w.mode === "as-calculated" && w.total_price_calculated != null
+        ? Number(w.total_price_calculated)
+        : unitPrice * Number(w.quantity ?? 0);
+
+    return {
       pr_detail_id: w.pr_detail_id,
       item: w.item,
       specs: w.specs,
       unit: w.unit,
       quantity: w.quantity,
-      unit_price: parseFloat(w.quoted_price || 0),
-      total_price: parseFloat(w.quoted_price || 0) * parseFloat(w.quantity || 0),
-      priceSource: "Quoted Price",
-    }));
+      unit_price: unitPrice,
+      total_price: totalPrice,
+      priceSource: w.unit_price_edited
+        ? "Edited Price"
+        : w.mode === "as-calculated"
+        ? "Calculated Total"
+        : "Quoted Price",
+    };
+  });
 };
 
 
@@ -49,39 +62,39 @@ const getItemsForSupplier = (supplierId) => {
     items: [],
   });
 
-useEffect(() => {
-  const allItems = winningSuppliers.flatMap((supplier) =>
-    getItemsForSupplier(supplier.id).map((item) => ({
-      ...item,
-      supplier_id: supplier.id, // ✅ keep grouping
-    }))
-  );
+  useEffect(() => {
+    const allItems = winningSuppliers.flatMap((supplier) =>
+      getItemsForSupplier(supplier.id).map((item) => ({
+        ...item,
+        supplier_id: supplier.id,
+      }))
+    );
 
-  setData("items", allItems);
-}, [winningSuppliers]);
+    setData("items", allItems);
+  }, [winningSuppliers]);
 
+const handleChange = (index, field, value) => {
+  const updatedItems = [...data.items];
+  const numericValue = Number(value) >= 0 ? Number(value) : 0;
 
-  const handleChange = (index, field, value) => {
-    if (field === "quantity") {
-      const numericValue = Number(value) >= 0 ? Number(value) : 0;
-      const originalQty = pr.details.find(
-        (d) => d.id === data.items[index].pr_detail_id
-      )?.quantity;
+  const originalQty = pr.details.find(
+    (d) => d.id === updatedItems[index].pr_detail_id
+  )?.quantity;
 
-      if (numericValue !== originalQty) {
-        setPendingChange({ index, field, value: numericValue });
-        setIsReasonDialogOpen(true);
-        return;
-      }
-    }
+  if (field === "quantity" && numericValue !== originalQty) {
+    setPendingChange({ index, field, value: numericValue });
+    setIsReasonDialogOpen(true);
+    return;
+  }
 
-    const updatedItems = [...data.items];
-    const numericValue = Number(value) >= 0 ? Number(value) : 0;
-    updatedItems[index][field] = numericValue;
-    updatedItems[index].total_price =
-      Number(updatedItems[index].quantity) * Number(updatedItems[index].unit_price);
-    setData("items", updatedItems);
-  };
+  updatedItems[index][field] = numericValue;
+
+  // Recalculate total_price based on current unit_price (edited or original)
+  updatedItems[index].total_price = numericValue * Number(updatedItems[index].unit_price);
+
+  setData("items", updatedItems);
+};
+
 
   const handleConfirmReason = () => {
     if (!pendingChange) return;
@@ -149,7 +162,7 @@ useEffect(() => {
                         Quantity
                       </th>
                       <th className="border-y px-4 py-2 text-right">Unit Price</th>
-                      <th className="border-y border-r px-4 py-2 text-right">Total</th>
+                      <th className="border-y px-4 py-2 text-right">Total Price</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -185,26 +198,51 @@ useEffect(() => {
                             {item.priceSource}
                           </div>
                         </td>
-                        <td className="border-b border-r px-4 py-2 text-right font-medium">
+                        <td className="border-b px-4 py-2 text-right">
                           ₱
-                          {Number(item.total_price).toLocaleString("en-US", {
+                          {(item.unit_price * item.quantity).toLocaleString("en-US", {
                             minimumFractionDigits: 2,
                             maximumFractionDigits: 2,
                           })}
                         </td>
+
                       </tr>
                     ))}
-                    {/* Supplier total row */}
                     <tr className="bg-gray-100 font-semibold">
                       <td colSpan="5" className="border-t px-4 py-2 text-right">
                         Supplier Total:
                       </td>
                       <td className="border-t border-r px-4 py-2 text-right">
                         ₱
-                        {supplierTotal.toLocaleString("en-US", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
+                        {(() => {
+                          // Get all items for this supplier from winners
+                          const supplierWinnerItems = winners.filter(
+                            (w) => w.supplier_id === supplier.id
+                          );
+
+                          // If any item has mode 'as-calculated', use total_price_calculated
+                          const hasAsCalculated = supplierWinnerItems.some(
+                            (w) => w.mode === "as-calculated" && w.total_price_calculated != null
+                          );
+
+                          if (hasAsCalculated) {
+                            // all items should have same total_price_calculated per your backend
+                            return Number(supplierWinnerItems[0].total_price_calculated).toLocaleString(
+                              "en-US",
+                              { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                            );
+                          }
+
+                          // fallback: sum of total_price
+                          const sumTotal = supplierItems.reduce(
+                            (sum, i) => sum + Number(i.total_price),
+                            0
+                          );
+                          return sumTotal.toLocaleString("en-US", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          });
+                        })()}
                       </td>
                     </tr>
                   </tbody>
@@ -223,7 +261,6 @@ useEffect(() => {
         </Button>
       </form>
 
-      {/* Confirm Submit Dialog */}
       <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -254,7 +291,6 @@ useEffect(() => {
         </DialogContent>
       </Dialog>
 
-      {/* Reason for Change Dialog */}
       <Dialog open={isReasonDialogOpen} onOpenChange={setIsReasonDialogOpen}>
         <DialogContent>
           <DialogHeader>

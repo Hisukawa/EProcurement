@@ -25,6 +25,13 @@ class RFQ extends Model
         return $this->hasMany(RFQDetail::class, 'rfq_id');
     }
 
+    // In App\Models\RFQ.php
+public function supplierTotals()
+{
+    return $this->hasMany(RFQSupplierTotal::class, 'rfq_id'); // Assuming SupplierTotal is a model
+}
+
+
 
 
 }

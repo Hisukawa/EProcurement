@@ -157,7 +157,7 @@ export default function IcsHigh({ ics, user, filters }) {
                   return (
                     <tr key={record.id}>
                       <td className="px-4 py-2">{index + 1}</td>
-                      <td className="px-4 py-2">{record.ics_number}</td>
+                      <td className="px-4 py-2">H-{record.ics_number}</td>
                       <td className="px-4 py-2">
                         {record.po?.rfq?.purchase_request?.division?.division ?? 'N/A'}
                       </td>

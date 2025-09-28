@@ -176,7 +176,7 @@ const filteredIcs = ics?.data?.filter((record) => {
                   return (
                     <tr key={record.id}>
                       <td className="px-4 py-2">{index + 1}</td>
-                      <td className="px-4 py-2">{record.ics_number}</td>
+                      <td className="px-4 py-2">L-{record.ics_number}</td>
                       <td className="px-4 py-2">
                         {record.po?.rfq?.purchase_request?.division?.division ??
                           'N/A'}
