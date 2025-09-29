@@ -123,8 +123,8 @@
             $issuedByName = trim(($par->issuedBy->firstname ?? '') . ' ' . ($par->issuedBy->middlename ?? '') . ' ' . ($par->issuedBy->lastname ?? ''));
             $issuedByPosition = $par->issuedBy->position ?? '';
 
-            $receivedByName = trim(($par->receivedBy->firstname ?? '') . ' ' . ($par->receivedBy->middlename ?? '') . ' ' . ($par->receivedBy->lastname ?? ''));
-            $receivedByPosition = $par->receivedBy->position ?? '';
+            $receivedByName = trim(($par->requestedBy->firstname ?? '') . ' ' . ($par->requestedBy->middlename ?? '') . ' ' . ($par->requestedBy->lastname ?? ''));
+            $receivedByPosition = $par->requestedBy->position ?? '';
         @endphp
         <tr class="with-border">
             <td class="sig-cell" style="border-top:none !important">

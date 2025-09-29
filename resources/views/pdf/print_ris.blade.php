@@ -156,8 +156,8 @@
         $issuedByName = trim(($ris->issuedBy->firstname ?? '') . ' ' . ($ris->issuedBy->middlename ?? '') . ' ' . ($ris->issuedBy->lastname ?? ''));
         $issuedByPosition = $ris->issuedBy->position ?? '';
 
-        $receivedByName = trim(($ris->issuedTo->firstname ?? '') . ' ' . ($ris->issuedTo->middlename ?? '') . ' ' . ($ris->issuedTo->lastname ?? ''));
-        $receivedByPosition = $ris->issuedTo->position ?? '';
+        $receivedByName = trim(($ris->requestedBy->firstname ?? '') . ' ' . ($ris->requestedBy->middlename ?? '') . ' ' . ($ris->requestedBy->lastname ?? ''));
+        $receivedByPosition = $ris->requestedBy->position ?? '';
     @endphp
     <table class="with-border" style="width:100%; border-collapse:collapse;font-size:11px; text-align:center;">
     <tr class="font-bold">
@@ -184,7 +184,7 @@
             {{ trim(($ris->issuedBy->firstname ?? '').' '.($ris->issuedBy->middlename ?? '').' '.($ris->issuedBy->lastname ?? '')) }}
         </td>
         <td class="font-bold">
-            {{ trim(($ris->issuedTo->firstname ?? '').' '.($ris->issuedTo->middlename ?? '').' '.($ris->issuedTo->lastname ?? '')) }}
+            {{ trim(($ris->requestedBy->firstname ?? '').' '.($ris->requestedBy->middlename ?? '').' '.($ris->requestedBy->lastname ?? '')) }}
         </td>
     </tr>
     <tr>
@@ -194,7 +194,7 @@
         </td>
         <td>AO - IV (Supply Officer)</td>
         <td>{{ $ris->issuedBy->position ?? '' }}</td>
-        <td>{{ $ris->issuedTo->position ?? '' }}</td>
+        <td>{{ $ris->requestedBy->position ?? '' }}</td>
     </tr>
     <tr>
         <td class="text-left">Date :</td>

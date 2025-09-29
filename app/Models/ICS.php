@@ -16,7 +16,7 @@ class ICS extends Model
 
     protected $table = 'tbl_ics';
 
-    protected $fillable = ['po_id', 'ics_number', 'received_by', 'received_from', 'remarks'];
+    protected $fillable = ['po_id', 'ics_number', 'requested_by', 'recipient', 'received_from', 'remarks'];
 
     // Header relations
     public function po()
@@ -24,9 +24,9 @@ class ICS extends Model
         return $this->belongsTo(PurchaseOrder::class, 'po_id');
     }
 
-    public function receivedBy()
+    public function requestedBy()
     {
-        return $this->belongsTo(User::class, 'received_by');
+        return $this->belongsTo(User::class, 'requested_by');
     }
 
     public function receivedFrom()

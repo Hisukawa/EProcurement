@@ -21,12 +21,12 @@ class IssuedController extends Controller
         $userId = Auth::id();
 
         $ris = RIS::with([
-            'issuedTo.division',
+            'requestedBy.division',
             'issuedBy.division',
             'items.inventoryItem',
             'po.details.prDetail.purchaseRequest.division'
         ])
-        ->where('issued_to', $userId)
+        ->where('requested_by', $userId)
         ->when($search, function ($query, $search) {
             $query->whereHas('inventoryItem', function ($q) use ($search) {
                 $q->where('item_desc', 'like', "%{$search}%");
@@ -46,13 +46,13 @@ public function ics_issued_low(Request $request)
     $userId = Auth::id();
 
     $icsItems = ICSItems::with([
-            'ics.receivedBy.division',
+            'ics.requestedBy.division',
             'ics.receivedFrom.division',
             'inventoryItem.unit',
             'ics.po.details.prDetail.purchaseRequest.division',
         ])
         ->whereHas('ics', function ($q) use ($userId) {
-            $q->where('received_by', $userId);
+            $q->where('requested_by', $userId);
         })
         ->where('type', 'low')
         ->when($search, function ($query, $search) {
@@ -74,13 +74,13 @@ public function ics_issued_high(Request $request)
     $userId = Auth::id();
 
     $icsItems = ICSItems::with([
-            'ics.receivedBy.division',
+            'ics.requestedBy.division',
             'ics.receivedFrom.division',
             'inventoryItem.unit',
             'ics.po.details.prDetail.purchaseRequest.division',
         ])
         ->whereHas('ics', function ($q) use ($userId) {
-            $q->where('received_by', $userId);
+            $q->where('requested_by', $userId);
         })
         ->where('type', 'high')
         ->when($search, function ($query, $search) {
@@ -101,12 +101,12 @@ public function ics_issued_high(Request $request)
         $userId = Auth::id();
 
         $par = PAR::with([
-            'receivedBy.division',
+            'requestedBy.division',
             'issuedBy.division',
             'items.inventoryItem',
             'po.details.prDetail.purchaseRequest.division'
         ])
-        ->where('received_by', $userId)
+        ->where('requested_by', $userId)
         ->when($search, function ($query, $search) {
             $query->whereHas('inventoryItem', function ($q) use ($search) {
                 $q->where('item_desc', 'like', "%{$search}%");

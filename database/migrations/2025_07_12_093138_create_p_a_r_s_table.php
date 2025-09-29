@@ -16,7 +16,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('po_id')->constrained('tbl_purchase_orders')->onDelete('cascade');
             $table->string('par_number')->unique();
-            $table->foreignId('received_by')->nullable()->constrained('users');
+            $table->foreignId('requested_by')->nullable()->constrained('users');
             $table->string('recipient')->nullable();
             $table->foreignId('issued_by')->constrained('users');
             $table->text('remarks')->nullable();
@@ -29,6 +29,12 @@ return new class extends Migration
             $table->id();
             $table->foreignId('par_id')->constrained('tbl_par')->onDelete('cascade');
             $table->foreignId('inventory_item_id')->constrained('tbl_inventory')->onDelete('cascade');
+            $table->string('inventory_item_number')->nullable();
+            $table->string('ppe_sub_major_account')->nullable();
+            $table->string('general_ledger_account')->nullable();
+            $table->string('series_number')->nullable();
+            $table->string('office')->nullable();
+            $table->string('school')->nullable();
             $table->integer('quantity');
             $table->decimal('unit_cost', 12, 2);
             $table->decimal('total_cost', 14, 2);

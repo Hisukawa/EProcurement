@@ -60,7 +60,7 @@ class ICSReportExport implements FromCollection, WithHeadings, WithMapping, With
     {
         return [
             'Inventory Item No.',
-            'ICS No./PAR No.',
+            'ICS No.',
             'Date',
             'PO No.',
             'Description',

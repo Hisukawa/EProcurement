@@ -19,14 +19,14 @@ export default function IcsHigh({ ics, user, filters }) {
 
   // filtering logic
   const filteredIcs = ics?.data?.filter((record) => {
-    const receivedBy = `${record.received_by?.firstname ?? ''} ${record.received_by?.lastname ?? ''}`;
+    const requestedBy = `${record.requested_by?.firstname ?? ''} ${record.requested_by?.lastname ?? ''}`;
     const focalPerson = record.po?.rfq?.purchase_request?.focal_person?.name ?? '';
 
     const matchesSearch =
       search === '' ||
       record.ics_number?.toLowerCase().includes(search.toLowerCase()) ||
       record.inventory_item?.item_desc?.toLowerCase().includes(search.toLowerCase()) ||
-      receivedBy.toLowerCase().includes(search.toLowerCase()) ||
+      requestedBy.toLowerCase().includes(search.toLowerCase()) ||
       focalPerson.toLowerCase().includes(search.toLowerCase());
 
     const recordDate = new Date(record.created_at);
@@ -120,7 +120,7 @@ export default function IcsHigh({ ics, user, filters }) {
                 <th className="px-4 py-3">#</th>
                 <th className="px-4 py-3">ICS No.</th>
                 <th className="px-4 py-3">Division</th>
-                <th className="px-4 py-3">Received By</th>
+                <th className="px-4 py-3">Requested By</th>
                 <th className="px-4 py-3">Item Description</th>
                 <th className="px-4 py-3 text-center">Quantity</th>
                 <th className="px-4 py-3 text-right">Unit Cost</th>
@@ -162,7 +162,7 @@ export default function IcsHigh({ ics, user, filters }) {
                         {record.po?.rfq?.purchase_request?.division?.division ?? 'N/A'}
                       </td>
                       <td className="px-4 py-2">
-                        {record.received_by?.firstname} {record.received_by?.lastname}
+                        {record.requested_by?.firstname} {record.requested_by?.lastname}
                       </td>
 
                       {/* Item Description */}

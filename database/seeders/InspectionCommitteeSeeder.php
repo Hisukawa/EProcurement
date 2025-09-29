@@ -15,7 +15,7 @@ class InspectionCommitteeSeeder extends Seeder
                 'members' => [
                     ['position' => 'Leader', 'name' => 'Kenski Quiling', 'status' => 'active'],
                     ['position' => 'Member', 'name' => 'Harold Agriam', 'status' => 'active'],
-                    ['position' => 'Member', 'name' => 'Jose Ramirez', 'status' => 'inactive'],
+                    ['position' => 'Member', 'name' => 'Jose Ramirez', 'status' => 'active'],
                 ],
             ]
         ];

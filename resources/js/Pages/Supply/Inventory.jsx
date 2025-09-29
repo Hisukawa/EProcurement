@@ -21,31 +21,28 @@ export default function Inventory({ inventoryData, filters }) {
     return () => clearTimeout(delay);
   }, [data.search, data.status, data.date_received]);
 
-const groupByPO = (inventory) => {
-  if (!inventory || !inventory.data) return [];
+  const groupByPO = (inventory) => {
+    if (!inventory || !inventory.data) return [];
 
-  const grouped = new Map();
+    const grouped = new Map();
 
-  inventory.data.forEach((inv) => {
-    const po = inv.po_detail?.purchase_order; // ✅ now available
-    if (!po) return;
+    inventory.data.forEach((inv) => {
+      const po = inv.po_detail?.purchase_order;
+      if (!po) return;
 
-    if (!grouped.has(po.id)) {
-      grouped.set(po.id, {
-        po_id: po.id,
-        po: po,
-        requested_by: inv.requested_by,
-        items: [],
-      });
-    }
-    grouped.get(po.id).items.push(inv);
-  });
+      if (!grouped.has(po.id)) {
+        grouped.set(po.id, {
+          po_id: po.id,
+          po: po,
+          requested_by: inv.requested_by,
+          items: [],
+        });
+      }
+      grouped.get(po.id).items.push(inv);
+    });
 
-  return Array.from(grouped.values());
-};
-
-
-
+    return Array.from(grouped.values());
+  };
 
   const groupedInventoryData = groupByPO(inventoryData);
 
@@ -88,7 +85,7 @@ const groupByPO = (inventory) => {
                 "Requested By",
                 "Specs",
                 "Unit",
-                "Total Stock",
+                "Remaining Stock",
                 "Unit Cost",
                 "Total Price",
                 "Status",
@@ -115,9 +112,7 @@ const groupByPO = (inventory) => {
                 <Fragment key={group.po_id}>
                   {/* Group Header Row */}
                   <tr className="bg-gray-100 font-semibold">
-                    <td className="px-6 py-3 text-blue-700">
-                      {group.po?.po_number ?? "N/A"}
-                    </td>
+                    <td className="px-6 py-3 text-blue-700">{group.po?.po_number ?? "N/A"}</td>
                     <td className="px-6 py-3">
                       {group.requested_by
                         ? [group.requested_by.firstname, group.requested_by.middlename, group.requested_by.lastname]
@@ -130,14 +125,18 @@ const groupByPO = (inventory) => {
                     </td>
                   </tr>
 
-
-
                   {/* Item Rows */}
                   {group.items.map((inv) => {
                     const unit = inv.unit?.unit ?? "N/A";
                     const unitCost = parseFloat(inv.unit_cost) || 0;
+                    const issuedQty = parseFloat(inv.issued_qty) || 0;
                     const totalStock = parseFloat(inv.total_stock) || 0;
-                    const totalPrice = (unitCost * totalStock).toFixed(2);
+                    const remainingStock = Math.max(totalStock - issuedQty, 0);
+                    const totalPrice = (unitCost * remainingStock).toFixed(2);
+
+                    let statusLabel = "Available";
+                    if (remainingStock === 0) statusLabel = "Fully Issued";
+                    else if (remainingStock < totalStock) statusLabel = "Partially Issued";
 
                     return (
                       <tr key={inv.id} className="hover:bg-blue-50 transition duration-200">
@@ -145,26 +144,25 @@ const groupByPO = (inventory) => {
                         <td className="px-6 py-4"></td>
                         <td className="px-6 py-4">{inv.item_desc ?? "No description"}</td>
                         <td className="px-6 py-4">{unit}</td>
-                        <td className="px-6 py-4">{totalStock}</td>
+                        <td className="px-6 py-4">{remainingStock}</td>
                         <td className="px-6 py-4">₱ {unitCost.toFixed(2)}</td>
                         <td className="px-6 py-4">₱ {totalPrice}</td>
-                        <td className="px-6 py-4">{inv.status}</td>
+                        <td className="px-6 py-4">{statusLabel}</td>
                         <td className="px-6 py-4">
-                          {inv.status === "Issued" ? (
+                          {remainingStock === 0 ? (
                             <span className="bg-gray-300 text-gray-600 px-3 py-2 rounded cursor-not-allowed flex items-center justify-center gap-1">
                               <PackageCheck size={16} /> All Items Are Issued
                             </span>
                           ) : (
                             <a
                               href={route("supply_officer.issuance", {
-                                po_detail_id: inv.po_detail_id, // ✅ correct now
+                                po_detail_id: inv.po_detail_id,
                                 inventory_id: inv.id,
                               })}
                               className="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 transition flex items-center justify-center gap-1"
                             >
                               <PackageCheck size={16} /> Issue Item
                             </a>
-
                           )}
                         </td>
                       </tr>
@@ -191,9 +189,7 @@ const groupByPO = (inventory) => {
               })
             }
             className={`px-3 py-1 text-sm border rounded-md ${
-              link.active
-                ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700 hover:bg-gray-100"
+              link.active ? "bg-blue-600 text-white" : "bg-white text-gray-700 hover:bg-gray-100"
             }`}
             dangerouslySetInnerHTML={{ __html: link.label }}
           />

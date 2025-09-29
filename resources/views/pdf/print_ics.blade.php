@@ -124,8 +124,8 @@
             $issuedByName = trim(($ics->receivedFrom->firstname ?? '') . ' ' . ($ics->receivedFrom->middlename ?? '') . ' ' . ($ics->receivedFrom->lastname ?? ''));
             $issuedByPosition = $ics->receivedFrom->position ?? '';
 
-            $receivedByName = trim(($ics->receivedBy->firstname ?? '') . ' ' . ($ics->receivedBy->middlename ?? '') . ' ' . ($ics->receivedBy->lastname ?? ''));
-            $receivedByPosition = $ics->receivedBy->position ?? '';
+            $receivedByName = trim(($ics->requestedBy->firstname ?? '') . ' ' . ($ics->requestedBy->middlename ?? '') . ' ' . ($ics->requestedBy->lastname ?? ''));
+            $receivedByPosition = $ics->requestedBy->position ?? '';
         @endphp
         <tr class="with-border">
             <td class="sig-cell" style="border-top:none !important">

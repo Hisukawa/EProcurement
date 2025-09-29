@@ -36,9 +36,35 @@ const [expandedRows, setExpandedRows] = useState([]);
       <IssuanceTabs />
 
       <div className="bg-white rounded-lg p-6 shadow space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+          <h2 className="text-xl font-bold text-gray-800">
+            Property Acknowledgement Receipt (PAR)
+          </h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() =>
+                (window.location.href = route(
+                  'supply_officer.generate_par_report',
+                  {
+                    month: filterMonth,
+                    year: filterYear,
+                  }
+                ))
+              }
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm shadow"
+            >
+              Generate Report
+            </button>
+            {/* <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm shadow">
+              Export PDF
+            </button> */}
+          </div>
+        </div>
         {/* Filters */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          
           <div className="flex items-center gap-2">
+            
             <label className="text-sm font-medium">Month:</label>
             <select
               className="border border-gray-300 rounded-md px-2 py-1 text-sm"
@@ -70,6 +96,7 @@ const [expandedRows, setExpandedRows] = useState([]);
             onChange={e => setSearch(e.target.value)}
           />
         </div>
+        
 
         {/* Table */}
         <div className="overflow-x-auto mt-4">
@@ -78,8 +105,9 @@ const [expandedRows, setExpandedRows] = useState([]);
               <tr>
                 <th className="px-4 py-2">#</th>
                 <th className="px-4 py-2">PAR No.</th>
+                <th className="px-4 py-2">Inventory Item No.</th>
                 <th className="px-4 py-2">Division</th>
-                <th className="px-4 py-2">Received By</th>
+                <th className="px-4 py-2">Requested By</th>
                 <th className="px-4 py-2">Item Description</th>
                 <th className="px-4 py-2">Quantity</th>
                 <th className="px-4 py-2">Unit Cost</th>
@@ -99,10 +127,19 @@ const [expandedRows, setExpandedRows] = useState([]);
                       <td className="px-4 py-2">{index + 1}</td>
                       <td className="px-4 py-2">{record.par_number}</td>
                       <td className="px-4 py-2">
+                        {record.items.slice(0, 2).map((item, idx) => (
+                          <div key={idx}>{item.inventory_item_number}</div>
+                        ))}
+                        {isExpanded &&
+                          record.items.slice(2).map((item, idx) => (
+                            <div key={idx + 2}>{item.inventory_item_number}</div>
+                          ))}
+                      </td>
+                      <td className="px-4 py-2">
                         {record.po?.rfq?.purchase_request?.division?.division ?? "N/A"}
                       </td>
                       <td className="px-4 py-2">
-                        {record.received_by?.firstname} {record.received_by?.lastname}
+                        {record.requested_by?.firstname} {record.requested_by?.lastname}
                       </td>
 
                       {/* Item Description */}
