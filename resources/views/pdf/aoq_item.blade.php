@@ -48,10 +48,10 @@
                 <tr>
                     <td>{{ $idx+1 }}</td>
                     <td>{{ $detail->supplier->company_name }}</td>
-                    <td>₱{{ number_format($detail->quoted_price, 2) }}</td>
+                    <td>{{ number_format($detail->quoted_price, 2) }}</td>
                     <td>
-                        @if(!empty($detail->remarks))
-                            {{ $detail->remarks }}
+                        @if(!empty($detail->remarks_as_read))
+                            {{ $detail->remarks_as_read }}
                         @else
                             —
                         @endif
@@ -69,8 +69,8 @@
                 {{ $winner->supplier?->company_name ?? 'N/A' }}
             </span>
 
-            @if(!empty($winner->remarks))
-                &nbsp;<em>{{ $winner->remarks }}</em>.
+            @if(!empty($winner->remarks_as_read))
+                &nbsp;<em>{{ $winner->remarks_as_read }}</em>.
             @endif
         </p>
     @else

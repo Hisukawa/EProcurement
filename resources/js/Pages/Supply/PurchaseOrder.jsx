@@ -29,7 +29,10 @@ export default function PurchaseOrder({ purchaseRequests, filters }) {
           Purchase Requests with Selected Suppliers
         </h2>
 
-        <form onSubmit={(e) => e.preventDefault()} className="flex flex-wrap items-center gap-3">
+        <form
+          onSubmit={(e) => e.preventDefault()}
+          className="flex flex-wrap items-center gap-3"
+        >
           <input
             type="text"
             name="search"
@@ -83,34 +86,53 @@ export default function PurchaseOrder({ purchaseRequests, filters }) {
           <tbody className="divide-y divide-gray-100 text-center">
             {purchaseRequests.data.length === 0 ? (
               <tr>
-                <td colSpan={10} className="py-12 text-gray-500 text-lg font-medium">
+                <td
+                  colSpan={10}
+                  className="py-12 text-gray-500 text-lg font-medium"
+                >
                   No Purchase Requests with winners found.
                 </td>
               </tr>
             ) : (
               purchaseRequests.data.map((pr) => {
+                // ✅ PR details that won
                 const winningDetails = pr.details.filter((detail) =>
-                  pr.rfqs?.flatMap((r) => r.details).some(
-                    (d) => d.pr_details_id === detail.id && d.is_winner
-                  )
+                  pr.rfqs
+                    ?.flatMap((r) => r.details)
+                    .some(
+                      (d) =>
+                        d.pr_details_id === detail.id &&
+                        d.is_winner_as_calculated
+                    )
                 );
 
                 if (winningDetails.length === 0) return null;
 
+                // ✅ RFQ details that won
                 const winners = pr.rfqs
                   ?.flatMap((r) => r.details ?? [])
-                  .filter((d) => winningDetails.some((wd) => wd.id === d.pr_details_id) && d.is_winner);
-
-                // Total quoted price
-                const totalQuotedPrice = pr.winners.reduce(
-                  (sum, w) => sum + parseFloat(w.unit_price),
-                    0
+                  .filter(
+                    (d) =>
+                      winningDetails.some((wd) => wd.id === d.pr_details_id) &&
+                      d.is_winner_as_calculated
                   );
 
-
+                // ✅ Compute total price (frontend)
+                const totalQuotedPrice = winners.reduce((sum, w) => {
+                  const prDetail = winningDetails.find(
+                    (d) => d.id === w.pr_details_id
+                  );
+                  const qty = prDetail?.quantity ?? 1;
+                  const price =
+                    w.unit_price_edited ?? w.quoted_price ?? 0;
+                  return sum + price * qty;
+                }, 0);
 
                 return (
-                  <tr key={`pr-${pr.id}`} className="hover:bg-blue-50 transition duration-200">
+                  <tr
+                    key={`pr-${pr.id}`}
+                    className="hover:bg-blue-50 transition duration-200"
+                  >
                     <td className="px-6 py-4 font-semibold text-blue-700 whitespace-nowrap">
                       {pr.pr_number}
                     </td>
@@ -142,7 +164,8 @@ export default function PurchaseOrder({ purchaseRequests, filters }) {
                     {/* Quantity */}
                     <td className="px-6 py-4">
                       {winningDetails[0]?.quantity || "—"}
-                      {new Set(winningDetails.map((d) => d.quantity)).size > 1 && (
+                      {new Set(winningDetails.map((d) => d.quantity)).size >
+                        1 && (
                         <span className="text-gray-400 text-xs ml-1 italic">
                           +{winningDetails.length - 1} more
                         </span>
@@ -152,7 +175,9 @@ export default function PurchaseOrder({ purchaseRequests, filters }) {
                     {/* Unit */}
                     <td className="px-6 py-4">
                       {winningDetails[0]?.product.unit.unit || "—"}
-                      {new Set(winningDetails.map((d) => d.product.unit.unit)).size > 1 && (
+                      {new Set(
+                        winningDetails.map((d) => d.product.unit.unit)
+                      ).size > 1 && (
                         <span className="text-gray-400 text-xs ml-1 italic">
                           +{winningDetails.length - 1} more
                         </span>
@@ -161,12 +186,22 @@ export default function PurchaseOrder({ purchaseRequests, filters }) {
 
                     {/* Winner Supplier */}
                     <td className="px-6 py-4">
-                      {[...new Set(winners.map((w) => w.supplier?.company_name || "N/A"))].join(", ")}
+                      {[
+                        ...new Set(
+                          winners.map(
+                            (w) => w.supplier?.company_name || "N/A"
+                          )
+                        ),
+                      ].join(", ")}
                     </td>
 
                     {/* Total Quoted Price */}
                     <td className="px-6 py-4">
-                      ₱ {totalQuotedPrice.toFixed(2)}
+                      ₱{" "}
+                      {totalQuotedPrice.toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
                     </td>
 
                     {/* Action */}
@@ -183,15 +218,11 @@ export default function PurchaseOrder({ purchaseRequests, filters }) {
                         {pr.has_po ? "PO Generated" : "Purchase Order"}
                       </a>
                     </td>
-
                   </tr>
                 );
               })
             )}
           </tbody>
-
-
-
         </table>
       </div>
 
@@ -209,7 +240,6 @@ export default function PurchaseOrder({ purchaseRequests, filters }) {
                 preserveScroll: true,
               })
             }
-
             className={`px-3 py-1 text-sm border rounded-md ${
               link.active
                 ? "bg-blue-600 text-white"

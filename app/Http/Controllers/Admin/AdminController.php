@@ -7,11 +7,23 @@ use App\Models\AuditLogs;
 use App\Models\BacCommittee;
 use App\Models\BacCommitteeMember;
 use App\Models\Division;
+use App\Models\IAR;
+use App\Models\ICS;
 use App\Models\InspectionCommittee;
 use App\Models\InspectionCommitteeMember;
+use App\Models\Inventory;
+use App\Models\PAR;
+use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderDetail;
+use App\Models\PurchaseRequest;
 use App\Models\RequestedBy;
+use App\Models\RFQ;
+use App\Models\RIS;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Role;
 
@@ -44,13 +56,324 @@ class AdminController extends Controller
                 'division' => $filters,
                 'divisions' => $divisions,
                 'perPage' => $perPage,
-            ]
+            ],
+            'divisions' => Division::all(), // ✅ make sure this exists
+            'roles' => Role::all(),
         ]);
     }
-    
-    public function dashboard() {
-        return Inertia::render('Admin/Dashboard');
+    public function update_user(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+
+        // Validate the incoming request
+        $validated = $request->validate([
+            'firstname' => 'required|string|max:255',
+            'middlename' => 'nullable|string|max:255',
+            'lastname' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,' . $user->id,
+            'position' => 'nullable|string|max:255',
+            'division_id' => 'nullable|exists:tbl_divisions,id',
+            'role' => 'required|string|exists:roles,name',
+            // Optional password update
+            'password' => 'nullable|string|min:6|confirmed',
+        ]);
+
+        // Update user fields
+        $user->firstname = $validated['firstname'];
+        $user->middlename = $validated['middlename'] ?? null;
+        $user->lastname = $validated['lastname'];
+        $user->email = $validated['email'];
+        $user->position = $validated['position'] ?? null;
+        $user->division_id = $validated['division_id'] ?? null;
+
+        if (!empty($validated['password'])) {
+            $user->password = Hash::make($validated['password']);
+        }
+
+        $user->save();
+
+        // Update role (remove old roles first)
+        $user->syncRoles([$validated['role']]);
+
+        return response()->json([
+        'message' => 'User updated successfully.',
+        'user' => $user,
+    ]);
     }
+    
+public function dashboard()
+{
+    $user = Auth::user();
+
+    // ---- Stats ----
+    $totalStock = Inventory::sum('total_stock');
+    $pendingDeliveries = PurchaseOrder::where('status', 'Not yet Delivered')->count();
+    $totalIcs = ICS::count();
+    $totalRis = RIS::count();
+    $totalIcsHigh = ICS::whereHas('items', fn($q) => $q->where('type', 'high'))->count();
+    $totalIcsLow = ICS::whereHas('items', fn($q) => $q->where('type', 'low'))->count();
+    $totalPar = PAR::count();
+    $totalIssued = $totalIcs + $totalRis + $totalPar;
+    $totalPo = PurchaseOrder::count();
+
+    // ---- User Stats ----
+    $totalUsers = User::count();
+    $activeUsers = User::where('account_status', true)->count();
+    $roles = Role::all();
+    $usersPerRoleChart = $roles->map(fn($role) => [
+        'role' => $role->name,
+        'count' => $role->users()->count(),
+    ]);
+    $prActivities = PurchaseRequest::with('focal_person')
+        ->latest('created_at')
+        ->take(10)
+        ->get()
+        ->map(fn($pr) => [
+            'id' => $pr->pr_number,
+            'action' => 'Purchase Request Created',
+            'user' => $pr->focal_person?->firstname . ' ' . $pr->focal_person?->lastname,
+            'date' => $pr->created_at->format('M d, Y H:i'),
+        ]);
+
+    // --- RFQ Winner Selected ---
+    $rfqActivities = RFQ::with('details.supplier', 'recordedBy')
+        ->latest('updated_at')
+        ->take(10)
+        ->get()
+        ->flatMap(fn($rfq) => $rfq->details
+            ->filter(fn($d) => $d->is_winner_as_calculated)
+            ->map(fn($w) => [
+                'id' => $rfq->id,
+                'action' => "Winner Selected: {$w->supplier->company_name}",
+                'user' => $rfq->recordedBy?->firstname . ' ' . $rfq->recordedBy?->lastname ?? 'System',
+                'date' => $w->updated_at->format('M d, Y H:i'),
+            ])
+        );
+
+    // --- PO Created ---
+    $poActivities = PurchaseOrder::with('supplier', 'recordedBy')
+        ->latest('created_at')
+        ->take(10)
+        ->get()
+        ->map(fn($po) => [
+            'id' => $po->po_number,
+            'action' => "Purchase Order Created for {$po->supplier->company_name}",
+            'user' => $po->user?->firstname . ' ' . $po->user?->lastname ?? 'System',
+            'date' => $po->created_at->format('M d, Y H:i'),
+        ]);
+
+    // --- IAR / Inspection ---
+    $iarActivities = IAR::with('purchaseOrder.supplier', 'recordedBy')
+        ->latest('created_at')
+        ->take(10)
+        ->get()
+        ->map(fn($iar) => [
+            'id' => $iar->iar_number,
+            'action' => "IAR Recorded: {$iar->purchaseOrder->po_number}",
+            'user' => $iar->recordedBy?->firstname . ' ' . $iar->recordedBy?->lastname ?? 'System',
+            'date' => $iar->created_at->format('M d, Y H:i'),
+        ]);
+
+    // ---- Recent Activity ----
+    $risActivity = RIS::with(['requestedBy', 'issuedBy', 'items.inventoryItem'])
+        ->latest('created_at')
+        ->take(10)
+        ->get()
+        ->flatMap(fn($r) => $r->items->map(fn($item) => [
+            'id' => $r->ris_number,
+            'action' => "Issued {$item->quantity} {$item->inventoryItem->item_desc}",
+            'user' => $r->recordedBy?->firstname . ' ' . $r->recordedBy?->lastname ?? 'System',
+            'date' => $item->created_at->format('M d, Y'),
+        ]));
+
+    $icsActivity = ICS::with('items.inventoryItem')
+        ->latest('created_at')
+        ->take(10)
+        ->get()
+        ->flatMap(fn($i) => $i->items->map(fn($item) => [
+            'id' => $i->ics_number,
+            'action' => "Received {$item->quantity} {$item->inventoryItem->item_desc}",
+            'user' => $i->recordedBy?->firstname . ' ' . $i->recordedBy?->lastname ?? 'System',
+            'date' => $item->created_at->format('M d, Y'),
+        ]));
+
+    $parActivity = PAR::with('items.inventoryItem')
+        ->latest('created_at')
+        ->take(10)
+        ->get()
+        ->flatMap(fn($p) => $p->items->map(fn($item) => [
+            'id' => $p->par_number,
+            'action' => "Issued {$item->quantity} {$item->inventoryItem->item_desc}",
+            'user' => $p->recordedBy?->firstname . ' ' . $p->recordedBy?->lastname ?? 'System',
+            'date' => $item->created_at->format('M d, Y'),
+        ]));
+
+    $recentActivity = $prActivities->concat($rfqActivities)->concat($poActivities)->concat($iarActivities)->concat($risActivity)->concat($icsActivity)->concat($parActivity)
+        ->sortByDesc(fn($a) => strtotime($a['date']))
+        ->take(5)
+        ->values();
+
+    // ---- Stats Cards ----
+    $stats = [
+        ['label' => 'Total Stock Items', 'value' => $totalStock, 'icon' => 'Boxes', 'color' => 'bg-blue-100 text-blue-600'],
+        ['label' => 'Pending Deliveries', 'value' => $pendingDeliveries, 'icon' => 'Truck', 'color' => 'bg-yellow-100 text-yellow-600'],
+        ['label' => 'Total Issued Items', 'value' => $totalIssued, 'icon' => 'PackageCheck', 'color' => 'bg-green-100 text-green-600'],
+        ['label' => 'Total Users', 'value' => $totalUsers, 'icon' => 'Users', 'color' => 'bg-purple-100 text-purple-600'],
+        ['label' => 'Active Users', 'value' => $activeUsers, 'icon' => 'UserCog', 'color' => 'bg-teal-100 text-teal-600'],
+    ];
+
+    // ---- Document / Quick Link Cards ----
+    $documents = [
+        ['label'=> "RIS (Requisition)", 'value'=> $totalRis, 'icon'=> 'ClipboardList', 'link'=> "supply_officer.ris_issuance", 'color'=> "bg-purple-100 text-purple-600"],
+        ['label'=> "ICS (High)", 'value'=> $totalIcsHigh, 'icon'=> 'FileSpreadsheet', 'link'=> "supply_officer.ics_issuance_high", 'color'=> "bg-pink-100 text-pink-600"],
+        ['label'=> "ICS (Low)", 'value'=> $totalIcsLow, 'icon'=> 'FileSpreadsheet', 'link'=> "supply_officer.ics_issuance_low", 'color'=> "bg-indigo-100 text-indigo-600"],
+        ['label'=> "PAR", 'value'=> $totalPar, 'icon'=> 'FileCheck', 'link'=> "supply_officer.par_issuance", 'color'=> "bg-orange-100 text-orange-600"],
+        ['label'=> "Purchase Orders", 'value'=> $totalPo, 'icon'=> 'FileText', 'link'=> "supply_officer.purchase_orders", 'color'=> "bg-teal-100 text-teal-600"],
+        ['label'=> "Issuance Logs", 'value'=> $totalIssued, 'icon'=> 'Layers', 'link'=> "supply_officer.ris_issuance", 'color'=> "bg-sky-100 text-sky-600"],
+    ];
+
+    // ---- Chart Data (Bar Chart: summary counts) ----
+    $chartData = [
+        ['type' => 'PR', 'count' => PurchaseRequest::count()],
+        ['type' => 'PO', 'count' => $totalPo],
+        ['type' => 'RIS', 'count' => $totalRis],
+        ['type' => 'ICS', 'count' => $totalIcs],
+        ['type' => 'PAR', 'count' => $totalPar],
+    ];
+
+    // ---- Activity Trend (Line Chart: last 7 days) ----
+    $activityTrend = collect(range(6,0,-1))->map(fn($daysAgo) => [
+        'date' => now()->subDays($daysAgo)->format('M d'),
+        'activities' => PurchaseRequest::whereDate('created_at', now()->subDays($daysAgo))->count()
+                        + PurchaseOrder::whereDate('created_at', now()->subDays($daysAgo))->count()
+                        + RIS::whereDate('created_at', now()->subDays($daysAgo))->count()
+                        + ICS::whereDate('created_at', now()->subDays($daysAgo))->count()
+                        + PAR::whereDate('created_at', now()->subDays($daysAgo))->count(),
+    ]);
+
+    // ---- Users per Role Chart ----
+
+    return Inertia::render('Admin/Dashboard', [
+        'stats' => $stats,
+        'documents' => $documents,
+        'recentActivity' => $recentActivity,
+        'user' => $user,
+        'chartData' => $chartData,
+        'activityTrend' => $activityTrend,
+        'usersPerRoleChart' => $usersPerRoleChart,
+    ]);
+}
+
+
+
+public function activity_logs() {
+    // --- Purchase Request Created ---
+    $prActivities = PurchaseRequest::with('focal_person')
+        ->latest('created_at')
+        ->take(10)
+        ->get()
+        ->map(fn($pr) => [
+            'id' => $pr->pr_number,
+            'action' => 'Purchase Request Created',
+            'user' => $pr->focal_person?->firstname . ' ' . $pr->focal_person?->lastname,
+            'date' => $pr->created_at->format('M d, Y H:i'),
+        ]);
+
+    // --- RFQ Winner Selected ---
+    $rfqActivities = RFQ::with('details.supplier', 'recordedBy')
+        ->latest('updated_at')
+        ->take(10)
+        ->get()
+        ->flatMap(fn($rfq) => $rfq->details
+            ->filter(fn($d) => $d->is_winner_as_calculated)
+            ->map(fn($w) => [
+                'id' => $rfq->id,
+                'action' => "Winner Selected: {$w->supplier->company_name}",
+                'user' => $rfq->recordedBy?->firstname . ' ' . $rfq->recordedBy?->lastname ?? 'System',
+                'date' => $w->updated_at->format('M d, Y H:i'),
+            ])
+        );
+
+    // --- PO Created ---
+    $poActivities = PurchaseOrder::with('supplier', 'recordedBy')
+        ->latest('created_at')
+        ->take(10)
+        ->get()
+        ->map(fn($po) => [
+            'id' => $po->po_number,
+            'action' => "Purchase Order Created for {$po->supplier->company_name}",
+            'user' => $po->user?->firstname . ' ' . $po->user?->lastname ?? 'System',
+            'date' => $po->created_at->format('M d, Y H:i'),
+        ]);
+
+    // --- IAR / Inspection ---
+    $iarActivities = IAR::with('purchaseOrder.supplier', 'recordedBy')
+        ->latest('created_at')
+        ->take(10)
+        ->get()
+        ->map(fn($iar) => [
+            'id' => $iar->iar_number,
+            'action' => "IAR Recorded: {$iar->purchaseOrder->po_number}",
+            'user' => $iar->recordedBy?->firstname . ' ' . $iar->recordedBy?->lastname ?? 'System',
+            'date' => $iar->created_at->format('M d, Y H:i'),
+        ]);
+
+    // --- RIS / Issuance Logs ---
+    $risActivities = RIS::with('issuedBy', 'requestedBy', 'items.inventoryItem')
+        ->latest('created_at')
+        ->take(10)
+        ->get()
+        ->flatMap(fn($r) => $r->items->map(fn($item) => [
+            'id' => $r->ris_number,
+            'action' => "Issued {$item->quantity} {$item->inventoryItem->item_desc}",
+            'issued_by' => $r->issuedBy?->firstname . ' ' . $r->issuedBy?->lastname ?? 'System',
+            'issued_to' => $r->requestedBy?->firstname . ' ' . $r->requestedBy?->lastname ?? 'Unknown',
+            'date' => $item->created_at->format('M d, Y H:i'),
+        ]));
+
+    // --- ICS / Received Logs ---
+    $icsActivities = ICS::with('requestedBy', 'items.inventoryItem')
+        ->latest('created_at')
+        ->take(10)
+        ->get()
+        ->flatMap(fn($i) => $i->items->map(fn($item) => [
+            'id' => $i->ics_number,
+            'action' => "Received {$item->quantity} {$item->inventoryItem->item_desc}",
+            'issued_by' => $i->requestedBy?->firstname . ' ' . $i->requestedBy?->lastname ?? 'System',
+            'issued_to' => 'Stock / Inventory',
+            'date' => $item->created_at->format('M d, Y H:i'),
+        ]));
+
+    // --- PAR / Issuance Logs ---
+    $parActivities = PAR::with('issuedBy', 'items.inventoryItem')
+        ->latest('created_at')
+        ->take(10)
+        ->get()
+        ->flatMap(fn($p) => $p->items->map(fn($item) => [
+            'id' => $p->par_number,
+            'action' => "Issued {$item->quantity} {$item->inventoryItem->item_desc}",
+            'issued_by' => $p->issuedBy?->firstname . ' ' . $p->issuedBy?->lastname ?? 'System',
+            'issued_to' => $item->assignedTo?->firstname . ' ' . $item->assignedTo?->lastname ?? 'Unknown',
+            'date' => $item->created_at->format('M d, Y H:i'),
+        ]));
+
+    // --- Combine all activities ---
+    $activities = $prActivities
+        ->concat($rfqActivities)
+        ->concat($poActivities)
+        ->concat($iarActivities)
+        ->concat($risActivities)
+        ->concat($icsActivities)
+        ->concat($parActivities)
+        ->sortByDesc(fn($a) => strtotime($a['date']))
+        ->values();
+
+    return Inertia::render('Admin/ActivityLog', [
+        'activities' => $activities
+    ]);
+}
+
+
     public function create_user_form() {
         $divisions = Division::all();
         $roles = Role::all(['id', 'name']);
@@ -137,32 +460,42 @@ class AdminController extends Controller
         return redirect()->route('admin.settings')
             ->with('success', 'Requisitioning officer updated successfully.');
     }
-    public function updateInspection(Request $request, InspectionCommittee $committee)
-    {
-        $request->validate([
-            'members' => 'required|array',
-            'members.*.position' => 'required|string|max:255',
-            'members.*.name' => 'required|string|max:255',
-        ]);
 
-        // Deactivate old members
-        InspectionCommitteeMember::where('inspection_committee_id', $committee->id)
-            ->where('status', 'active')
-            ->update(['status' => 'inactive']);
+    public function deactivate(User $user)
+{
+    $user->account_status = 'inactive';
+    $user->save();
 
-        // Add new members
-        foreach ($request->members as $member) {
-            InspectionCommitteeMember::create([
-                'inspection_committee_id' => $committee->id,
-                'position' => $member['position'],
-                'name' => $member['name'],
-                'status' => 'active',
-            ]);
-        }
+    return back()->with('success', 'User has been deactivated.');
+}
+public function updateInspection(Request $request, $id)
+{
+    $validated = $request->validate([
+        'member_id' => 'required|exists:tbl_inspection_committee_members,id',
+        'replacementName' => 'required|string|max:255',
+    ]);
 
-        return redirect()->route('admin.settings')
-            ->with('success', 'Inspection committee updated successfully.');
-    }
+    $committee = InspectionCommittee::findOrFail($id);
+
+    $member = InspectionCommitteeMember::where('id', $validated['member_id'])
+        ->where('inspection_committee_id', $committee->id)
+        ->where('status', 'active')
+        ->firstOrFail();
+
+    // deactivate old member
+    $member->update(['status' => 'inactive']);
+
+    // create new member
+    $newMember = InspectionCommitteeMember::create([
+        'inspection_committee_id' => $committee->id,
+        'position' => $member->position,
+        'name' => $validated['replacementName'],
+        'status' => 'active',
+    ]);
+
+    return back()->with('success', 'Inspection Committee updated successfully!');
+}
+
 
     public function updateBac(Request $request, BacCommittee $committee)
     {

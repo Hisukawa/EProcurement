@@ -18,8 +18,10 @@ return new class extends Migration
             $table->decimal('quoted_price', 10, 2)->nullable();
             $table->decimal('unit_price_edited', 12, 2)->nullable();
             $table->foreignId('supplier_id')->constrained('tbl_suppliers')->restrictOnDelete();
-            $table->boolean('is_winner')->default(0);
-            $table->text('remarks')->nullable();
+            $table->boolean('is_winner_as_read')->default(0);
+            $table->boolean('is_winner_as_calculated')->default(0);
+            $table->text('remarks_as_read')->nullable();
+            $table->text('remarks_as_calculated')->nullable();
             $table->timestamps();
         });
         

@@ -28,73 +28,63 @@ export default function CreatePurchaseOrder({ pr, rfq, suppliers, winners }) {
   const [reason, setReason] = useState("");
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
 
-const getItemsForSupplier = (supplierId) => {
-  const supplierItems = winners.filter((w) => w.supplier_id === supplierId);
+  const getItemsForSupplier = (supplierId) => {
+    const supplierItems = winners.filter((w) => w.supplier_id === supplierId);
 
-  return supplierItems.map((w) => {
-    const unitPrice = Number(w.unit_price_edited ?? w.unit_price ?? w.quoted_price ?? 0);
-    const totalPrice =
-      w.mode === "as-calculated" && w.total_price_calculated != null
-        ? Number(w.total_price_calculated)
-        : unitPrice * Number(w.quantity ?? 0);
-
-    return {
+    return supplierItems.map((w) => ({
       pr_detail_id: w.pr_detail_id,
       item: w.item,
       specs: w.specs,
       unit: w.unit,
       quantity: w.quantity,
-      unit_price: unitPrice,
-      total_price: totalPrice,
-      priceSource: w.unit_price_edited
-        ? "Edited Price"
-        : w.mode === "as-calculated"
-        ? "Calculated Total"
-        : "Quoted Price",
-    };
-  });
-};
-
-
+      unit_price: Number(w.unit_price ?? 0),
+      total_price: Number(w.total_price ?? 0), // per-item calculation
+      priceSource: w.unit_price_edited ? "As Calculated Price" : "Quoted Price",
+      supplier_id: supplierId,
+      supplier_total: w.supplier_total ?? null, // pass backend total for fallback
+    }));
+  };
 
   const { data, setData, post, processing } = useForm({
     rfq_id: rfq.id,
     items: [],
   });
 
+  // initialize items
   useEffect(() => {
     const allItems = winningSuppliers.flatMap((supplier) =>
-      getItemsForSupplier(supplier.id).map((item) => ({
-        ...item,
-        supplier_id: supplier.id,
-      }))
+      getItemsForSupplier(supplier.id)
     );
-
     setData("items", allItems);
   }, [winningSuppliers]);
 
-const handleChange = (index, field, value) => {
-  const updatedItems = [...data.items];
-  const numericValue = Number(value) >= 0 ? Number(value) : 0;
+  const handleChange = (prDetailId, field, value) => {
+    const updatedItems = [...data.items];
+    const itemIndex = updatedItems.findIndex(
+      (i) => i.pr_detail_id === prDetailId
+    );
+    if (itemIndex === -1) return;
 
-  const originalQty = pr.details.find(
-    (d) => d.id === updatedItems[index].pr_detail_id
-  )?.quantity;
+    const numericValue = Number(value) >= 0 ? Number(value) : 0;
+    const originalQty = pr.details.find(
+      (d) => d.id === updatedItems[itemIndex].pr_detail_id
+    )?.quantity;
 
-  if (field === "quantity" && numericValue !== originalQty) {
-    setPendingChange({ index, field, value: numericValue });
-    setIsReasonDialogOpen(true);
-    return;
-  }
+    if (field === "quantity" && numericValue !== originalQty) {
+      setPendingChange({ index: itemIndex, field, value: numericValue });
+      setIsReasonDialogOpen(true);
+      return;
+    }
 
-  updatedItems[index][field] = numericValue;
+    updatedItems[itemIndex][field] = numericValue;
 
-  // Recalculate total_price based on current unit_price (edited or original)
-  updatedItems[index].total_price = numericValue * Number(updatedItems[index].unit_price);
+    // recalc total_price
+    updatedItems[itemIndex].total_price =
+      Number(updatedItems[itemIndex].quantity) *
+      Number(updatedItems[itemIndex].unit_price);
 
-  setData("items", updatedItems);
-};
-
+    setData("items", updatedItems);
+  };
 
   const handleConfirmReason = () => {
     if (!pendingChange) return;
@@ -103,7 +93,8 @@ const handleChange = (index, field, value) => {
     const updatedItems = [...data.items];
     updatedItems[index][field] = value;
     updatedItems[index].total_price =
-      Number(updatedItems[index].quantity) * Number(updatedItems[index].unit_price);
+      Number(updatedItems[index].quantity) *
+      Number(updatedItems[index].unit_price);
     updatedItems[index].change_reason = reason;
 
     setData("items", updatedItems);
@@ -138,11 +129,17 @@ const handleChange = (index, field, value) => {
           const supplierItems = data.items.filter(
             (i) => i.supplier_id === supplier.id
           );
-          const supplierTotal = supplierItems.reduce(
-            (sum, i) => sum + Number(i.total_price),
-            0
-          );
 
+          // prefer backend supplier_total (same for all winner items of supplier)
+          const backendTotal = supplierItems.find(
+            (i) => i.supplier_total !== null
+          )?.supplier_total;
+
+          const supplierTotal =
+  winners.find((w) => w.supplier_id === supplier.id)?.supplier_total ||
+  supplierItems.reduce((sum, i) => sum + Number(i.total_price), 0);
+
+          console.log({ supplier, supplierItems, supplierTotal });
           return (
             <div
               key={supplier.id}
@@ -155,29 +152,48 @@ const handleChange = (index, field, value) => {
                 <table className="min-w-full table-auto border-separate border-spacing-0 text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="border-y border-l px-4 py-2 text-left">Item</th>
+                      <th className="border-y border-l px-4 py-2 text-left">
+                        Item
+                      </th>
                       <th className="border-y px-4 py-2 text-left">Specs</th>
                       <th className="border-y px-4 py-2 text-center">Unit</th>
                       <th className="border-y px-4 py-2 text-right text-blue-600">
                         Quantity
                       </th>
-                      <th className="border-y px-4 py-2 text-right">Unit Price</th>
-                      <th className="border-y px-4 py-2 text-right">Total Price</th>
+                      <th className="border-y px-4 py-2 text-right">
+                        Unit Price
+                      </th>
+                      <th className="border-y px-4 py-2 text-right">
+                        Total Price
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {supplierItems.map((item, index) => (
-                      <tr key={`${supplier.id}-${item.pr_detail_id}`} className="hover:bg-gray-50">
-                        <td className="border-b border-l px-4 py-2">{item.item}</td>
-                        <td className="border-b px-4 py-2 text-gray-600">{item.specs}</td>
-                        <td className="border-b px-4 py-2 text-center">{item.unit}</td>
+                    {supplierItems.map((item) => (
+                      <tr
+                        key={`${supplier.id}-${item.pr_detail_id}`}
+                        className="hover:bg-gray-50"
+                      >
+                        <td className="border-b border-l px-4 py-2">
+                          {item.item}
+                        </td>
+                        <td className="border-b px-4 py-2 text-gray-600">
+                          {item.specs}
+                        </td>
+                        <td className="border-b px-4 py-2 text-center">
+                          {item.unit}
+                        </td>
                         <td className="border-b px-4 py-2 text-right">
                           <input
                             type="number"
                             min="0"
                             value={item.quantity}
                             onChange={(e) =>
-                              handleChange(index, "quantity", e.target.value)
+                              handleChange(
+                                item.pr_detail_id,
+                                "quantity",
+                                e.target.value
+                              )
                             }
                             className="w-20 border rounded px-2 py-1 text-right bg-yellow-50"
                           />
@@ -200,12 +216,14 @@ const handleChange = (index, field, value) => {
                         </td>
                         <td className="border-b px-4 py-2 text-right">
                           ₱
-                          {(item.unit_price * item.quantity).toLocaleString("en-US", {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
+                          {(item.unit_price * item.quantity).toLocaleString(
+                            "en-US",
+                            {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            }
+                          )}
                         </td>
-
                       </tr>
                     ))}
                     <tr className="bg-gray-100 font-semibold">
@@ -214,35 +232,10 @@ const handleChange = (index, field, value) => {
                       </td>
                       <td className="border-t border-r px-4 py-2 text-right">
                         ₱
-                        {(() => {
-                          // Get all items for this supplier from winners
-                          const supplierWinnerItems = winners.filter(
-                            (w) => w.supplier_id === supplier.id
-                          );
-
-                          // If any item has mode 'as-calculated', use total_price_calculated
-                          const hasAsCalculated = supplierWinnerItems.some(
-                            (w) => w.mode === "as-calculated" && w.total_price_calculated != null
-                          );
-
-                          if (hasAsCalculated) {
-                            // all items should have same total_price_calculated per your backend
-                            return Number(supplierWinnerItems[0].total_price_calculated).toLocaleString(
-                              "en-US",
-                              { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-                            );
-                          }
-
-                          // fallback: sum of total_price
-                          const sumTotal = supplierItems.reduce(
-                            (sum, i) => sum + Number(i.total_price),
-                            0
-                          );
-                          return sumTotal.toLocaleString("en-US", {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          });
-                        })()}
+                        {supplierTotal.toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
                       </td>
                     </tr>
                   </tbody>
@@ -261,6 +254,7 @@ const handleChange = (index, field, value) => {
         </Button>
       </form>
 
+      {/* Confirmation Dialog */}
       <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -291,6 +285,7 @@ const handleChange = (index, field, value) => {
         </DialogContent>
       </Dialog>
 
+      {/* Reason Dialog */}
       <Dialog open={isReasonDialogOpen} onOpenChange={setIsReasonDialogOpen}>
         <DialogContent>
           <DialogHeader>

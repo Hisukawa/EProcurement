@@ -26,6 +26,7 @@ return new class extends Migration
                 ->constrained('tbl_inspection_committees')
                 ->onDelete('restrict');
             $table->date('date_received');
+            $table->foreignId('recorded_by')->constrained('users')->restrictOnDelete();
             $table->timestamps();
         });
     }

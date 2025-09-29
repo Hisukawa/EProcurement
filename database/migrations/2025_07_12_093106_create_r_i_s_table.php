@@ -17,7 +17,6 @@ return new class extends Migration
             $table->foreignId('po_id')->constrained('tbl_purchase_orders')->onDelete('cascade');
             $table->string('ris_number')->unique();
             $table->foreignId('requested_by')->nullable()->constrained('users');
-            $table->string('recipient')->nullable();
             $table->foreignId('issued_by')->constrained('users');
             $table->text('remarks')->nullable();
             $table->timestamps();
@@ -28,6 +27,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('ris_id')->constrained('tbl_ris')->onDelete('cascade');
             $table->foreignId('inventory_item_id')->constrained('tbl_inventory')->onDelete('cascade');
+            $table->string('recipient')->nullable();
             $table->decimal('unit_cost', 12, 2);
             $table->decimal('total_cost', 14, 2);
             $table->integer('quantity');

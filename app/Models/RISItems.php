@@ -15,6 +15,7 @@ class RISItems extends Model
         'ris_id',
         'inventory_item_id',
         'unit_cost',
+        'recipient',
         'total_cost',
         'quantity',
     ];

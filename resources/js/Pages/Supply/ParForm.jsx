@@ -107,7 +107,7 @@ useEffect(() => {
     post(route("supply_officer.store_par"), {
       preserveScroll: true,
       onSuccess: () => {
-        toast({ title: "Success", description: "PAR has been saved successfully!" });
+        toast({ title: "Success", description: "PAR has been saved successfully!", className: "bg-green-600 text-white", duration: 3000 });
         setConfirmOpen(false);
         reset();
       },

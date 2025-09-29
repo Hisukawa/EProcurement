@@ -17,7 +17,6 @@ return new class extends Migration
             $table->foreignId('po_id')->constrained('tbl_purchase_orders')->onDelete('cascade');
             $table->string('ics_number')->unique();
             $table->foreignId('requested_by')->nullable()->constrained('users');
-            $table->string('recipient')->nullable();
             $table->foreignId('received_from')->constrained('users');
             
             $table->text('remarks')->nullable();
@@ -29,6 +28,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('ics_id')->constrained('tbl_ics')->onDelete('cascade');
             $table->foreignId('inventory_item_id')->constrained('tbl_inventory')->onDelete('cascade');
+            $table->string('recipient')->nullable();
             $table->string('inventory_item_number')->nullable();
             $table->string('ppe_sub_major_account')->nullable();
             $table->string('general_ledger_account')->nullable();

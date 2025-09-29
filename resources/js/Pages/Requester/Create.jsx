@@ -25,35 +25,44 @@ function CreateProductModal({ open, onClose, units, onProductSaved }) {
 
     const handleSave = async (e) => {
         e.preventDefault();
+
+        // Trim custom unit for validation
+        const customUnit = data.custom_unit.trim();
+
+        // Check if custom unit already exists in units list
+        if (customUnit && units.some(u => u.unit.toLowerCase() === customUnit.toLowerCase())) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Duplicate Unit',
+                text: `The unit "${customUnit}" already exists. Please select it from the list instead.`,
+            });
+            return; // stop submission
+        }
+
         try {
             const payload = {
                 ...data,
-                unit: data.custom_unit && data.custom_unit.trim() !== "" ? data.custom_unit : data.unit_id,
+                unit: customUnit !== "" ? customUnit : data.unit_id,
             };
 
             // save to backend
-            const response = await axios.post(
-                route("requester.store_product"),
-                payload
-            );
+            const response = await axios.post(route("requester.store_product"), payload);
             const newProduct = response.data.product;
 
             if (newProduct) {
-                // ✅ pass back product with quantity included
-                // No need for a separate dialog to ask if they want to add it
                 onProductSaved({
                     ...newProduct,
                     quantity: Number(data.quantity),
                     total_item_price: Number(newProduct.default_price) * Number(data.quantity),
                 });
             }
-            onClose(); // Close the modal after saving
+            onClose(); // Close modal
         } catch (error) {
             console.error("Error saving product:", error);
-            // You might want to show an error message to the user here
             Swal.fire('Error!', 'Failed to save product. Please try again.', 'error');
         }
     };
+
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -432,11 +441,7 @@ export default function Create({ requestedBy, products: initialProducts, units }
 
     // ✅ This function will now directly add the new product to the PR
     const handleProductSaved = (newProductWithQuantity) => {
-        // Here, `newProductWithQuantity` already contains the quantity
-        // from the CreateProductModal.
         handleConfirmProduct(newProductWithQuantity.quantity, newProductWithQuantity);
-        // After saving a new product, we need to refresh the available products in the table
-        // This is crucial for the newly added item to appear in the ProductTable
         router.reload({ only: ["products"],
             onSuccess: (page) => {
                 setAvailableProducts(page.props.products);

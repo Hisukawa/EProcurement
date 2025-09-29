@@ -13,12 +13,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import AOQTabs from "@/Layouts/AOQTabs";
+import { Undo2Icon } from "lucide-react";
 
 export default function AbstractOfQuotationsCalculated({ rfq, groupedDetails = {}, committee }) {
   const pr = rfq.purchase_request;
 
   const [winnerDialogOpen, setWinnerDialogOpen] = useState(false);
-  const [remarks, setRemarks] = useState("");
+  const [remarks_as_calculated, setRemarks] = useState("");
   const [resultDialog, setResultDialog] = useState({
   open: false,
   type: "success", // "success" | "error"
@@ -105,12 +106,12 @@ const handleOpenRollbackDialog = (rfqId, supplierId, detailId = null) => {
 const handleConfirmRollback = () => {
   setRollingBack(true);
   const payload = {
-    remarks,
+    remarks_as_calculated,
     mode: awardMode,
     ...(awardMode === "per-item" ? { detail_id: rollbackTarget.detailId } : {}),
   };
 
-  router.post(route("bac_approver.rollback_winner", { id: rollbackTarget.rfqId }), payload, {
+  router.post(route("bac_approver.rollback_winner_as_calculated", { id: rollbackTarget.rfqId }), payload, {
     preserveScroll: true,
     onSuccess: () => {
       setRollbackDialogOpen(false);
@@ -157,7 +158,7 @@ const handleConfirmWinner = async () => {
 
   const payload = {
     supplier_id: selectedWinner.supplierId,
-    remarks,
+    remarks_as_calculated,
     ...(awardMode === "per-item" ? { detail_id: selectedWinner.detailId } : {}),
     // Send effective total for backend calculation if needed
     total_price: getEffectiveTotal(
@@ -235,8 +236,12 @@ const { supplierMap, winnerCounts } = useMemo(() => {
       }
 
       map[sid].detailIds.add(detail.id);
-      map[sid].total += parseFloat(quote.quoted_price || 0);
-      if (quote.is_winner) counts[sid]++;
+      const quantity = pr.details.find(d => d.id === detail.id)?.quantity ?? 1;
+const price = parseFloat(quote.quoted_price ?? 0) || 0; // never NaN
+map[sid].total += price * quantity;
+
+
+      if (quote.is_winner_as_calculated) counts[sid]++;
     });
   });
 
@@ -257,7 +262,7 @@ const fullBidSuppliers = Object.values(supplierMap).filter(
     }
   }, [hasFullBidSuppliers, awardMode]);
   const hasAnyWinner = pr.details.some((detail) =>
-  (groupedDetails[detail.id] || []).some((q) => q.is_winner)
+  (groupedDetails[detail.id] || []).some((q) => q.is_winner_as_calculated)
 );
 
 // Check if PR-wide winner is declared (all items for one supplier are marked)
@@ -267,7 +272,7 @@ const hasWholePrWinner = Object.values(winnerCounts).some(
 
 // Check if per-item winners exist
 const hasPerItemWinners = pr.details.some((detail) =>
-  (groupedDetails[detail.id] || []).some((q) => q.is_winner)
+  (groupedDetails[detail.id] || []).some((q) => q.is_winner_as_calculated)
 );
 
 const [remarksDialogOpen, setRemarksDialogOpen] = useState(false);
@@ -279,12 +284,12 @@ const handleSaveRemarks = () => {
   setSavingRemarks(true);
   const payload = {
     supplier_id: remarksTarget.supplierId,
-    remarks: remarksInput,
+    remarks_as_calculated: remarksInput,
     mode: awardMode,
     ...(awardMode === "per-item" ? { detail_id: remarksTarget.detailId } : {}),
   };
 
-  router.post(route("bac_approver.save_remarks", { id: remarksTarget.rfqId }), payload, {
+  router.post(route("bac_approver.save_remarks_as_calculated", { id: remarksTarget.rfqId }), payload, {
     preserveScroll: true,
     onSuccess: () => {
       setSavingRemarks(false);
@@ -306,6 +311,7 @@ const handleSaveRemarks = () => {
     },
   });
 };
+console.log(rfq);
 
 const [editableTotals, setEditableTotals] = useState({});
 const handleTotalChange = (supplierId, value) => {
@@ -324,11 +330,15 @@ const getEffectiveTotal = (supplierId, fallbackTotal) => {
     const editedPrice = editedPrices[editedKey];
     const quote = groupedDetails[detailId]?.find((q) => q.supplier.id === supplierId);
     const basePrice = quote?.unit_price_edited ?? quote?.quoted_price ?? 0;
-    total += parseFloat(editedPrice ?? basePrice);
+
+    // Multiply by quantity
+    const quantity = pr.details.find(d => d.id === detailId)?.quantity ?? 1;
+    total += parseFloat(editedPrice ?? basePrice) * quantity;
   });
 
   return total;
 };
+
 
 const [editedPrices, setEditedPrices] = useState({});
 // Key format: `${supplierId}-${detailId}`
@@ -473,6 +483,13 @@ const handlePriceChange = (supplierId, detailId, value) => {
                                   }
                                   disabled={hasWholePrWinner} // <-- disable if PR-wide winner exists
                                 />
+                                <span
+                                className="font-semibold"
+                              >
+                                <span className="mx-1">x</span>
+                                <span className="mr-1">{detail.quantity}</span>
+                                <span>{detail.unit}</span>
+                              </span>
 
                                 {quote.unit_price_edited && quote.unit_price_edited !== quote.quoted_price ? (
                                   <span className="text-xs text-gray-500 italic">
@@ -505,7 +522,7 @@ const handlePriceChange = (supplierId, detailId, value) => {
 
 
                 <tr className="bg-gray-200 font-semibold">
-                  <td className="border px-4 py-3 text-right">Total Price</td>
+                  <td className="border px-4 py-3 text-right">Total Calculated Price </td>
                   {fullBidSuppliers.map((s) => {
                     const effectiveTotal = getEffectiveTotal(s.supplier.id, s.total);
 
@@ -540,7 +557,7 @@ const handlePriceChange = (supplierId, detailId, value) => {
                     const supplierAllRemarks = Object.values(groupedDetails)
                       .flat()
                       .filter((q) => q.supplier.id === s.supplier.id)
-                      .map((q) => q.remarks?.trim() || "");
+                      .map((q) => q.remarks_as_calculated?.trim() || "");
 
                     const allRemarksAreSame =
                       supplierAllRemarks.length > 0 &&
@@ -598,9 +615,12 @@ const handlePriceChange = (supplierId, detailId, value) => {
                             size="sm"
                             variant="destructive"
                             onClick={() => handleOpenRollbackDialog(rfq.id, s.supplier.id)}
+                            disabled={!!rfq.purchase_order} // ✅ correct: check RFQ
                           >
-                            Rollback
+                            <Undo2Icon className="h-4 w-4" />
+                            Undo Winner
                           </Button>
+
                         </div>
                       ) : hasWholePrWinner ? ( // Check for any PR-wide winner
                         "—"
@@ -625,7 +645,7 @@ const handlePriceChange = (supplierId, detailId, value) => {
           <div className="space-y-8 mb-10 border p-4 rounded-lg bg-white shadow-sm">
             {pr.details.map((detail) => {
               const quotes = groupedDetails[detail.id] || [];
-              const itemHasWinner = quotes.some((q) => q.is_winner);
+              const itemHasWinner = quotes.some((q) => q.is_winner_as_calculated);
 
               return (
                 <div key={detail.id} className="border p-4 bg-white rounded-lg shadow-sm">
@@ -658,94 +678,95 @@ const handlePriceChange = (supplierId, detailId, value) => {
                     </thead>
                     <tbody>
                       {/* Supplier Quotes Row */}
-                      <tr>
-                        <td className="border px-4 py-3 font-medium">{detail.item}</td>
-                        {quotes.map((q) => (
-                          <td
-                            key={q.supplier.id}
-                            className="border px-4 py-2 text-center align-top w-56"
-                          >
-                            <div className="flex flex-col gap-1 items-center">
-                              {/* Replace the price display in table cells with editable inputs */}
-                              {q ? (
-                                <div className="flex flex-col gap-1 items-center">
-                                    <input
-                                      type="number"
-                                      step="0.01"
-                                      className="w-28 px-2 py-1 border rounded text-right font-semibold"
-                                      value={editedPrices[`${q.supplier.id}-${detail.id}`] ?? q.quoted_price}
-                                      onChange={(e) => handlePriceChange(q.supplier.id, detail.id, parseFloat(e.target.value) || 0)}
-                                    />
-                                    <span className="text-xs text-gray-500 italic">
-                                      Original: ₱{parseFloat(q.quoted_price).toLocaleString()}
-                                    </span>
-                                    <Button
-                                      size="xs"
-                                      variant="outline"
-                                      className="px-2 py-1 bg-green-500 text-white"
-                                      onClick={() => handleSavePrice(q.supplier.id, detail.id)}
-                                      disabled={savingPrices[`${q.supplier.id}-${detail.id}`]}
-                                    >
-                                      {savingPrices[`${q.supplier.id}-${detail.id}`] ? "Saving..." : "Save"}
-                                    </Button>
-                                  </div>
+<tr>
+  <td className="border px-4 py-3 font-medium">{detail.item}</td>
+  {quotes.map((q) => {
+    const effectivePrice = parseFloat(q.unit_price_edited ?? q.quoted_price);
+    return (
+      <td key={q.supplier.id} className="border px-4 py-2 text-center align-top w-56">
+        <div className="flex flex-col gap-1 items-center">
+          <input
+            type="number"
+            step="0.01"
+            className="w-28 px-2 py-1 border rounded text-right font-semibold"
+            value={editedPrices[`${q.supplier.id}-${detail.id}`] ?? effectivePrice}
+            onChange={(e) =>
+              handlePriceChange(q.supplier.id, detail.id, parseFloat(e.target.value) || 0)
+            }
+          />
+          {q.unit_price_edited && q.unit_price_edited !== q.quoted_price && (
+            <span className="text-xs text-gray-500 italic">
+              Original: ₱{parseFloat(q.quoted_price).toLocaleString()}
+            </span>
+          )}
+          <Button
+            size="xs"
+            variant="outline"
+            className="px-2 py-1 bg-green-500 text-white"
+            onClick={() => handleSavePrice(q.supplier.id, detail.id)}
+            disabled={savingPrices[`${q.supplier.id}-${detail.id}`]}
+          >
+            {savingPrices[`${q.supplier.id}-${detail.id}`] ? "Saving..." : "Save"}
+          </Button>
+        </div>
 
-                              ) : (
-                                <span className="text-gray-400">—</span>
-                              )}
+        <div className="text-xs text-gray-600 italic">
+          {q.remarks_as_calculated || "No remarks"}
+          <Button
+            size="xs"
+            variant="outline"
+            className="ml-2 px-2 py-1 bg-blue-500 text-white"
+            onClick={() => {
+              setRemarksTarget({
+                rfqId: rfq.id,
+                supplierId: q.supplier.id,
+                detailId: detail.id,
+                currentRemarks: q.remarks_as_calculated || "",
+              });
+              setRemarksInput(q.remarks_as_calculated || "");
+              setRemarksDialogOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+        </div>
+      </td>
+    );
+  })}
+</tr>
 
-                              <div className="text-xs text-gray-600 italic">
-                                {q.remarks || "No remarks"}
-                                <Button
-                                  size="xs"
-                                  variant="outline"
-                                  className="ml-2 px-2 py-1 bg-blue-500 text-white"
-                                  onClick={() => {
-                                    setRemarksTarget({
-                                      rfqId: rfq.id,
-                                      supplierId: q.supplier.id,
-                                      detailId: detail.id,
-                                      currentRemarks: q.remarks || "",
-                                    });
-                                    setRemarksInput(q.remarks || "");
-                                    setRemarksDialogOpen(true);
-                                  }}
-                                >
-                                  Edit
-                                </Button>
-                              </div>
-                            </div>
-                          </td>
-                        ))}
-                      </tr>
+{/* Totals Row */}
+<tr className="bg-gray-200 font-semibold">
+  <td className="border px-4 py-3 text-right">Effective Price</td>
+  {quotes.map((q) => {
+    // Get edited price if available, else use quoted
+    const editedKey = `${q.supplier.id}-${detail.id}`;
+    const effectivePrice = parseFloat(editedPrices[editedKey] ?? q.unit_price_edited ?? q.quoted_price ?? 0);
 
-                      {/* Totals Row (for per-item, it's just the quoted price for that item) */}
-                      <tr className="bg-gray-200 font-semibold">
-                        <td className="border px-4 py-3 text-right">Effective Price</td>
-                        {quotes.map((q) => {
-                          const effectiveTotal = getEffectiveTotal(q.supplier.id, q.quoted_price);
-                          return (
-                            <td
-                              key={q.supplier.id}
-                              className="border px-4 py-3 text-right text-green-700"
-                            >
-                              <div className="flex flex-col items-end gap-1">
-                                <span className="text-xs text-gray-500 italic">
-                                  (Quoted Price: ₱
-                                  {parseFloat(q.quoted_price || 0).toLocaleString()})
-                                </span>
-                                <span className="text-xs text-blue-600 font-semibold">
-                                  Calculated: ₱{effectiveTotal.toLocaleString()}
-                                </span>
-                              </div>
-                            </td>
-                          );
-                        })}
-                      </tr>
+    // Multiply by quantity for display
+    const quantity = detail.quantity ?? 1;
+    const calculatedPrice = effectivePrice * quantity;
+
+    return (
+      <td key={q.supplier.id} className="border px-4 py-3 text-right text-green-700">
+        <div className="flex flex-col items-end gap-1">
+          <span className="text-xs text-gray-500 italic">
+            (Quoted Price: ₱{parseFloat(q.quoted_price || 0).toLocaleString()})
+          </span>
+          <span className="text-xs text-blue-600 font-semibold">
+            Calculated: ₱{calculatedPrice.toLocaleString()}
+          </span>
+        </div>
+      </td>
+    );
+  })}
+</tr>
+
+
                       <tr>
                         <td className="px-4 py-2 font-medium">Remarks</td>
                         {quotes.map((q) => {
-                          const itemSpecificRemarks = q.remarks?.trim() || "No remarks"; // Use q.remarks directly
+                          const itemSpecificRemarks = q.remarks_as_calculated?.trim() || "No remarks"; // Use q.remarks directly
                           return (
                             <td key={`item-remarks-${q.supplier.id}`} className="px-4 py-2 text-center align-top">
                               <div className="flex flex-col gap-1 items-center">
@@ -780,7 +801,7 @@ const handlePriceChange = (supplierId, detailId, value) => {
                         <td className="border px-4 py-3 text-right font-semibold">Winner</td>
                         {quotes.map((q) => (
                           <td key={q.supplier.id} className="border px-4 py-3 text-center">
-                            {q.is_winner ? (
+                            {q.is_winner_as_calculated ? (
                               <div className="flex flex-col items-center gap-1">
                                 <span className="text-green-600 font-bold">✔ Winner</span>
                                 <Button
@@ -865,7 +886,7 @@ const handlePriceChange = (supplierId, detailId, value) => {
             <DialogTitle>Confirm Winner</DialogTitle>
             <DialogDescription>Provide remarks for awarding this supplier.</DialogDescription>
           </DialogHeader>
-          <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} />
+          <Textarea value={remarks_as_calculated} onChange={(e) => setRemarks(e.target.value)} />
           <DialogFooter>
             <Button variant="secondary" onClick={() => setWinnerDialogOpen(false)}>
               Cancel
@@ -978,7 +999,7 @@ const handlePriceChange = (supplierId, detailId, value) => {
             </DialogDescription>
           </DialogHeader>
           <Textarea
-            value={remarks}
+            value={remarks_as_calculated}
             onChange={(e) => setRemarks(e.target.value)}
           />
           <DialogFooter>

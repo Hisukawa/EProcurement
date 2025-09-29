@@ -52,6 +52,7 @@ export default function RISForm({ purchaseOrder, inventoryItem, user }) {
           title: "RIS Recorded",
           description: "Requisition and Issue Slip successfully saved!",
           duration: 3000,
+          className: "bg-green-600 text-white",
         });
       },
       onError: () => {

@@ -16,7 +16,7 @@ class ICS extends Model
 
     protected $table = 'tbl_ics';
 
-    protected $fillable = ['po_id', 'ics_number', 'requested_by', 'recipient', 'received_from', 'remarks'];
+    protected $fillable = ['po_id', 'ics_number', 'requested_by', 'received_from', 'remarks'];
 
     // Header relations
     public function po()
