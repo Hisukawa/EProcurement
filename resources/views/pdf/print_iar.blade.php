@@ -89,7 +89,7 @@
                 <td></td>
                 <td>{{ $detail->prDetail->product->name ?? '' }} {{ $detail->prDetail->product->specs ?? '' }}</td>
                 <td>{{ $detail->prDetail->product->unit->unit ?? '' }}</td>
-                <td>{{ $detail->prDetail->quantity ?? 0 }}</td>
+                <td>{{ $detail->quantity ?? 0 }}</td>
             </tr>
         @endforeach
 
