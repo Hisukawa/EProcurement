@@ -116,50 +116,54 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
     setWinnerDialogOpen(true);
   };
 
-  const handleConfirmWinner = () => {
-    setConfirmingWinner(true);
+const handleConfirmWinner = async () => {
+  setConfirmingWinner(true);
 
-    const payload = {
-      supplier_id: selectedWinner.supplierId,
-      remarks,
-      mode: awardMode, // "whole-pr" or "per-item"
-      ...(awardMode === "per-item" ? { detail_id: selectedWinner.detailId } : {}),
-    };
-
-    router.post(route("bac_approver.mark_winner", { id: selectedWinner.rfqId }), payload, {
-      preserveScroll: true,
-      onSuccess: () => {
-        setWinnerDialogOpen(false);
-        setConfirmingWinner(false);
-        setResultDialog({
-          open: true,
-          type: "success",
-          title: "Winner Marked",
-          description:
-            awardMode === "per-item"
-              ? "Supplier has been awarded for the selected item."
-              : "Supplier has been awarded for the entire PR.",
-        });
-        toast({
-          title: "Winner Marked",
-          description:
-            awardMode === "per-item"
-              ? "Supplier has been awarded for the selected item."
-              : "Supplier has been awarded for the entire PR.",
-          duration: 3000,
-        });
-      },
-      onError: () => {
-        setConfirmingWinner(false);
-        setResultDialog({
-          open: true,
-          type: "error",
-          title: "Failed to Mark Winner",
-          description: "Something went wrong while marking the winner. Please try again.",
-        });
-      },
-    });
+  const payload = {
+    supplier_id: selectedWinner.supplierId,
+    remarks,
+    mode: awardMode,
+    ...(awardMode === "per-item" ? { detail_id: selectedWinner.detailId } : {}),
   };
+
+  try {
+    const response = await axios.post(
+      route("bac_approver.mark_winner", { id: selectedWinner.rfqId }),
+      payload
+    );
+
+    if (response.data.success) {
+      setWinnerDialogOpen(false);
+      setResultDialog({
+        open: true,
+        type: "success",
+        title: "Winner Marked",
+        description:
+          awardMode === "per-item"
+            ? "Supplier has been awarded for the selected item."
+            : "Supplier has been awarded for the entire PR.",
+      });
+      toast({
+        title: "Winner Marked",
+        description:
+          awardMode === "per-item"
+            ? "Supplier has been awarded for the selected item."
+            : "Supplier has been awarded for the entire PR.",
+        duration: 3000,
+      });
+      router.reload({ preserveScroll: true });
+    }
+  } catch (error) {
+    setConfirmingWinner(false);
+    setResultDialog({
+      open: true,
+      type: "error",
+      title: "Failed to Mark Winner",
+      description: "Something went wrong while marking the winner. Please try again.",
+    });
+  }
+};
+
 
   // --- Process supplier data ---
   const supplierMap = {};

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Supply;
 
 use App\Exports\ICSReportExport;
 use App\Exports\ICSReportExportHigh;
+use App\Exports\ParReportExport;
 use App\Exports\RISExport;
 use App\Exports\RISExportMonthly;
 use App\Exports\RISReportGenerate;
@@ -73,6 +74,16 @@ class ExcelReportsController extends Controller
         return Excel::download(
             new ICSReportExportHigh($month, $year, $type),
             "ICS_{$typeTitle}_Report_{$year}.xlsx"
+        );
+    }
+    public function generateParReport(Request $request)
+    {
+        $month = $request->input('month');
+        $year = $request->input('year');
+
+        return Excel::download(
+            new ParReportExport($month, $year),
+            "PAR_Report_{$year}.xlsx"
         );
     }
 

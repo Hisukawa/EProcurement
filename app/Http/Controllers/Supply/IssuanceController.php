@@ -40,6 +40,9 @@ public function issuance($po_detail_id, $inventory_id)
         return redirect()->back()->with('error', 'No matching PO detail found for this inventory item.');
     }
 
+    // Fetch all PPEs with their GLs
+    $ppeOptions = PPESubMajorAccount::with('generalLedgerAccounts')->get();
+    
     $props = [
         'purchaseOrder' => [
             'id' => $po->id,
@@ -48,17 +51,19 @@ public function issuance($po_detail_id, $inventory_id)
         ],
         'inventoryItem' => $inventoryItem,
         'user'          => Auth::user(),
+        'ppeOptions'    => $ppeOptions,
     ];
 
     return Inertia::render('Supply/IssuancePage', $props);
 }
 
 
+
     public function store_ris(Request $request)
     {
         $validated = $request->validate([
             'po_id'       => 'required|integer|exists:tbl_purchase_orders,id',
-            'issued_to'   => 'required|integer|exists:users,id',
+            'requested_by'   => 'required|integer|exists:users,id',
             'issued_by'   => 'required|integer|exists:users,id',
             'remarks'     => 'nullable|string|max:255',
 
@@ -73,14 +78,14 @@ public function issuance($po_detail_id, $inventory_id)
         try {
             $po = PurchaseOrder::findOrFail($validated['po_id']);
 
-            // ✅ Get or create RIS for this PO
+            // Get or create RIS for this PO
             $ris = RIS::firstOrCreate(
                 ['po_id' => $po->id], // unique per PO
                 [
-                    'ris_number' => $po->po_number,
-                    'issued_to'  => $validated['issued_to'],
-                    'issued_by'  => $validated['issued_by'],
-                    'remarks'    => $validated['remarks'] ?? null,
+                    'ris_number'   => $po->po_number,
+                    'requested_by' => $validated['requested_by'],
+                    'issued_by'    => $validated['issued_by'],
+                    'remarks'      => $validated['remarks'] ?? null,
                 ]
             );
 
@@ -89,13 +94,15 @@ public function issuance($po_detail_id, $inventory_id)
 
             foreach ($groupedItems as $inventoryId => $items) {
                 $quantity = $items->sum('quantity');
-                $unitCost = $items->first()['unit_cost']; // ✅ take from user input
-                $totalCost = $unitCost * $quantity;       // ✅ always recalc backend
+                $unitCost = $items->first()['unit_cost']; // take from user input
+                $totalCost = $unitCost * $quantity;       // recalc backend
 
                 $inventory = Inventory::findOrFail($inventoryId);
 
-                if ($inventory->total_stock < $quantity) {
-                    throw new \Exception("Not enough stock for {$inventory->item_desc}");
+                // Calculate remaining stock
+                $remainingStock = $inventory->total_stock - $inventory->issued_qty;
+                if ($remainingStock < $quantity) {
+                    throw new \Exception("Not enough stock for {$inventory->item_desc}. Remaining: {$remainingStock}");
                 }
 
                 // Update existing RIS item or create new
@@ -103,7 +110,7 @@ public function issuance($po_detail_id, $inventory_id)
                 if ($risItem) {
                     $risItem->quantity   += $quantity;
                     $risItem->total_cost += $totalCost;
-                    $risItem->unit_cost   = $unitCost; // ✅ update to last input
+                    $risItem->unit_cost   = $unitCost;
                     $risItem->save();
                 } else {
                     $ris->items()->create([
@@ -114,12 +121,11 @@ public function issuance($po_detail_id, $inventory_id)
                     ]);
                 }
 
-                // Deduct stock
-                $inventory->total_stock -= $quantity;
-                $inventory->status = $inventory->total_stock > 0 ? 'Available' : 'Issued';
+                // ✅ Increment issued_qty instead of subtracting from total_stock
+                $inventory->issued_qty += $quantity;
+                $inventory->status = ($inventory->issued_qty >= $inventory->total_stock) ? 'Issued' : 'Available';
                 $inventory->save();
             }
-
 
             DB::commit();
             return redirect()->route('supply_officer.ris_issuance')
@@ -129,6 +135,7 @@ public function issuance($po_detail_id, $inventory_id)
             return back()->withErrors(['error' => 'Failed to store RIS. ' . $e->getMessage()]);
         }
     }
+
 
     public function ris_issuance(Request $request)
     {
@@ -154,7 +161,7 @@ public function issuance($po_detail_id, $inventory_id)
 
         // Load RIS headers with items + related data
         $ris = RIS::with([
-            'issuedTo.division',
+            'requestedBy.division',
             'issuedBy.division',
             'po.details.prDetail.purchaseRequest.division',
             'items.inventoryItem.unit',
@@ -170,7 +177,7 @@ public function issuance($po_detail_id, $inventory_id)
 public function print_ris($id)
 {
     $ris = RIS::with([
-        'issuedTo.division',
+        'requestedBy.division',
         'issuedBy.division',
         'po.details.prDetail' => function ($query) {
             $query->select('id', 'pr_id', 'product_id', 'quantity');
@@ -194,7 +201,7 @@ public function store_ics(Request $request)
     $validated = $request->validate([
         'po_id' => 'required|integer|exists:tbl_purchase_orders,id',
         'ics_number' => 'required|string|max:20',
-        'received_by' => 'required|integer|exists:users,id',
+        'requested_by' => 'required|integer|exists:users,id',
         'received_from' => 'required|integer|exists:users,id',
         'remarks' => 'nullable|string|max:255',
 
@@ -216,22 +223,22 @@ public function store_ics(Request $request)
     try {
         $po = PurchaseOrder::with(['details.prDetail.product'])->findOrFail($validated['po_id']);
 
-        // 🔑 Always create new ICS (don’t reuse existing for same PO)
-        $ics = ICS::firstOrCreate(
-            ['po_id' => $po->id],
-            [
-                'ics_number' => $validated['ics_number'],
-                'received_by' => $validated['received_by'],
-                'received_from' => $validated['received_from'],
-                'remarks' => $validated['remarks'] ?? null,
-            ]
-        );
+        // 🔑 Always create new ICS
+        $ics = ICS::firstOrcreate([
+            'po_id' => $po->id,
+            'ics_number' => $validated['ics_number'],
+            'requested_by' => $validated['requested_by'],
+            'received_from' => $validated['received_from'],
+            'remarks' => $validated['remarks'] ?? null,
+        ]);
 
         foreach ($validated['items'] as $item) {
             $inventory = Inventory::findOrFail($item['inventory_item_id']);
 
-            if ($inventory->total_stock < $item['quantity']) {
-                throw new \Exception("Not enough stock for {$inventory->item_desc}");
+            // Calculate remaining stock
+            $remainingStock = $inventory->total_stock - $inventory->issued_qty;
+            if ($remainingStock < $item['quantity']) {
+                throw new \Exception("Not enough stock for {$inventory->item_desc}. Remaining: {$remainingStock}");
             }
 
             // Determine ICS item type
@@ -252,9 +259,9 @@ public function store_ics(Request $request)
                 'type' => $itemType,
             ]);
 
-            // Deduct stock
-            $inventory->total_stock -= $item['quantity'];
-            $inventory->status = $inventory->total_stock > 0 ? 'Available' : 'Issued';
+            // ✅ Increment issued_qty instead of subtracting from total_stock
+            $inventory->issued_qty += $item['quantity'];
+            $inventory->status = ($inventory->issued_qty >= $inventory->total_stock) ? 'Issued' : 'Available';
             $inventory->save();
         }
 
@@ -284,10 +291,11 @@ public function store_ics(Request $request)
 
 
 
+
 public function print_ics($id, $types = null)
 {
     $ics = ICS::with([
-        'receivedBy.division',
+        'requestedBy.division',
         'receivedFrom.division',
         'po.details.prDetail' => function ($query) {
             $query->select('id', 'pr_id', 'product_id', 'quantity');
@@ -313,7 +321,7 @@ public function print_ics($id, $types = null)
 public function print_ics_all($id)
 {
     $ics = ICS::with([
-        'receivedBy.division',
+        'requestedBy.division',
         'receivedFrom.division',
         'po.details.prDetail' => fn($q) => $q->select('id','pr_id','product_id','quantity'),
         'po.details.prDetail.purchaseRequest',
@@ -347,7 +355,7 @@ public function print_ics_all($id)
                     $q->where('type', 'low');
                 })
                 ->with([
-                    'receivedBy',
+                    'requestedBy',
                     'items.inventoryItem.unit',
                     'po.rfq.purchaseRequest.division',
                     'po.rfq.purchaseRequest.focal_person',
@@ -396,7 +404,7 @@ public function print_ics_all($id)
                 $q->where('type', 'high');
             })
             ->with([
-                'receivedBy',
+                'requestedBy',
                 'items.inventoryItem.unit',
                 'po.rfq.purchaseRequest.division',
                 'po.rfq.purchaseRequest.focal_person',
@@ -437,12 +445,20 @@ public function store_par(Request $request)
     $validated = $request->validate([
         'po_id'   => 'required|integer|exists:tbl_purchase_orders,id',
         'par_number' => 'required|string|max:20',
-        'received_by' => 'required|integer|exists:users,id',
+        'requested_by' => 'required|integer|exists:users,id',
         'issued_by'   => 'required|integer|exists:users,id',
         'date_acquired' => 'nullable|date',
         'remarks'    => 'nullable|string|max:255',
+
         'items'      => 'required|array|min:1',
         'items.*.inventory_item_id' => 'required|integer|exists:tbl_inventory,id',
+        'items.*.inventory_item_number' => 'nullable|string|max:50',
+        'items.*.ppe_sub_major_account' => 'nullable|string|max:100',
+        'items.*.general_ledger_account' => 'nullable|string|max:100',
+        'items.*.series_number' => 'nullable|string|max:100',
+        'items.*.office' => 'nullable|string|max:100',
+        'items.*.school' => 'nullable|string|max:100',
+
         'items.*.quantity'          => 'required|numeric|min:0.01',
         'items.*.unit_cost'         => 'required|numeric|min:0.01',
         'items.*.total_cost'        => 'required|numeric|min:0.01',
@@ -452,52 +468,50 @@ public function store_par(Request $request)
     DB::beginTransaction();
 
     try {
-        // 1️⃣ Get existing PAR or create new
+        // 1️⃣ Create or get existing PAR
         $par = PAR::firstOrCreate(
             ['par_number' => $validated['par_number']],
             [
                 'po_id' => $validated['po_id'],
-                'received_by' => $validated['received_by'],
+                'requested_by' => $validated['requested_by'],
                 'issued_by' => $validated['issued_by'],
                 'remarks' => $validated['remarks'] ?? null,
                 'date_acquired' => $validated['date_acquired'] ?? null,
             ]
         );
 
-        // 2️⃣ Group items by inventory_item_id
-        $groupedItems = collect($validated['items'])->groupBy('inventory_item_id');
+        foreach ($validated['items'] as $item) {
+            $inventory = Inventory::findOrFail($item['inventory_item_id']);
 
-        foreach ($groupedItems as $inventoryId => $items) {
-            $quantity = $items->sum('quantity');
-            $unitCost = $items->first()['unit_cost'];
-            $totalCost = $items->sum('total_cost');
-            $propertyNo = $items->first()['property_no'] ?? null;
-
-            $inventory = Inventory::findOrFail($inventoryId);
-
-            if ($inventory->total_stock < $quantity) {
-                throw new \Exception("Not enough stock for {$inventory->item_desc}");
+            // Check stock availability
+            if ($inventory->total_stock < $item['quantity']) {
+                throw new \Exception("Not enough stock for {$inventory->item_desc}. Remaining: {$inventory->total_stock}");
             }
 
-            // 3️⃣ Append or update PAR items
-            $parItem = $par->items()->firstOrCreate(
-                ['inventory_item_id' => $inventoryId],
+            // Create or update PAR item
+            $parItem = $par->items()->updateOrCreate(
+                ['inventory_item_id' => $inventory->id],
                 [
+                    'inventory_item_number' => $item['inventory_item_number'] ?? null,
+                    'ppe_sub_major_account' => $item['ppe_sub_major_account'] ?? null,
+                    'general_ledger_account' => $item['general_ledger_account'] ?? null,
+                    'series_number' => $item['series_number'] ?? null,
+                    'office' => $item['office'] ?? null,
+                    'school' => $item['school'] ?? null,
                     'quantity' => 0,
-                    'unit_cost' => $unitCost,
+                    'unit_cost' => $item['unit_cost'],
                     'total_cost' => 0,
-                    'property_no' => $propertyNo,
+                    'property_no' => $item['property_no'] ?? null,
                 ]
             );
 
-            $parItem->quantity += $quantity;
-            $parItem->unit_cost = $unitCost;
-            $parItem->total_cost += $totalCost;
-            $parItem->property_no = $propertyNo; // overwrite if provided
+            // Increment quantities & totals
+            $parItem->quantity += $item['quantity'];
+            $parItem->total_cost += $item['total_cost'];
             $parItem->save();
 
-            // 4️⃣ Deduct stock
-            $inventory->total_stock -= $quantity;
+            // Deduct from inventory stock
+            $inventory->total_stock -= $item['quantity'];
             $inventory->status = $inventory->total_stock > 0 ? 'Available' : 'Issued';
             $inventory->save();
         }
@@ -506,16 +520,16 @@ public function store_par(Request $request)
 
         return redirect()->route('supply_officer.par_issuance')
             ->with('success', 'PAR successfully recorded or updated with new items.');
-
     } catch (\Exception $e) {
         DB::rollBack();
         return back()->withErrors(['error' => 'Failed to store PAR. ' . $e->getMessage()]);
     }
 }
+
     public function print_par($id)
     {
         $par = PAR::with([
-            'receivedBy.division',
+            'requestedBy.division',
             'issuedBy.division',
             'po.details.prDetail' => function ($query) {
                 $query->select('id', 'pr_id', 'product_id', 'quantity');
@@ -548,7 +562,7 @@ public function par_issuance(Request $request)
         'po.rfq.purchaseRequest.division',
         'po.rfq.purchaseRequest.focal_person',
         'items.inventoryItem.unit', // ensures items are nested
-        'receivedBy',
+        'requestedBy',
     ]);
 
     // Apply search to PAR number or item description

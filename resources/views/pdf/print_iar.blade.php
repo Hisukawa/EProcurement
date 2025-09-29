@@ -146,8 +146,9 @@
             <td colspan="2" class="text-start" style="padding-left: 80px; border-bottom:none !important; border-top:none !important">Partial Delivery _____________________</td>
         </tr>
         @php
-            $leader = $inspectors->members->firstWhere('position', 'Leader');
-            $members = $inspectors->members->filter(fn($m) => str_starts_with($m->position, 'Member'));
+            $activeMembers = $inspectors->members->where('status', 'active');
+            $leader = $activeMembers->firstWhere('position', 'Leader');
+            $members = $activeMembers->filter(fn($m) => str_starts_with($m->position, 'Member'));
         @endphp
         <tr class="with-border">
             <td colspan="2" class="text-center" style="height: 7%">

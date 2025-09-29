@@ -14,7 +14,8 @@ class RIS extends Model
     protected $fillable = [
         'po_id',
         'ris_number',
-        'issued_to',
+        'requested_by',
+        'recipient',
         'issued_by',
         'remarks',
     ];
@@ -25,9 +26,9 @@ class RIS extends Model
         return $this->belongsTo(PurchaseOrder::class, 'po_id');
     }
 
-    public function issuedTo()
+    public function requestedBy()
     {
-        return $this->belongsTo(User::class, 'issued_to');
+        return $this->belongsTo(User::class, 'requested_by');
     }
 
     public function issuedBy()

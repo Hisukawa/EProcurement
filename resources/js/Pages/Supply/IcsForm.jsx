@@ -4,8 +4,8 @@ import { FileText, SendHorizonal } from "lucide-react";
 import { useEffect, useState } from "react";
 import AutoCompleteInput from "./AutoCompleteInput";
 
-export default function ICSForm({ purchaseOrder, inventoryItem, user }) {
-const [showConfirm, setShowConfirm] = useState(false);
+export default function ICSForm({ purchaseOrder, inventoryItem, user, ppeOptions }) {
+  const [showConfirm, setShowConfirm] = useState(false);
   const { toast } = useToast();
   const [ppe, setPpe] = useState(null);
   const [gl, setGl] = useState(null);
@@ -23,11 +23,11 @@ const [showConfirm, setShowConfirm] = useState(false);
     : "N/A";
 
   const itemDesc = product ? `${product.name} (${product.specs})` : "N/A";
-
-  const { data, setData, post, processing, errors } = useForm({
+  const glOptions = ppe?.general_ledger_accounts ?? [];
+    const { data, setData, post, processing, errors } = useForm({
     po_id: detail?.po_id ?? null,
     ics_number: purchaseOrder?.po_number ?? "",
-    received_by: pr?.focal_person?.id ?? null,
+    requested_by: pr?.focal_person?.id ?? null,
     received_from: user?.id ?? null,
     remarks: "",
     items: [
@@ -102,7 +102,6 @@ useEffect(() => {
   if (school) setData("items.0.school", school.name || "");
 }, [ppe, gl, office, school, series]);
 
-
   const handleSubmit = (e) => {
     e.preventDefault();
     setShowConfirm(true);
@@ -140,7 +139,6 @@ useEffect(() => {
         Fill out the details below to record an ICS issuance.
       </p>
 
-
       {/* Errors */}
       {Object.keys(errors).length > 0 && (
         <div className="col-span-2 bg-red-100 text-red-700 p-4 rounded mb-4">
@@ -168,7 +166,6 @@ useEffect(() => {
             <label className="block text-sm font-medium text-gray-700">ICS No.</label>
             <input
               type="text"
-              placeholder="ICS Number"
               value={data.ics_number}
               onChange={(e) => setData("ics_number", e.target.value)}
               className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
@@ -203,6 +200,7 @@ useEffect(() => {
               />
             </div>
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Unit Cost</label>
@@ -247,54 +245,80 @@ useEffect(() => {
 
         {/* Right Section */}
         <div className="space-y-4">
-          
+          {/* PPE Dropdown */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">PPE Sub-major Account</label>
+            <select
+              value={ppe?.id || ""}
+              onChange={(e) => {
+                const selected = ppeOptions.find(p => p.id == e.target.value);
+                setPpe(selected || null);
+                setGl(null); // reset GL
+              }}
+              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
+            >
+              <option value="">Select PPE</option>
+              {ppeOptions.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.code ? `${p.code} - ${p.name}` : p.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          
+          {/* GL Dropdown */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">General Ledger Account</label>
+            <select
+              value={gl?.id || ""}
+              onChange={(e) => {
+                const selected = glOptions.find(g => g.id == e.target.value);
+                setGl(selected || null);
+              }}
+              disabled={!ppe}
+              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white disabled:bg-gray-100"
+            >
+              <option value="">Select GL</option>
+              {glOptions.map(g => (
+                <option key={g.id} value={g.id}>
+                  {g.code ? `${g.code} - ${g.name}` : g.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Office Autocomplete */}
           <AutoCompleteInput
-          label="PPE Sub-major Account"
-          apiRoute="/api/ppe-search"
-          value={ppe?.name || ""}
-          onChange={setPpe}
-          placeholder="Type PPE Sub-major Account..."
-        />
-        <AutoCompleteInput
-          label="General Ledger Account"
-          apiRoute="/api/gl-search"
-          value={gl?.name || ""}
-          onChange={setGl}
-          placeholder="Type General Ledger Account..."
-        />
-        <AutoCompleteInput
-          label="Location Office"
-          apiRoute="/api/office-search"
-          value={office?.name || ""}
-          onChange={setOffice}
-          placeholder="Type Location Office..."
-        />
-
-        {office?.name === "Schools" && (
-          <AutoCompleteInput
-            label="School"
-            apiRoute="/api/school-search"
-            value={school?.name || ""}
-            onChange={setSchool}
-            placeholder="Type School..."
+            label="Location Office"
+            apiRoute="/api/office-search"
+            value={office?.code  || ""}
+            onChange={setOffice}
+            placeholder="Type Location Office..."
           />
-        )}
 
+          {/* School Autocomplete */}
+          {office?.name === "Schools" && (
+            <AutoCompleteInput
+              label="School"
+              apiRoute="/api/school-search"
+              value={school?.name || ""}
+              onChange={setSchool}
+              placeholder="Type School..."
+            />
+          )}
 
-        {/* Generated Inventory Number */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Inventory Item No.</label>
-          <input
-            type="text"
-            value={generatedNumber}
-            readOnly
-            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100"
-          />
-        </div>
+          {/* Inventory Number */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Inventory Item No.</label>
+            <input
+              type="text"
+              value={generatedNumber}
+              readOnly
+              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100"
+            />
+          </div>
 
-
+          {/* Remarks */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Remarks</label>
             <textarea

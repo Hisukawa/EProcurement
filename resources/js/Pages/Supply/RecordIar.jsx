@@ -156,7 +156,7 @@ const handleItemChange = (index, field, value) => {
 
   const handleConfirmReplace = () => {
     router.post(
-      route("inspection.committee.replace-member", { id: inspectionCommittee?.id }),
+      route("inspection.committee.save", { id: inspectionCommittee?.id }),
       {
         member_id: selectedMember.id,
         replacementName,

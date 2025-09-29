@@ -16,16 +16,16 @@ class PAR extends Model
 
     protected $table = 'tbl_par';
 
-    protected $fillable = ['po_id', 'par_number', 'received_by', 'issued_by', 'remarks', 'date_acquired'];
+    protected $fillable = ['po_id', 'par_number', 'requested_by', 'recipient', 'issued_by', 'remarks', 'date_acquired'];
 
     public function po()
     {
         return $this->belongsTo(PurchaseOrder::class, 'po_id');
     }
 
-    public function receivedBy()
+    public function requestedBy()
     {
-        return $this->belongsTo(User::class, 'received_by');
+        return $this->belongsTo(User::class, 'requested_by');
     }
 
     public function issuedBy()

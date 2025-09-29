@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Approver\ApproverController;
+use App\Http\Controllers\PARSearchController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Requester\IssuedController;
 use App\Http\Controllers\Requester\RequesterController;
@@ -162,7 +163,7 @@ Route::middleware(['auth', 'role:supply_officer'])->prefix('supply_officer')->gr
     Route::get('/print_par/{id}', [IssuanceController::class, 'print_par'])->name('supply_officer.print_par');
     Route::get('/supply-officer/generate-ics-report', [ExcelReportsController::class, 'generateIcsReport'])->name('supply_officer.generate_ics_report');
     Route::get('/supply-officer/generate-ics-report-high', [ExcelReportsController::class, 'generateIcsReportHigh'])->name('supply_officer.generate_ics_report_high');
-
+    Route::get('/supply-officer/generate-par-report', [ExcelReportsController::class, 'generateParReport'])->name('supply_officer.generate_par_report');
 });
 // Shared dashboard route
 Route::get('/dashboard', function () {
@@ -184,6 +185,12 @@ Route::get('/api/gl-search', [SearchController::class, 'searchGl']);
 Route::get('/api/office-search', [SearchController::class, 'searchOffice']); 
 Route::get('/api/school-search', [SearchController::class, 'searchSchool']);
 Route::get('/api/ics-next-series', [SearchController::class, 'getNextSeries']);
+
+Route::get('/api/ppe-search', [PARSearchController::class, 'searchPpe']); 
+Route::get('/api/gl-search', [PARSearchController::class, 'searchGl']); 
+Route::get('/api/office-search', [PARSearchController::class, 'searchOffice']); 
+Route::get('/api/school-search', [PARSearchController::class, 'searchSchool']);
+Route::get('/api/par-next-series', [PARSearchController::class, 'getNextSeries']);
 
 
 Route::get('/updates', function () {

@@ -193,7 +193,7 @@ export default function Ris({ purchaseOrders, inventoryItems, ris, user }) {
                           'N/A'}
                       </td>
                       <td className="px-4 py-2">
-                        {record.issued_to?.firstname} {record.issued_to?.lastname}
+                        {record.requested_by?.firstname} {record.requested_by?.lastname}
                       </td>
 
                       {/* Item Description */}

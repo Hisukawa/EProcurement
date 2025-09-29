@@ -141,7 +141,7 @@ const filteredIcs = ics?.data?.filter((record) => {
                 <th className="px-4 py-3">#</th>
                 <th className="px-4 py-3">ICS No.</th>
                 <th className="px-4 py-3">Division</th>
-                <th className="px-4 py-3">Received By</th>
+                <th className="px-4 py-3">Requested By</th>
                 <th className="px-4 py-3">Item Description</th>
                 <th className="px-4 py-3 text-center">Quantity</th>
                 <th className="px-4 py-3 text-right">Unit Cost</th>
@@ -182,8 +182,8 @@ const filteredIcs = ics?.data?.filter((record) => {
                           'N/A'}
                       </td>
                       <td className="px-4 py-2">
-                        {record.received_by?.firstname}{' '}
-                        {record.received_by?.lastname}
+                        {record.requested_by?.firstname}{' '}
+                        {record.requested_by?.lastname}
                       </td>
 
                       {/* Item Description */}

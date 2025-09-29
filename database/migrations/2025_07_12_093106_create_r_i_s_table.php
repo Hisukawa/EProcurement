@@ -16,7 +16,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('po_id')->constrained('tbl_purchase_orders')->onDelete('cascade');
             $table->string('ris_number')->unique();
-            $table->foreignId('issued_to')->nullable()->constrained('users');
+            $table->foreignId('requested_by')->nullable()->constrained('users');
             $table->string('recipient')->nullable();
             $table->foreignId('issued_by')->constrained('users');
             $table->text('remarks')->nullable();

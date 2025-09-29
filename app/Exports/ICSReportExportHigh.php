@@ -60,7 +60,7 @@ class ICSReportExportHigh implements FromCollection, WithHeadings, WithMapping, 
     {
         return [
             'Inventory Item No.',
-            'ICS No./PAR No.',
+            'ICS No.',
             'Date',
             'PO No.',
             'Description',
@@ -88,8 +88,8 @@ class ICSReportExportHigh implements FromCollection, WithHeadings, WithMapping, 
     $productDesc = $inventoryItem?->item_desc ?? '';
 
     return [
-        $inventoryItem?->id ?? '',                   // Inventory Item No.
-        $ics->ics_number,                            // ICS No./PAR No.
+        $item->inventory_item_number ?? '',                     // Inventory Item No.
+        'H-' . $ics->ics_number,                              // ICS No./PAR No.
         $ics->created_at?->format('Y-m-d') ?? '',    // Date
         $ics->po?->po_number ?? '',                  // PO No.
         $productDesc,                                // ✅ Description from item_desc

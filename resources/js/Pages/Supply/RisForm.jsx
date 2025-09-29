@@ -20,18 +20,20 @@ export default function RISForm({ purchaseOrder, inventoryItem, user }) {
   const { data, setData, post, processing, errors } = useForm({
     po_id: purchaseOrder.id ?? null,
     ris_number: purchaseOrder.po_number ?? "",
-    issued_to: pr?.focal_person?.id ?? null,
+    requested_by: pr?.focal_person?.id ?? null,
     issued_by: user?.id ?? null,
+    recipient: "", // ✅ new field
     remarks: "",
     items: [
       {
         inventory_item_id: inventoryItem?.id ?? null,
         quantity: "",
         unit_cost: inventoryItem?.unit_cost ?? 0,
-        total_cost: (detail?.quantity ?? 0) * (inventoryItem?.unit_cost ?? 0),
+        total_cost: 0,
       },
     ],
   });
+
 
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const { toast } = useToast();
@@ -122,11 +124,25 @@ export default function RISForm({ purchaseOrder, inventoryItem, user }) {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Quantity to Issue</label>
-              <input type="number" min="1" value={data.items[0].quantity} onChange={(e) => {
-                const qty = e.target.value;
-                const unit = data.items[0].unit_cost ?? 0;
-                setData("items", [{ ...data.items[0], quantity: qty, total_cost: unit * (parseFloat(qty) || 0) }]);
-              }} placeholder="Enter quantity to issue" className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm" />
+              <input
+                type="number"
+                min="1"
+                max={inventoryItem.total_stock - inventoryItem.issued_qty}
+                value={data.items[0].quantity}
+                onChange={(e) => {
+                  let qty = parseFloat(e.target.value) || 0;
+
+                  // Prevent over-issuing
+                  const maxQty = inventoryItem.total_stock - inventoryItem.issued_qty;
+                  if (qty > maxQty) qty = maxQty;
+
+                  const unit = data.items[0].unit_cost ?? 0;
+                  setData("items", [{ ...data.items[0], quantity: qty, total_cost: qty * unit }]);
+                }}
+                placeholder={`Max: ${inventoryItem.total_stock - inventoryItem.issued_qty}`}
+                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+              />
+
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Unit Cost</label>
