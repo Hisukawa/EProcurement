@@ -537,6 +537,7 @@ public function store_iar(Request $request)
             'remarks'                 => $item['remarks'] ?? "",
             'inspection_committee_id' => $validated['inspection_committee_id'],
             'date_received'           => $validated['date_received'],
+            'recorded_by'             => $userId
         ]);
 
         // ✅ Save to Inventory using `po_detail_id` instead of `po_id`
