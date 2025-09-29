@@ -59,82 +59,68 @@ public function issuance($po_detail_id, $inventory_id)
 
 
 
-    public function store_ris(Request $request)
-    {
-        $validated = $request->validate([
-            'po_id'       => 'required|integer|exists:tbl_purchase_orders,id',
-            'requested_by'   => 'required|integer|exists:users,id',
-            'issued_by'   => 'required|integer|exists:users,id',
-            'remarks'     => 'nullable|string|max:255',
+public function store_ris(Request $request)
+{
+    $validated = $request->validate([
+        'po_id'         => 'required|integer|exists:tbl_purchase_orders,id',
+        'requested_by'  => 'required|integer|exists:users,id',
+        'issued_by'     => 'required|integer|exists:users,id',
+        'remarks'       => 'nullable|string|max:255',
 
-            'items'                     => 'required|array|min:1',
-            'items.*.inventory_item_id' => 'required|integer|exists:tbl_inventory,id',
-            'items.*.unit_cost'         => 'required|numeric|min:0.01',
-            'items.*.total_cost'        => 'required|numeric|min:0.01',
-            'items.*.quantity'          => 'required|numeric|min:0.01',
-        ]);
+        'items'                     => 'required|array|min:1',
+        'items.*.inventory_item_id' => 'required|integer|exists:tbl_inventory,id',
+        'items.*.unit_cost'         => 'required|numeric|min:0.01',
+        'items.*.total_cost'        => 'required|numeric|min:0.01',
+        'items.*.quantity'          => 'required|numeric|min:0.01',
+        'items.*.recipient'         => 'nullable|string|max:255', // ✅ per item
+    ]);
 
-        DB::beginTransaction();
-        try {
-            $po = PurchaseOrder::findOrFail($validated['po_id']);
+    DB::beginTransaction();
+    try {
+        $po = PurchaseOrder::findOrFail($validated['po_id']);
 
-            // Get or create RIS for this PO
-            $ris = RIS::firstOrCreate(
-                ['po_id' => $po->id], // unique per PO
-                [
-                    'ris_number'   => $po->po_number,
-                    'requested_by' => $validated['requested_by'],
-                    'issued_by'    => $validated['issued_by'],
-                    'remarks'      => $validated['remarks'] ?? null,
-                ]
-            );
+        $ris = RIS::firstOrCreate(
+            ['po_id' => $po->id],
+            [
+                'ris_number'   => $po->po_number,
+                'requested_by' => $validated['requested_by'],
+                'issued_by'    => $validated['issued_by'],
+                'remarks'      => $validated['remarks'] ?? null,
+            ]
+        );
 
-            // Group duplicate items by inventory_item_id
-            $groupedItems = collect($validated['items'])->groupBy('inventory_item_id');
+        foreach ($validated['items'] as $item) {
+            $inventory = Inventory::findOrFail($item['inventory_item_id']);
 
-            foreach ($groupedItems as $inventoryId => $items) {
-                $quantity = $items->sum('quantity');
-                $unitCost = $items->first()['unit_cost']; // take from user input
-                $totalCost = $unitCost * $quantity;       // recalc backend
-
-                $inventory = Inventory::findOrFail($inventoryId);
-
-                // Calculate remaining stock
-                $remainingStock = $inventory->total_stock - $inventory->issued_qty;
-                if ($remainingStock < $quantity) {
-                    throw new \Exception("Not enough stock for {$inventory->item_desc}. Remaining: {$remainingStock}");
-                }
-
-                // Update existing RIS item or create new
-                $risItem = $ris->items()->where('inventory_item_id', $inventoryId)->first();
-                if ($risItem) {
-                    $risItem->quantity   += $quantity;
-                    $risItem->total_cost += $totalCost;
-                    $risItem->unit_cost   = $unitCost;
-                    $risItem->save();
-                } else {
-                    $ris->items()->create([
-                        'inventory_item_id' => $inventoryId,
-                        'quantity'          => $quantity,
-                        'unit_cost'         => $unitCost,
-                        'total_cost'        => $totalCost,
-                    ]);
-                }
-
-                // ✅ Increment issued_qty instead of subtracting from total_stock
-                $inventory->issued_qty += $quantity;
-                $inventory->status = ($inventory->issued_qty >= $inventory->total_stock) ? 'Issued' : 'Available';
-                $inventory->save();
+            $remainingStock = $inventory->total_stock - $inventory->issued_qty;
+            if ($remainingStock < $item['quantity']) {
+                throw new \Exception("Not enough stock for {$inventory->item_desc}. Remaining: {$remainingStock}");
             }
 
-            DB::commit();
-            return redirect()->route('supply_officer.ris_issuance')
-                ->with('success', "RIS {$ris->ris_number} successfully recorded.");
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withErrors(['error' => 'Failed to store RIS. ' . $e->getMessage()]);
+            // ✅ Always create a new row per issuance
+            $ris->items()->create([
+                'inventory_item_id' => $item['inventory_item_id'],
+                'quantity'          => $item['quantity'],
+                'unit_cost'         => $item['unit_cost'],
+                'total_cost'        => $item['quantity'] * $item['unit_cost'], // recalc
+                'recipient'         => $item['recipient'] ?? null,
+            ]);
+
+            // Update stock
+            $inventory->issued_qty += $item['quantity'];
+            $inventory->status = ($inventory->issued_qty >= $inventory->total_stock) ? 'Issued' : 'Available';
+            $inventory->save();
         }
+
+        DB::commit();
+        return redirect()->route('supply_officer.ris_issuance')
+            ->with('success', "RIS {$ris->ris_number} successfully recorded.");
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return back()->withErrors(['error' => 'Failed to store RIS. ' . $e->getMessage()]);
     }
+}
+
 
 
     public function ris_issuance(Request $request)
@@ -193,6 +179,32 @@ public function print_ris($id)
         ->setPaper('A4', 'portrait'); 
     return $pdf->stream('RIS-'.$ris->ris_number.'.pdf');
 }
+public function printRisItem($risId, $itemId)
+{
+    $ris = RIS::with([
+        'requestedBy.division',
+        'issuedBy.division',
+        'po.details.prDetail' => function ($query) {
+            $query->select('id', 'pr_id', 'product_id', 'quantity');
+        },
+        'po.details.prDetail.purchaseRequest',
+        'po.details.prDetail.purchaseRequest.division',
+        'items.inventoryItem.unit',
+        'items.inventoryItem.poDetail.prDetail.product',
+    ])->findOrFail($risId);
+
+    // Get the specific item
+    $item = $ris->items()->where('id', $itemId)->firstOrFail();
+
+    // Pass both the RIS and the single item to the view
+    $pdf = Pdf::loadView('pdf.print_ris_item', [
+        'ris' => $ris,
+        'item' => $item
+    ])->setPaper('A4', 'portrait');
+
+    return $pdf->stream('RIS-'.$ris->ris_number.'-ITEM-'.$item->id.'.pdf');
+}
+
 
 
 

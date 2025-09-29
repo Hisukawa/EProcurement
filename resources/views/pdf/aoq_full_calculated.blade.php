@@ -53,13 +53,13 @@
                     <td>{{ $idx+1 }}</td>
                     <td>{{ $detail['supplier']->company_name }}</td>
                     <td>{{ number_format($detail['total_amount'], 2) }}</td>
-                    <td>{{ $detail['remarks'] ?? '' }}</td>
+                    <td>{{ $detail['remarks_as_calculated'] ?? '' }}</td>
                 </tr>
             @endforeach
         </tbody>
     </table>
 
-    @php
+        @php
         $awarded = collect($suppliers)->firstWhere('is_winner', 1);
     @endphp
 
@@ -68,7 +68,10 @@
         <span style="text-decoration:underline; font-weight:bold;">
             {{ $awarded['supplier']->company_name ?? '__________' }}
         </span>
-        offering the Lowest Calculated Bid.
+        by offering the
+        @if(isset($awarded['remarks_as_calculated']) && !empty($awarded['remarks_as_calculated']))
+            <em>{{ $awarded['remarks_as_calculated'] }}</em>.
+        @endif
     </p>
     @php
         $secretariat = $committee->members->firstWhere('position', 'secretariat');

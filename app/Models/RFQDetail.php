@@ -17,7 +17,10 @@ class RFQDetail extends Model
         'quoted_price',
         'estimated_bid',
         'supplier_id',
-        'is_winner',
+        'is_winner_as_read',
+        'is_winner_as_calculated',
+        'remarks_as_read',
+        'remarks_as_calculated'
         ];
     public function supplier()
     {

@@ -31,7 +31,36 @@ export default function SettingsPage({ divisions, inspectionCommittees, bacCommi
   useEffect(() => {
     if (success) setSuccessOpen(true);
   }, [success]);
+const handleReplaceInspection = () => {
+  if (!editMember) return;
 
+  router.post(
+    route("admin.update_inspection", editMember.committee_id), // committee id
+    {
+      member_id: editMember.id,
+      replacementName: form.name,
+    },
+    {
+      preserveScroll: true,
+      onSuccess: () => {
+        toast({
+          title: "✅ Member Replaced",
+          description: "Inspection Committee updated successfully!",
+          duration: 3000,
+        });
+        setEditOpen(false);
+      },
+      onError: (errors) => {
+        toast({
+          title: "❌ Replace Failed",
+          description: "Check the input and try again.",
+          variant: "destructive",
+          duration: 4000,
+        });
+      },
+    }
+  );
+};
 const handleEdit = (member, type) => {
   setEditMember(member);
   setEditType(type);
@@ -43,13 +72,7 @@ const handleEdit = (member, type) => {
 const handleSave = () => {
   if (!editMember) return;
 
-  if (editType === "inspection") {
-    router.post(
-      route("admin.update_inspection", { committee: editMember.committee_id ?? 1 }),
-      { members: [{ name: form.name, position: form.position }] },
-      { preserveScroll: true }
-    );
-  } else if (editType === "bac") {
+  if (editType === "bac") {
     router.post(
       route("admin.update_bac", { committee: editMember.committee_id ?? 1 }),
       { members: [{ name: form.name, position: form.position }] },

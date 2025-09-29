@@ -52,7 +52,7 @@ $totalPo = PurchaseOrder::count();
 $user = Auth::user();
 
 // ---- FIXED: RIS Activity ----
-$risActivity = RIS::with(['issuedTo', 'issuedBy', 'items.inventoryItem'])
+$risActivity = RIS::with(['requestedBy', 'issuedBy', 'items.inventoryItem'])
     ->latest('created_at')
     ->take(10) // take more in case multiple items per RIS
     ->get()
@@ -177,17 +177,20 @@ $recentActivity = $risActivity->concat($icsActivity)->concat($parActivity)
         ]);
     }
 
-public function purchase_orders(Request $request){
-    $search = $request->input('search');
+public function purchase_orders(Request $request)
+{
+    $search   = $request->input('search');
     $division = $request->input('division');
 
     $purchaseRequests = PurchaseRequest::with([
         'division',
         'focal_person',
         'details.product.unit',
-        'rfqs.details.supplier'
-    ])->latest('created_at')
-    ->whereHas('rfqs.details', fn ($q) => $q->where('is_winner', true))
+        'rfqs.details.supplier',
+        'rfqs.details.prDetail' // make sure we eager-load PR details for quantity
+    ])
+    ->latest('created_at')
+    ->whereHas('rfqs.details', fn ($q) => $q->where('is_winner_as_calculated', true))
     ->when($search, function ($query, $search) {
         $query->where(function ($q) use ($search) {
             $q->where('pr_number', 'like', "%$search%")
@@ -204,45 +207,68 @@ public function purchase_orders(Request $request){
     // Get all RFQ IDs that already have POs
     $poRfqs = PurchaseOrder::pluck('rfq_id')->toArray();
 
-    // Add a `has_po` property for each PR
     $purchaseRequests->getCollection()->transform(function ($pr) use ($poRfqs) {
-        $rfqIds = $pr->rfqs->pluck('id')->toArray();
+        $rfqIds   = $pr->rfqs->pluck('id')->toArray();
         $pr->has_po = count(array_intersect($rfqIds, $poRfqs)) > 0;
 
-        // Add computed winners info
+        // Winners info (same logic as create_po)
         $pr->winners = $pr->rfqs
             ->flatMap(fn($rfq) => $rfq->details)
-            ->filter(fn($d) => $d->is_winner)
+            ->filter(fn($d) => $d->is_winner_as_calculated)
             ->map(fn($w) => [
                 'pr_detail_id'  => $w->pr_details_id,
+                'supplier_id'   => $w->supplier_id,
                 'supplier_name' => $w->supplier->company_name ?? 'N/A',
+                'quantity'      => $w->pr_detail->quantity ?? 0,
                 'unit_price'    => $w->unit_price_edited ?? $w->quoted_price ?? 0,
+                'total_price'   => ($w->unit_price_edited ?? $w->quoted_price ?? 0) * ($w->pr_detail->quantity ?? 0),
+                'price_source'  => $w->unit_price_edited ? 'As Calculated Price' : 'Quoted Price',
+                'item'          => $w->pr_detail->product->item ?? '',
+                'specs'         => $w->pr_detail->product->specs ?? '',
+                'unit'          => $w->pr_detail->product->unit->unit ?? '',
             ])
             ->values();
 
+        // Supplier totals (mirrors create_po)
+        $pr->rfq_totals = $pr->rfqs
+            ->map(function ($rfq) {
+                $supplierTotals = $rfq->details
+                    ->groupBy('supplier_id')
+                    ->map(function ($details) {
+                        return $details->sum(function ($d) {
+                            $unitPrice = $d->unit_price_edited ?? $d->quoted_price ?? 0;
+                            $qty       = $d->pr_detail?->quantity ?? 0;
+                            return $unitPrice * $qty;
+                        });
+                    });
+
+                return [
+                    'rfq_id'   => $rfq->id,
+                    'suppliers'=> $supplierTotals
+                ];
+            });
+
         return $pr;
     });
-
 
     $divisions = Division::select('id', 'division')->get();
 
     return Inertia::render('Supply/PurchaseOrder', [
         'purchaseRequests' => $purchaseRequests,
         'filters' => [
-            'search' => $search,
+            'search'   => $search,
             'division' => $division,
-            'divisions' => $divisions,
+            'divisions'=> $divisions,
         ],
     ]);
 }
 
-
-
 public function create_po($prId)
 {
+    
     $pr = PurchaseRequest::with([
-        'details.product.unit', 
-        'focal_person', 
+        'details.product.unit',
+        'focal_person',
         'division'
     ])->findOrFail($prId);
 
@@ -250,44 +276,38 @@ public function create_po($prId)
         ->where('pr_id', $prId)
         ->firstOrFail();
 
+    // Precompute supplier totals (per awarded items)
+    $supplierTotals = $rfq->details
+        ->groupBy('supplier_id')
+        ->map(function ($details) {
+            return $details->sum(function ($d) {
+                $unitPrice = $d->unit_price_edited ?? $d->quoted_price ?? 0;
+                $qty       = $d->pr_detail?->quantity ?? 0;
+                return $unitPrice * $qty;
+            });
+        });
+
     $winners = $rfq->details
-        ->filter(fn($d) => $d->is_winner)
-        ->map(function ($winner) use ($pr, $rfq) {
-            $prDetail = $pr->details?->firstWhere('id', $winner->pr_details_id);
-
-            if (!$prDetail && $rfq->award_mode === 'per-item') {
-                // fallback: skip or provide default values
-                return [
-                    'pr_detail_id'          => $winner->pr_details_id,
-                    'item'                  => 'N/A',
-                    'specs'                 => '',
-                    'quantity'              => 0,
-                    'unit'                  => '',
-                    'unit_price'            => $winner->quoted_price ?? 0,
-                    'supplier_id'           => $winner->supplier_id,
-                    'supplier_name'         => $winner->supplier->company_name ?? '',
-                    'mode'                  => $rfq->mode ?? 'as-read',
-                    'total_price_calculated'=> $rfq->total_price_calculated ?? 0,
-                ];
-            }
-
-            // Determine effective unit price (edited or quoted)
+        ->filter(fn($d) => $d->is_winner_as_calculated)
+        ->map(function ($winner) use ($pr, $rfq, $supplierTotals) {
+            $prDetail  = $pr->details?->firstWhere('id', $winner->pr_details_id);
             $unitPrice = $winner->unit_price_edited ?? $winner->quoted_price ?? 0;
+            $quantity  = $prDetail?->quantity ?? 0;
 
             return [
-                'pr_detail_id'          => $winner->pr_details_id,
-                'item'                  => $prDetail?->product->name ?? 'N/A',
-                'specs'                 => $prDetail?->product->specs ?? '',
-                'quantity'              => $prDetail->quantity ?? 0,
-                'unit'                  => $prDetail?->product->unit?->unit ?? '',
-                'unit_price'            => $unitPrice,
-                'supplier_id'           => $winner->supplier_id,
-                'supplier_name'         => $winner->supplier->company_name ?? '',
-                'mode'                  => $rfq->mode ?? 'as-read',
-                'total_price_calculated'=> $rfq->total_price_calculated ?? 0,
+                'pr_detail_id'   => $winner->pr_details_id,
+                'item'           => $prDetail?->product->name ?? 'N/A',
+                'specs'          => $prDetail?->product->specs ?? '',
+                'quantity'       => $quantity,
+                'unit'           => $prDetail?->product->unit?->unit ?? '',
+                'unit_price'     => $unitPrice,
+                'total_price'    => $unitPrice * $quantity,
+                'supplier_id'    => $winner->supplier_id,
+                'supplier_name'  => $winner->supplier->company_name ?? '',
+                'mode'           => $rfq->mode ?? 'as-read',
+                'supplier_total' => $supplierTotals[$winner->supplier_id] ?? 0,
             ];
         })
-        ->filter(fn($w) => $w !== null)
         ->values();
 
     return inertia('Supply/CreatePurchaseOrder', [
@@ -343,6 +363,7 @@ public function store_po(Request $request)
                 'rfq_id' => $request->rfq_id,
                 'supplier_id' => $supplierId,
                 'user_id' => $userId,
+                'recorded_by' => Auth::id(),
                 'status' => 'Not yet Delivered',
             ]);
 

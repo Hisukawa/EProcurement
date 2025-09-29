@@ -60,15 +60,18 @@ Route::middleware('auth')->post('/notifications/{id}/read', [NotificationControl
 // Admin routes
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     Route::get('/', [AdminController::class, 'dashboard'])->name('admin.dashboard');
+    Route::get('/activity_logs', [AdminController::class, 'activity_logs'])->name('admin.activity_logs');
     Route::get('/view_users', [AdminController::class, 'view_users'])->name('admin.view_users');
+    Route::put('/users/{id}', [AdminController::class, 'update_user'])->name('admin.update_user');
     Route::get('/create_user_form', [AdminController::class, 'create_user_form'])->name('admin.create_user_form');
     Route::post('/store_user',[AdminController::class, 'store_user'])->name('admin.store_user');
     Route::get('/settings', [AdminController::class, 'settings'])->name('admin.settings');
     Route::get('/edit_requesitioning{division}', [AdminController::class, 'edit_requesting'])->name('admin.edit_requesting');
     Route::post('/requesting-officers/{division}', [AdminController::class, 'update_requesting'])->name('admin.update_requesting');
     Route::get('/admin/audit-logs', [AdminController::class, 'audit_logs'])->name('admin.audit_logs');
-    Route::post('/admin/inspection/{committee}/update', [AdminController::class, 'updateInspection'])->name('admin.update_inspection');
+    Route::post('/admin/inspection/{id}/update', [AdminController::class, 'updateInspection'])->name('admin.update_inspection');
     Route::post('/admin/bac/{committee}/update', [AdminController::class, 'updateBac'])->name('admin.update_bac');
+    Route::put('/admin/users/{user}/deactivate', [AdminController::class, 'deactivate'])->name('admin.deactivate_user');
 });
 
 // Requester routes
@@ -125,10 +128,14 @@ Route::middleware(['auth', 'role:bac_approver'])->prefix('bac_approver')->group(
     Route::post('/requests/{id}/send_back', [ApproverController::class, 'send_back'])->name('requester.send_back');
     Route::delete('/delete_quoted', [ApproverController::class, 'delete_quoted'])->name('bac_approver.delete_quoted');
     Route::post('/bac-committee/save', [ApproverController::class, 'save_committee'])->name('bac.committee.save');
-    Route::post('/rollback-winner/{id}', [ApproverController::class, 'rollbackWinner'])
-        ->name('bac_approver.rollback_winner');
-    Route::post('/save-remarks/{id}/{pr_detail_id?}', [ApproverController::class, 'saveRemarks'])
-    ->name('bac_approver.save_remarks');
+    Route::post('/rollback-winner-as-read/{id}', [ApproverController::class, 'rollbackWinnerAsRead'])
+        ->name('bac_approver.rollback_winner_as_read');
+    Route::post('/rollback-winner-as-calculated/{id}', [ApproverController::class, 'rollbackWinnerAsCalculated'])
+        ->name('bac_approver.rollback_winner_as_calculated');
+    Route::post('/save-remarks-as-read/{id}/{pr_detail_id?}', [ApproverController::class, 'saveRemarksAsRead'])
+    ->name('bac_approver.save_remarks_as_read');
+     Route::post('/save-remarks-as-calculated/{id}/{pr_detail_id?}', [ApproverController::class, 'saveRemarksAsCalculated'])
+    ->name('bac_approver.save_remarks_as_calculated');
 
 
 });
@@ -158,6 +165,10 @@ Route::middleware(['auth', 'role:supply_officer'])->prefix('supply_officer')->gr
     Route::get('/generate_report', [ExcelReportsController::class, 'generate_report'])->name('supply_officer.generate_report');
     Route::post('/inspection-committee/{id}/replace-member', [SupplyController::class, 'replaceMember'])->name('inspection.committee.save');
     Route::get('/print_ris/{id}', [IssuanceController::class, 'print_ris'])->name('supply_officer.print_ris');
+    // routes/web.php
+    Route::get('/ris/{ris}/item/{item}/print', [IssuanceController::class, 'printRisItem'])
+        ->name('supply_officer.print_ris_item');
+
     Route::get('/print_ics/{id}/{type?}', [IssuanceController::class, 'print_ics'])->name('supply_officer.print_ics');
     Route::get('/print_ics_all/{id}', [IssuanceController::class, 'print_ics_all'])->name('supply_officer.print_ics_all');
     Route::get('/print_par/{id}', [IssuanceController::class, 'print_par'])->name('supply_officer.print_par');

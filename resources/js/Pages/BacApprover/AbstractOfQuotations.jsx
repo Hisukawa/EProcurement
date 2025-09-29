@@ -13,12 +13,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import AOQTabs from "@/Layouts/AOQTabs";
+import { Undo2 } from "lucide-react";
 
 export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committee }) {
   const pr = rfq.purchase_request;
 
   const [winnerDialogOpen, setWinnerDialogOpen] = useState(false);
-  const [remarks, setRemarks] = useState("");
+  const [remarks_as_read, setRemarks] = useState("");
   const [resultDialog, setResultDialog] = useState({
     open: false,
     type: "success", // "success" | "error"
@@ -71,12 +72,12 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
   const handleConfirmRollback = () => {
     setRollingBack(true);
     const payload = {
-      remarks,
+      remarks_as_read,
       mode: awardMode,
       ...(awardMode === "per-item" ? { detail_id: rollbackTarget.detailId } : {}),
     };
 
-    router.post(route("bac_approver.rollback_winner", { id: rollbackTarget.rfqId }), payload, {
+    router.post(route("bac_approver.rollback_winner_as_read", { id: rollbackTarget.rfqId }), payload, {
       preserveScroll: true,
       onSuccess: () => {
         setRollbackDialogOpen(false);
@@ -121,7 +122,7 @@ const handleConfirmWinner = async () => {
 
   const payload = {
     supplier_id: selectedWinner.supplierId,
-    remarks,
+    remarks_as_read,
     mode: awardMode,
     ...(awardMode === "per-item" ? { detail_id: selectedWinner.detailId } : {}),
   };
@@ -169,19 +170,25 @@ const handleConfirmWinner = async () => {
   const supplierMap = {};
   const winnerCounts = {};
   pr.details.forEach((detail) => {
-    const quotesForItem = groupedDetails[detail.id] || [];
-    quotesForItem.forEach((quote) => {
-      const sid = quote.supplier.id;
-      if (!supplierMap[sid]) {
-        supplierMap[sid] = { supplier: quote.supplier, detailIds: new Set(), total: 0, quotes: [] };
-        winnerCounts[sid] = 0;
-      }
-      supplierMap[sid].detailIds.add(detail.id);
-      supplierMap[sid].total += parseFloat(quote.quoted_price || 0);
-      supplierMap[sid].quotes.push(quote); // Store quotes for easy remark comparison
-      if (quote.is_winner) winnerCounts[sid]++;
-    });
+  const quotesForItem = groupedDetails[detail.id] || [];
+  quotesForItem.forEach((quote) => {
+    const sid = quote.supplier.id;
+    if (!supplierMap[sid]) {
+      supplierMap[sid] = { supplier: quote.supplier, detailIds: new Set(), total: 0, quotes: [] };
+      winnerCounts[sid] = 0;
+    }
+    supplierMap[sid].detailIds.add(detail.id);
+
+    // --- Multiply by quantity safely ---
+    const quantity = detail.quantity ?? 1; // fallback to 1 if undefined
+    const price = parseFloat(quote.quoted_price ?? 0) || 0; // fallback to 0
+    supplierMap[sid].total += price * quantity;
+
+    supplierMap[sid].quotes.push(quote); // Store quotes for easy remark comparison
+    if (quote.is_winner_as_read) winnerCounts[sid]++;
   });
+});
+
 
   const totalDetailsCount = pr.details.length;
   const fullBidSuppliers = Object.values(supplierMap).filter(
@@ -198,7 +205,7 @@ const handleConfirmWinner = async () => {
   }, [hasFullBidSuppliers, awardMode]);
 
   const hasAnyWinner = pr.details.some((detail) =>
-    (groupedDetails[detail.id] || []).some((q) => q.is_winner)
+    (groupedDetails[detail.id] || []).some((q) => q.is_winner_as_read)
   );
 
   const [remarksDialogOpen, setRemarksDialogOpen] = useState(false);
@@ -211,7 +218,7 @@ const handleConfirmWinner = async () => {
     setSavingRemarks(true);
     const payload = {
       supplier_id: remarksTarget.supplierId,
-      remarks: remarksInput,
+      remarks_as_read: remarksInput,
       mode: awardMode,
       ...(remarksTarget.detailId !== null ? { detail_id: remarksTarget.detailId } : {}),
     };
@@ -223,7 +230,7 @@ const handleConfirmWinner = async () => {
     // to loop through all supplierMap[remarksTarget.supplierId].quotes
     // and send a separate request for each with its specific detail_id.
     // For now, adhering to the assumption that `detail_id: null` applies broadly.
-    router.post(route("bac_approver.save_remarks", { id: remarksTarget.rfqId }), payload, {
+    router.post(route("bac_approver.save_remarks_as_read", { id: remarksTarget.rfqId }), payload, {
       preserveScroll: true,
       onSuccess: () => {
         setSavingRemarks(false);
@@ -276,13 +283,13 @@ const handleConfirmWinner = async () => {
           >
             Winner for Entire PR
           </Button>
-          <Button
+          {/* <Button
             variant={awardMode === "per-item" ? "default" : "outline"}
             onClick={() => setAwardMode("per-item")}
             disabled={!!rfq.award_mode} // disable if mode already chosen
           >
             Winner per Item
-          </Button>
+          </Button> */}
         </div>
 
         {!hasFullBidSuppliers && (
@@ -377,8 +384,15 @@ const handleConfirmWinner = async () => {
                                   isLowest ? "text-green-700" : "text-gray-800"
                                 }`}
                               >
-                                ₱{parseFloat(quote.quoted_price).toLocaleString()}
+                                <span className="mr-1">
+                                  ₱{Math.round(quote.quoted_price).toLocaleString()}
+                                </span>
+                                <span className="mx-1">x</span>
+                                <span className="mr-1">{detail.quantity}</span>
+                                <span>{detail.unit}</span>
                               </span>
+
+                              
                             ) : (
                               <span className="text-gray-400">—</span>
                             )}
@@ -391,7 +405,7 @@ const handleConfirmWinner = async () => {
 
                 {/* Totals Row */}
                 <tr className="bg-gray-200 font-semibold">
-                  <td className="border px-4 py-3 text-right">Total Quoted Price</td>
+                  <td className="border px-4 py-3 text-right">Total Quoted Price Per Unit</td>
                   {fullBidSuppliers.map((s) => (
                     <td
                       key={s.supplier.id}
@@ -409,7 +423,7 @@ const handleConfirmWinner = async () => {
                     // Collect all remarks for this supplier across all items
                     const supplierAllRemarks = s.quotes
                       .filter(q => q.rfq_id === rfq.id) // Ensure quotes belong to current RFQ
-                      .map(q => q.remarks?.trim() || "");
+                      .map(q => q.remarks_as_read?.trim() || "");
 
                     // Check if all remarks are identical
                     const allRemarksAreSame = supplierAllRemarks.every(
@@ -468,8 +482,10 @@ const handleConfirmWinner = async () => {
                             size="sm"
                             variant="destructive"
                             onClick={() => handleOpenRollbackDialog(rfq.id, s.supplier.id)}
+                            disabled={!!rfq.purchase_order} // ✅ correct: check RFQ
                           >
-                            Rollback
+                            <Undo2 className="h-4 w-4" />
+                            Undo
                           </Button>
                         </div>
                       ) : hasAnyWinner ? (
@@ -495,7 +511,7 @@ const handleConfirmWinner = async () => {
           <div className="space-y-8 mb-10 border p-4 rounded-lg bg-white shadow-sm">
             {pr.details.map((detail) => {
               const quotes = groupedDetails[detail.id] || [];
-              const itemHasWinner = quotes.some((q) => q.is_winner);
+              const itemHasWinner = quotes.some((q) => q.is_winner_as_read);
 
               return (
                 <div
@@ -550,7 +566,7 @@ const handleConfirmWinner = async () => {
                       <tr>
                         <td className="px-4 py-2 font-medium">Remarks</td>
                         {quotes.map((q) => {
-                          const itemSpecificRemarks = q.remarks?.trim() || "No remarks"; // Use q.remarks directly
+                          const itemSpecificRemarks = q.remarks_as_read?.trim() || "No remarks"; // Use q.remarks directly
                           return (
                             <td key={`item-remarks-${q.supplier.id}`} className="px-4 py-2 text-center align-top">
                               <div className="flex flex-col gap-1 items-center">
@@ -588,7 +604,7 @@ const handleConfirmWinner = async () => {
                             key={`item-winner-${q.supplier.id}`}
                             className="px-4 py-2 text-center align-top"
                           >
-                            {q.is_winner ? (
+                            {q.is_winner_as_read ? (
                               <div className="flex flex-col items-center gap-1">
                                 <span className="text-green-600 font-bold">✔ Winner</span>
                                 <Button
@@ -671,7 +687,7 @@ const handleConfirmWinner = async () => {
             <DialogTitle>Confirm Winner</DialogTitle>
             <DialogDescription>Provide remarks for awarding this supplier.</DialogDescription>
           </DialogHeader>
-          <Textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} />
+          <Textarea value={remarks_as_read} onChange={(e) => setRemarks(e.target.value)} />
           <DialogFooter>
             <Button variant="secondary" onClick={() => setWinnerDialogOpen(false)}>
               Cancel
@@ -784,7 +800,7 @@ const handleConfirmWinner = async () => {
             </DialogDescription>
           </DialogHeader>
           <Textarea
-            value={remarks}
+            value={remarks_as_read}
             onChange={(e) => setRemarks(e.target.value)}
           />
           <DialogFooter>

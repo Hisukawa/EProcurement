@@ -6,11 +6,12 @@ import {
   ChevronDownIcon,
   Bars3Icon,
   XMarkIcon,
+  TvIcon,
 } from '@heroicons/react/24/solid';
 import NavLink from '@/Components/NavLink';
 import Dropdown from '@/Components/Dropdown';
 import logo from '../src/deped1.png';
-import { Settings, UserCog, Users } from 'lucide-react';
+import { Activity, ActivityIcon, Settings, UserCog, Users } from 'lucide-react';
 import { Toaster } from '@/Components/ui/toaster';
 
 // function PurchaseRequestsDropdown({ isSidebarCollapsed }) {
@@ -122,6 +123,15 @@ export default function AdminLayout({ header, children }) {
             >
               <HomeIcon className="w-5 h-5 text-gray-300" />
               <span className="text-white font-medium">Dashboard</span>
+            </NavLink>
+
+            <NavLink
+              href={route('admin.activity_logs')}
+              active={route().current('admin.activity_logs')}
+              className="flex items-center gap-2 px-4 py-2 hover:bg-indigo-600 rounded-lg transition-all duration-200"
+            >
+              <TvIcon className="w-5 h-5 text-gray-300" />
+              <span className="text-white font-medium">Activity Logs</span>
             </NavLink>
 
             <NavLink

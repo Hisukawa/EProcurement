@@ -16,7 +16,7 @@ class PAR extends Model
 
     protected $table = 'tbl_par';
 
-    protected $fillable = ['po_id', 'par_number', 'requested_by', 'recipient', 'issued_by', 'remarks', 'date_acquired'];
+    protected $fillable = ['po_id', 'par_number', 'requested_by', 'issued_by', 'remarks', 'date_acquired'];
 
     public function po()
     {

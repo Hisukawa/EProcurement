@@ -78,6 +78,8 @@ export default function RecordIar({ po, inspectionCommittee }) {
   });
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const { toast } = useToast(); // Initialize useToast here
+  const [discrepancyDialogOpen, setDiscrepancyDialogOpen] = useState(false);
+
 
   // --- ITEMS HANDLING ---
 const handleItemChange = (index, field, value) => {
@@ -90,6 +92,11 @@ const handleItemChange = (index, field, value) => {
         if (field === "quantity_received") {
           let receivedQty = parseFloat(value) || 0;
 
+          // ✅ Prevent less than 1
+          if (receivedQty < 1) {
+            receivedQty = 1;
+          }
+
           // ✅ Prevent exceeding ordered qty
           if (receivedQty > item.quantity_ordered) {
             receivedQty = item.quantity_ordered;
@@ -97,8 +104,10 @@ const handleItemChange = (index, field, value) => {
 
           updatedItem.quantity_received = receivedQty;
           updatedItem.total_price = receivedQty * updatedItem.unit_price;
-        } else {
-          updatedItem[field] = value;
+        }
+
+        if (field === "remarks") {
+          updatedItem.remarks = value; // ✅ Allow typing remarks
         }
 
         return updatedItem;
@@ -109,14 +118,26 @@ const handleItemChange = (index, field, value) => {
 };
 
 
+
   const grandTotal = useMemo(() => {
     return data.items.reduce((total, item) => total + item.total_price, 0);
   }, [data.items]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    setConfirmDialogOpen(true); // show confirm dialog first
+
+    const hasDiscrepancy = data.items.some(
+      (item) =>
+        parseFloat(item.quantity_received || 0) < item.quantity_ordered
+    );
+
+    if (hasDiscrepancy) {
+      setDiscrepancyDialogOpen(true); // show discrepancy warning first
+    } else {
+      setConfirmDialogOpen(true); // proceed to normal confirm
+    }
   };
+
 
   const handleConfirmSave = () => {
     post(route("supply_officer.store_iar"), {
@@ -127,6 +148,7 @@ const handleItemChange = (index, field, value) => {
           title: "IAR Recorded",
           description: "Inspection & Acceptance Report successfully saved!",
           duration: 3000,
+          className: "bg-green-600 text-white",
         });
       },
       onError: (errors) => { // Catch errors passed from Inertia
@@ -348,17 +370,14 @@ return (
                             }`}
                             value={item.quantity_received}
                             onChange={(e) =>
-                              handleItemChange(
-                                index,
-                                "quantity_received",
-                                e.target.value
-                              )
+                              handleItemChange(index, "quantity_received", e.target.value)
                             }
                             onWheel={(e) => e.currentTarget.blur()}
-                            min="0"
+                            min="1"   // ✅ force at least 1
                             placeholder="Quantity Received"
                             required
                           />
+
                           {hasDiscrepancy && (
                             <p className="text-yellow-600 text-xs mt-1 flex items-center gap-1">
                               <Info size={12} /> Discrepancy with ordered qty
@@ -530,6 +549,39 @@ return (
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* DISCREPANCY WARNING DIALOG */}
+      <Dialog open={discrepancyDialogOpen} onOpenChange={setDiscrepancyDialogOpen}>
+        <DialogContent className="sm:max-w-md p-6">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-yellow-700">
+              Quantity Discrepancy Detected
+            </DialogTitle>
+            <DialogDescription className="text-md text-gray-700">
+              One or more items have <strong>received quantity less than ordered</strong>.  
+              Are you sure you want to continue recording this Inspection & Acceptance Report?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6 flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setDiscrepancyDialogOpen(false)}
+              className="px-6 py-2"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setDiscrepancyDialogOpen(false);
+                setConfirmDialogOpen(true); // move to final confirm
+              }}
+              className="px-6 py-2 bg-yellow-600 hover:bg-yellow-700"
+            >
+              Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </SupplyOfficerLayout>
   );
 }

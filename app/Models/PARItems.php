@@ -11,7 +11,7 @@ class PARItems extends Model
 
     protected $table = 'tbl_par_items';
 
-    protected $fillable = ['par_id', 'inventory_item_id','inventory_item_number', 'ppe_sub_major_account', 'general_ledger_account', 'series_number', 'office', 'school', 'quantity', 'unit_cost', 'total_cost', 'property_no'];
+    protected $fillable = ['par_id', 'inventory_item_id','inventory_item_number', 'recipient', 'ppe_sub_major_account', 'general_ledger_account', 'series_number', 'office', 'school', 'quantity', 'unit_cost', 'total_cost', 'property_no'];
 
     public function par()
     {

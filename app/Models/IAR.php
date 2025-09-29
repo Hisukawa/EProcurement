@@ -22,6 +22,7 @@ class IAR extends Model
         'remarks',
         'inspection_committee_id',
         'date_received',
+        'recorded_by'
     ];
 
     public function purchaseOrder() {
@@ -32,4 +33,8 @@ class IAR extends Model
                 return $this->belongsTo(InspectionCommittee::class, 'inspection_committee_id');
             }
 
+            public function recordedBy()
+            {
+                return $this->belongsTo(User::class, 'recorded_by'); // Assuming User is a model  
+            }
 }

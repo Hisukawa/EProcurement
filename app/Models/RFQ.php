@@ -12,7 +12,7 @@ class RFQ extends Model
 {
     protected $table = 'tbl_rfqs';
 
-    protected $fillable = ['user_id', 'pr_id', 'supplier_id',];
+    protected $fillable = ['user_id', 'pr_id', 'supplier_id', 'total_price_calculated'];
 
     
     public function purchaseRequest()
@@ -30,9 +30,14 @@ public function supplierTotals()
 {
     return $this->hasMany(RFQSupplierTotal::class, 'rfq_id'); // Assuming SupplierTotal is a model
 }
-
-
-
-
+public function purchaseOrder()
+{
+    return $this->hasOne(PurchaseOrder::class, 'rfq_id'); // Assuming PurchaseOrder is a model  
 }
 
+public function recordedBy()
+{
+    return $this->belongsTo(User::class, 'user_id'); // Assuming User is a model  
+
+}
+}

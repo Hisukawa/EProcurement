@@ -53,25 +53,13 @@
                     <td>{{ $idx+1 }}</td>
                     <td>{{ $detail['supplier']->company_name }}</td>
                     <td>{{ number_format($detail['total_amount'], 2) }}</td>
-                    <td>{{ $detail['remarks'] ?? '' }}</td>
+                    <td>{{ $detail['remarks_as_read'] ?? '' }}</td>
                 </tr>
             @endforeach
         </tbody>
     </table>
 
-    @php
-        $awarded = collect($suppliers)->firstWhere('is_winner', 1);
-    @endphp
 
-    <p>
-        Awarded to
-        <span style="text-decoration:underline; font-weight:bold;">
-            {{ $awarded['supplier']->company_name ?? '__________' }}
-        </span>
-        @if(isset($awarded['remarks']) && !empty($awarded['remarks']))
-            <em>{{ $awarded['remarks'] }}</em>.
-        @endif
-    </p>
     @php
         $secretariat = $committee->members->firstWhere('position', 'secretariat');
     @endphp

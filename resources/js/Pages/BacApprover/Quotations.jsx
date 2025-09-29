@@ -126,7 +126,7 @@ export default function Quotation({ purchaseRequests, filters = {} }) {
                       <td className="px-4 py-2 text-gray-700">{quantities.slice(0, 2).join(", ")}{quantities.length > 2 ? ` +${quantities.length - 2} more` : ""}</td>
                       <td className="px-4 py-2 text-gray-700">₱{totalPrice.toLocaleString()}</td>
                       <td className="px-4 py-2">
-                        {pr.rfqs?.some(rfq => rfq.details?.some(d => d.is_winner)) ? (
+                        {pr.rfqs?.some(rfq => rfq.details?.some(d => d.is_winner_as_calculated)) ? (
                           <div className="flex flex-col items-center">
                             <button disabled className="inline-flex items-center px-4 py-2 bg-gray-400 text-white text-sm font-medium rounded-md cursor-not-allowed">
                               Enter Quoted Price
