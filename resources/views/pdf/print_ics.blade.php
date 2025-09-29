@@ -101,7 +101,7 @@
                 <td class="text-left" style="padding-left:8px;">
                     {{ $product->name ?? '' }} {{ $product->specs ?? '' }}
                 </td>
-                <td>{{ $issued->inventoryItem->inventory_number ?? '' }}</td>
+                <td>{{ $issued->inventory_item_number ?? '' }}</td>
                 <td>{{ $issued->inventoryItem->estimated_useful_life ?? '' }}</td>
             </tr>
             @endforeach

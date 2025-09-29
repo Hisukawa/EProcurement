@@ -89,7 +89,7 @@
                     $product = optional($detail->prDetail)->product;
                     $unit = optional($product->unit)->unit ?? '';
                     $quantity = $issued->quantity ?? 0;
-                    $propertyNo = $issued->property_no ?? '';
+                    $propertyNo = $issued->inventory_item_number ?? '';
                     $totalCost = $issued->total_cost ?? 0;
                 @endphp
             <tr class="text-center">
