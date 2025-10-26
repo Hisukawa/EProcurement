@@ -100,10 +100,6 @@ const markAsRead = async (notification) => {
       )
     );
 
-    // if your backend stores purchase request ID in notification.data.pr_id
-    if (notification.data?.pr_id) {
-      Inertia.visit(route("bac_approver.show_details", notification.data.pr_id));
-    }
   } catch (error) {
     console.error('Failed to mark notification as read:', error);
   }
@@ -145,8 +141,8 @@ const markAsRead = async (notification) => {
           {/* Navigation */}
           <nav className="flex flex-col gap-2">
             <NavLink
-              href={route('bac_approver.dashboard')}
-              active={route().current('bac_approver.dashboard')}
+              href={route('bac_user.dashboard')}
+              active={route().current('bac_user.dashboard')}
               className="flex items-center gap-2 px-4 py-2 hover:bg-indigo-600 rounded-lg"
             >
               <HomeIcon className="w-5 h-5 text-gray-300" />
@@ -154,26 +150,16 @@ const markAsRead = async (notification) => {
             </NavLink>
 
             <NavLink
-              href={route('bac_approver.purchase_requests')}
-              active={route().current('bac_approver.purchase_requests')}
+              href={route('bac_user.purchase_requests')}
+              active={route().current('bac_user.purchase_requests')}
               className="flex items-center gap-2 px-4 py-2 hover:bg-indigo-600 rounded-lg"
             >
               <ClipboardDocumentIcon className="w-5 h-5 text-gray-300" />
               <span className="text-white font-medium">Purchase Requests</span>
             </NavLink>
-
             <NavLink
-              href={route('bac_approver.for_review')}
-              active={route().current('bac_approver.for_review')}
-              className="flex items-center gap-2 px-4 py-2 hover:bg-indigo-600 rounded-lg"
-            >
-              <ClipboardCheckIcon className="w-5 h-5 text-gray-300" />
-              <span className="text-white font-medium">For Review</span>
-            </NavLink>
-
-            <NavLink
-              href={route('bac_approver.approved_requests')}
-              active={route().current('bac_approver.approved_requests')}
+              href={route('bac_user.approved_requests')}
+              active={route().current('bac_user.approved_requests')}
               className="flex items-center gap-2 px-4 py-2 hover:bg-indigo-600 rounded-lg"
             >
               <CheckCircleIcon className="w-5 h-5 text-gray-300" />
@@ -181,8 +167,8 @@ const markAsRead = async (notification) => {
             </NavLink>
 
             <NavLink
-              href={route('bac_approver.for_quotations')}
-              active={route().current('bac_approver.for_quotations')}
+              href={route('bac_user.for_quotations')}
+              active={route().current('bac_user.for_quotations')}
               className="flex items-center gap-2 px-4 py-2 hover:bg-indigo-600 rounded-lg"
             >
               <FileTextIcon className="w-5 h-5 text-gray-300" />

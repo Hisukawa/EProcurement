@@ -12,7 +12,7 @@ export default function Approved({ purchaseRequests, filters = {} }) {
   useEffect(() => {
     const delay = setTimeout(() => {
       router.get(
-        route("bac_approver.approved_requests"),
+        route("bac_user.approved_requests"),
         { prNumber, focalPerson, division },
         { preserveState: true, preserveScroll: true, replace: true }
       );
@@ -93,7 +93,7 @@ export default function Approved({ purchaseRequests, filters = {} }) {
                       {pr.rfqs?.pr_id ? (
                         <span className="text-sm font-medium text-green-700">RFQs Submitted</span>
                       ) : (
-                        <a href={route("bac_approver.generate_rfq", pr.id)} className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm shadow transition">
+                        <a href={route("bac_user.generate_rfq", pr.id)} className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm shadow transition">
                           <DocumentTextIcon className="w-5 h-5 mr-2" />
                           Generate RFQ
                         </a>

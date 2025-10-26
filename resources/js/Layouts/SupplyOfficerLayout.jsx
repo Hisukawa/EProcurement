@@ -14,7 +14,7 @@ import logo from '../src/deped1.png';
 import NavLink from '@/Components/NavLink';
 import Dropdown from '@/Components/Dropdown';
 import axios from 'axios';
-import { BoxesIcon, ClipboardCheck, PackageCheck } from 'lucide-react';
+import { BoxesIcon, ClipboardCheck, PackageCheck, Repeat, TrashIcon, User2Icon } from 'lucide-react';
 import { Toaster } from "@/components/ui/toaster";
 
 function PORequestsDropdown({ isSidebarCollapsed }) {
@@ -145,14 +145,29 @@ export default function SupplyOfficerLayout({ header, children }) {
               <PackageCheck className="w-5 h-5 text-gray-300" />
               <span className="text-white font-medium">Item Issuance</span>
             </NavLink>
-
+            <NavLink
+              href={route('supply_officer.disposed_items')}
+              active={route().current('supply_officer.disposed_items')}
+              className="flex items-center gap-2 px-4 py-2 hover:bg-indigo-600 rounded-lg"
+            >
+              <TrashIcon className="w-5 h-5 text-gray-300" />
+              <span className="text-white font-medium">Disposal</span>
+            </NavLink>
+            <NavLink
+              href={route('supply_officer.reissued_items')}
+              active={route().current('supply_officer.reissued_items')}
+              className="flex items-center gap-2 px-4 py-2 hover:bg-indigo-600 rounded-lg"
+            >
+              <Repeat className="w-5 h-5 text-gray-300" />
+              <span className="text-white font-medium">Reissuance</span>
+            </NavLink>
 
             <NavLink
               // href={route('supply_officer.suppliers')}
               // active={route().current('supply_officer.suppliers')}
               className="flex items-center gap-2 px-4 py-2 hover:bg-indigo-600 rounded-lg"
             >
-              <UsersIcon className="w-5 h-5 text-gray-300" />
+              <User2Icon className="w-5 h-5 text-gray-300" />
               <span className="text-white font-medium">Suppliers</span>
             </NavLink>
 

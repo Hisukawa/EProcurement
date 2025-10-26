@@ -157,7 +157,7 @@ export default function CreatePurchaseOrder({ pr, rfq, suppliers, winners }) {
                       </th>
                       <th className="border-y px-4 py-2 text-left">Specs</th>
                       <th className="border-y px-4 py-2 text-center">Unit</th>
-                      <th className="border-y px-4 py-2 text-right text-blue-600">
+                      <th className="border-y px-4 py-2 text-right">
                         Quantity
                       </th>
                       <th className="border-y px-4 py-2 text-right">
@@ -184,19 +184,7 @@ export default function CreatePurchaseOrder({ pr, rfq, suppliers, winners }) {
                           {item.unit}
                         </td>
                         <td className="border-b px-4 py-2 text-right">
-                          <input
-                            type="number"
-                            min="0"
-                            value={item.quantity}
-                            onChange={(e) =>
-                              handleChange(
-                                item.pr_detail_id,
-                                "quantity",
-                                e.target.value
-                              )
-                            }
-                            className="w-20 border rounded px-2 py-1 text-right bg-yellow-50"
-                          />
+                          {item.quantity}
                         </td>
                         <td className="border-b px-4 py-2 text-right">
                           ₱

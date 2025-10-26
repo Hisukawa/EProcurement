@@ -143,7 +143,7 @@ export default function PurchaseOrder({ purchaseRequests, filters }) {
 
                     {/* Item */}
                     <td className="px-6 py-4">
-                      {winningDetails[0]?.product.name || "—"}
+                      {winningDetails[0]?.item || "—"}
                       {winningDetails.length > 1 && (
                         <span className="text-gray-400 text-xs ml-1 italic">
                           +{winningDetails.length - 1} more
@@ -153,7 +153,7 @@ export default function PurchaseOrder({ purchaseRequests, filters }) {
 
                     {/* Specs */}
                     <td className="px-6 py-4">
-                      {winningDetails[0]?.product.specs || "—"}
+                      {winningDetails[0]?.specs || "—"}
                       {winningDetails.length > 1 && (
                         <span className="text-gray-400 text-xs ml-1 italic">
                           +{winningDetails.length - 1} more
@@ -174,7 +174,7 @@ export default function PurchaseOrder({ purchaseRequests, filters }) {
 
                     {/* Unit */}
                     <td className="px-6 py-4">
-                      {winningDetails[0]?.product.unit.unit || "—"}
+                      {winningDetails[0]?.unit || "—"}
                       {new Set(
                         winningDetails.map((d) => d.product.unit.unit)
                       ).size > 1 && (

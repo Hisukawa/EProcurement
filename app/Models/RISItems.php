@@ -15,7 +15,6 @@ class RISItems extends Model
         'ris_id',
         'inventory_item_id',
         'unit_cost',
-        'recipient',
         'total_cost',
         'quantity',
     ];
@@ -29,5 +28,12 @@ class RISItems extends Model
     public function inventoryItem()
     {
         return $this->belongsTo(Inventory::class, 'inventory_item_id');
+    }
+    public function reissuedItem() {
+        return $this->hasMany(ReissuedItems::class, 'inventory_item_id', 'inventory_item_id');
+    }
+
+    public function disposedItem() {
+        return $this->hasMany(DisposedItems::class, 'inventory_item_id', 'inventory_item_id');
     }
 }

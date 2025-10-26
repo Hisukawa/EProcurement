@@ -24,44 +24,48 @@ function CreateProductModal({ open, onClose, units, onProductSaved }) {
     }, [open]);
 
     const handleSave = async (e) => {
-        e.preventDefault();
+    e.preventDefault();
 
-        // Trim custom unit for validation
-        const customUnit = data.custom_unit.trim();
+    // Trim custom unit for validation
+    const customUnit = data.custom_unit.trim();
 
-        // Check if custom unit already exists in units list
-        if (customUnit && units.some(u => u.unit.toLowerCase() === customUnit.toLowerCase())) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Duplicate Unit',
-                text: `The unit "${customUnit}" already exists. Please select it from the list instead.`,
-            });
-            return; // stop submission
+    // If custom unit exists in the units list, select that unit
+    if (customUnit) {
+        const existingUnit = units.find(u => u.unit.toLowerCase() === customUnit.toLowerCase());
+        if (existingUnit) {
+            // If the unit exists, use its ID
+            setData("unit_id", existingUnit.id);
+            setData("custom_unit", ""); // Clear the custom unit field
+        } else {
+            // If the unit doesn't exist, proceed with the entered custom unit
+            setData("unit_id", ""); // Clear the unit_id
         }
+    }
 
-        try {
-            const payload = {
-                ...data,
-                unit: customUnit !== "" ? customUnit : data.unit_id,
-            };
-
-            // save to backend
-            const response = await axios.post(route("requester.store_product"), payload);
-            const newProduct = response.data.product;
-
-            if (newProduct) {
-                onProductSaved({
-                    ...newProduct,
-                    quantity: Number(data.quantity),
-                    total_item_price: Number(newProduct.default_price) * Number(data.quantity),
-                });
-            }
-            onClose(); // Close modal
-        } catch (error) {
-            console.error("Error saving product:", error);
-            Swal.fire('Error!', 'Failed to save product. Please try again.', 'error');
-        }
+    // Proceed with form submission
+    const payload = {
+        ...data,
+        unit: customUnit !== "" ? customUnit : data.unit_id,
     };
+
+    try {
+        const response = await axios.post(route("requester.store_product"), payload);
+        const newProduct = response.data.product;
+
+        if (newProduct) {
+            onProductSaved({
+                ...newProduct,
+                quantity: Number(data.quantity),
+                total_item_price: Number(newProduct.default_price) * Number(data.quantity),
+            });
+        }
+        onClose(); // Close modal
+    } catch (error) {
+        console.error("Error saving product:", error);
+        Swal.fire('Error!', 'Failed to save product. Please try again.', 'error');
+    }
+};
+
 
 
     return (

@@ -413,7 +413,7 @@ public function activity_logs() {
     $inspectionTeam = InspectionCommitteeMember::where('status', 'active')->get();
 
     // Get active BAC members
-    $bacCommittee = BacCommitteeMember::where('status', 'active')->get();
+    $bacCommittee = BacCommitteeMember::where('status', 'active')->latest()->get();
 
     return inertia('Admin/Settings', [
         'divisions' => $divisions,
@@ -474,7 +474,7 @@ public function updateInspection(Request $request, $id)
         'member_id' => 'required|exists:tbl_inspection_committee_members,id',
         'replacementName' => 'required|string|max:255',
     ]);
-
+    
     $committee = InspectionCommittee::findOrFail($id);
 
     $member = InspectionCommitteeMember::where('id', $validated['member_id'])
@@ -497,30 +497,59 @@ public function updateInspection(Request $request, $id)
 }
 
 
-    public function updateBac(Request $request, BacCommittee $committee)
-    {
-        $request->validate([
-            'members' => 'required|array',
-            'members.*.position' => 'required|string|max:255',
-            'members.*.name' => 'required|string|max:255',
-        ]);
+public function updateBac(Request $request, $id)
+{
+    // Find the BacCommittee by ID
+    $committee = BacCommittee::findOrFail($id);
 
-        // Deactivate old members
-        BacCommitteeMember::where('committee_id', $committee->id)
+    // Validate the incoming request
+    $validated = $request->validate([
+        'members' => 'required|array',
+        'members.*.member_id' => 'nullable|exists:tbl_bac_committee_members,id',
+        'members.*.position' => 'required|string|max:255',
+        'members.*.name' => 'required|string|max:255',
+    ]);
+
+    // Loop over each member in the request
+    foreach ($validated["members"] as $member) {
+        // Check if the member already exists in the committee
+        $existingMember = BacCommitteeMember::where('id', $member['member_id'])
+            ->where('committee_id', $committee->id)
             ->where('status', 'active')
-            ->update(['status' => 'inactive']);
+            ->firstOrFail();
 
-        // Add new members
-        foreach ($request->members as $member) {
-            BacCommitteeMember::create([
-                'committee_id' => $committee->id,
-                'position' => $member['position'],
-                'name' => $member['name'],
-                'status' => 'active',
-            ]);
+        if ($existingMember) {
+            // Deactivate the old member (selected member)
+            $existingMember->update(['status' => 'inactive']);
         }
 
-        return redirect()->route('admin.settings')
-            ->with('success', 'BAC committee updated successfully.');
-    } 
+        // Add the new member
+        BacCommitteeMember::create([
+            'committee_id' => $committee->id,
+            'position' => $member['position'],
+            'name' => $member['name'],
+            'status' => 'active',
+        ]);
+    }
+
+    // Return success message and redirect
+    return redirect()->route('admin.settings')
+        ->with('success', 'BAC Committee updated successfully.');
+}
+
+    public function verify_password(Request $request)
+    {
+        // Validate the request
+        $validated = $request->validate([
+            'password' => 'required|string',
+        ]);
+
+        // Check if the provided password matches the logged-in admin's password
+        if (Hash::check($validated['password'], Auth::user()->password)) {
+            return response()->json(['success' => true]);
+        }
+
+        // If the password doesn't match, return an error response
+        return response()->json(['success' => false], 401);
+    }
 }

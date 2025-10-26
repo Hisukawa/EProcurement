@@ -70,8 +70,8 @@ const handleSendBack = () => {
     setApproveOpen(false);
 
     router.post(
-        route("bac_approver.approve", pr.id),
-        {}, // no payload needed, just the ID in the route
+        route("bac_user.approve", pr.id),
+        {},
         {
         preserveScroll: true,
         preserveState: true,

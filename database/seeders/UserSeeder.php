@@ -14,8 +14,9 @@ class UserSeeder extends Seeder
         // Create roles
         $adminRole = Role::firstOrCreate(['name' => 'admin']);
         $requesterRole = Role::firstOrCreate(['name' => 'requester']);
-        $bacApproverRole = Role::firstOrCreate(['name' => 'bac_approver']);
+        $bacApproverRole = Role::firstOrCreate(['name' => 'bac_user']);
         $supplyOfficerRole = Role::firstOrCreate(['name' => 'supply_officer']);
+        $twgUserRole = Role::firstOrCreate(['name' => 'twg_user']);
 
         // Admin
         $admin = User::create([
@@ -85,5 +86,16 @@ class UserSeeder extends Seeder
             'password' => Hash::make('password123'),
         ]);
         $supply->assignRole($supplyOfficerRole);
+
+        // TWG User
+        $twg = User::create([
+            'firstname' => 'Lucia',
+            'lastname' => 'Garcia',
+            'middlename' => 'R.',
+            'email' => 'lucia.garcia@email.com',
+            'email_verified_at' => now(),
+            'password' => Hash::make('password123'),
+        ]);
+        $twg->assignRole($twgUserRole);
     }
 }

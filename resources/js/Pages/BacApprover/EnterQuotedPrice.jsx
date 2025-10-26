@@ -157,7 +157,7 @@ const handleSubmit = (detailId, supplierId, quoted_price_to_submit, editingKey =
   const submittingKey = editingKey || `${detailId}-${supplierId}`;
   setSubmittingId(submittingKey);
 
-  router.post(route("bac_approver.submit_quoted"), payload, {
+  router.post(route("bac_user.submit_quoted"), payload, {
     preserveScroll: true,
     onSuccess: () => {
       setSubmittingId(null);
@@ -236,7 +236,7 @@ const handleSubmitAll = () => {
   setSubmittingId("all");
 
   router.post(
-    route("bac_approver.submit_bulk_quoted"),
+    route("bac_user.submit_bulk_quoted"),
     { quotes: entries },
     {
       preserveScroll: true,
@@ -308,7 +308,7 @@ const handleSubmitAll = () => {
     e.preventDefault();
 
     try {
-      const response = await axios.post(route("bac_approver.store_supplier"), newSupplier);
+      const response = await axios.post(route("bac_user.store_supplier"), newSupplier);
       const createdSupplier = response.data.supplier;
 
       setSupplierList(prev => [...prev, createdSupplier]);
@@ -390,7 +390,7 @@ useEffect(() => {
 const handleDeleteQuote = (detailId, supplierId, uniqueId) => {
   setSubmittingId(uniqueId);
 
-  router.delete(route("bac_approver.delete_quoted"), {
+  router.delete(route("bac_user.delete_quoted"), {
     data: {
       pr_id: pr.id,
       pr_details_id: detailId,
@@ -490,7 +490,7 @@ const [skippedItems, setSkippedItems] = useState([]);
         <div className="mb-4">
           <a
           type="button"
-            href={route("bac_approver.for_quotations")}
+            href={route("bac_user.for_quotations")}
             className="inline-flex items-center px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-md text-sm shadow-sm"
           >
             ← Back

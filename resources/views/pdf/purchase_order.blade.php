@@ -86,14 +86,15 @@
         @foreach($po->details as $item)
             @php
                 $prDetail = $po->rfq?->purchaseRequest?->details->firstWhere('id', $item->pr_detail_id);
-                $specs = $prDetail?->product?->specs ?? '-';
-                $unit = $prDetail?->product?->unit?->unit ?? $item->unit ?? '-';
+                $itemName = $prDetail?->item ?? '-';
+                $specs = $prDetail?->specs ?? '-';
+                $unit = $prDetail?->unit ?? $item->unit ?? '-';
                 $total += $item->total_price;
             @endphp
             <tr class="text-center with-border">
                 <td></td>
                 <td>{{ $unit }}</td>
-                <td class="text-left">{{ $specs }}</td>
+                <td class="text-left"> {{ $itemName }} - {{ $specs }}</td>
                 <td>{{ $item->quantity }}</td>
                 <td>{{ number_format($item->unit_price, 2) }}</td>
                 <td>{{ number_format($item->total_price, 2) }}</td>

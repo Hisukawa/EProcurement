@@ -16,7 +16,7 @@ export default function ForReview({ sentPurchaseRequests, filters = {}, flash })
   useEffect(() => {
     const delay = setTimeout(() => {
       router.get(
-        route("bac_approver.for_review"),
+        route("bac_user.for_review"),
         { prNumber, focalPerson, division },
         { preserveState: true, preserveScroll: true, replace: true }
       );
@@ -82,7 +82,7 @@ export default function ForReview({ sentPurchaseRequests, filters = {}, flash })
                   <tr key={pr.id} className="text-center hover:bg-indigo-50 transition">
                     <td className="px-6 py-4 font-medium text-indigo-600">
                       <TooltipLink
-                        to={route("bac_approver.show_details", pr.id)}
+                        to={route("bac_user.show_details", pr.id)}
                         tooltip="View PR details"
                         className="hover:underline focus:underline"
                       >

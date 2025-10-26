@@ -112,163 +112,16 @@ class RequesterController extends Controller
 
     }
 
-    public function generatePrNumber()
-    {
-        $year = date('y'); // e.g., 25
-        $month = date('m'); // e.g., 08
-        $prefix = "$year-$month-";
-
-        // Fetch the last PR for the current year regardless of month
-        $lastPr = DB::table('tbl_purchase_requests')
-            ->where('pr_number', 'like', "$year-%") 
-            ->orderBy('pr_number', 'desc')
-            ->first();
-
-        if ($lastPr) {
-            // Get the last 3-digit serial regardless of month
-            $lastSerial = intval(substr($lastPr->pr_number, -3));
-            $newSerial = str_pad($lastSerial + 1, 3, '0', STR_PAD_LEFT);
-        } else {
-            $newSerial = '001';
-        }
-
-        return $prefix . $newSerial;
-    }
 
 
 
-    public function create()
-    {
-        $user = User::with('division')->find(Auth::id());
-        $division = Division::with('requestedBy')->find($user->division->id);
-        $requestedBy = $division?->requestedBy ?? null;
-        $prNumber = $this->generatePrNumber();
-        $units = Unit::all();
-        $products = Products::with('unit')
-                    ->select('id', 'name', 'specs', 'unit_id', 'default_price')
-                    ->get();
-        $latestPr = PurchaseRequest::latest()->value('pr_number'); 
-        $units = Unit::all();
 
-        return Inertia::render('Requester/Create', [
-            'units' => $units,
-            'requestedBy' => $requestedBy,
-            'auth' => ['user' => $user],
-            'pr_number' => $prNumber,
-            'products' => $products,
-            'latestPr' => $latestPr,
-        ]);
-    }
+    
     // RequesterController.php
-public function storeUnit(Request $request)
-{
-    $validated = $request->validate([
-        'unit' => 'required|string|max:255|unique:tbl_units,unit',
-    ]);
-
-    $unit = Unit::create([
-        'unit' => $validated['unit'],
-    ]);
-
-    return response()->json($unit);
-}
-
-public function store_product(Request $request)
-{
-    $validated = $request->validate([
-        'name' => 'required|string|max:255',
-        'specs' => 'nullable|string',
-        'unit_id' => 'nullable|exists:tbl_units,id',
-        'custom_unit' => 'nullable|string|max:255',
-        'default_price' => 'nullable|numeric|min:0',
-    ]);
-
-    // ✅ If custom unit is provided, insert into tbl_units
-    if (!empty($request->custom_unit)) {
-        $newUnit = Unit::create([
-            'unit' => $request->custom_unit,
-        ]);
-        $validated['unit_id'] = $newUnit->id; // replace with new unit id
-    }
-
-    // Ensure unit_id is not empty
-    if (empty($validated['unit_id'])) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Please select or provide a unit.',
-        ], 422);
-    }
-
-    $product = Products::create([
-        'name' => $validated['name'],
-        'specs' => $validated['specs'] ?? null,
-        'unit_id' => $validated['unit_id'],
-        'default_price' => $validated['default_price'] ?? 0,
-    ])->load('unit');
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Product created successfully!',
-        'product' => $product,
-    ]);
-}
 
 
 
-public function store(Request $request)
-{
-    $request->validate([
-        'focal_person' => 'required|exists:users,id',
-        'pr_number' => 'required|string|max:50|unique:tbl_purchase_requests,pr_number',
-        'purpose' => 'nullable|string|max:1000',
-        'division_id' => 'required|exists:tbl_divisions,id',
-        'requested_by' => 'required|string|max:255',
 
-        'products.*.product_id' => 'required|exists:tbl_products,id',
-        'products.*.item' => 'required|string|max:255',
-        'products.*.specs' => 'required|string|max:1000',
-        'products.*.unit' => 'required|string|max:50',
-        'products.*.unit_price' => 'nullable|numeric|min:0',
-        'products.*.total_item_price' => 'nullable|numeric|min:0',
-        'products.*.quantity' => 'required|numeric|min:0.01',
-    ]);
-
-    DB::transaction(function () use ($request) {
-        $purchaseRequest = PurchaseRequest::create([
-            'focal_person_user' => $request['focal_person'],
-            'pr_number' => $request['pr_number'],
-            'purpose' => $request['purpose'],
-            'division_id' => $request['division_id'],
-            'requested_by' => $request['requested_by'],
-        ]);
-
-        $totalPRPrice = 0;
-
-        foreach ($request['products'] as $item) {
-            $totalItemPrice = $item['quantity'] * $item['unit_price'];
-            $totalPRPrice += $totalItemPrice;
-
-            PurchaseRequestDetail::create([
-                'pr_id' => $purchaseRequest->id,
-                'product_id' => $item['product_id'],
-                'item' => $item['item'],
-                'specs' => $item['specs'],
-                'unit' => $item['unit'],
-                'quantity' => $item['quantity'],
-                'unit_price' => $item['unit_price'],
-                'total_item_price' => $totalItemPrice,
-            ]);
-        }
-
-        $purchaseRequest->update(['total_price' => $totalPRPrice]);
-    });
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Purchase Request successfully submitted!',
-    ]);
-
-}
 
 public function manage_requests(Request $request)
 {
@@ -333,98 +186,34 @@ $purchaseRequests = $query->paginate(10)->withQueryString();
 ]);
 
 }
-    public function store_details(Request $request, $pr_id)
+    public function print($id)
     {
-        $validated = $request->validate([
-            'product_id' => 'required|exists:tbl_products,id',
-            'quantity' => 'required|numeric|min:0.01',
-            'unit_price' => 'required|numeric|min:0.01',
-        ]);
-
-        $product = Products::with('unit')->findOrFail($validated['product_id']);
-
-        $purchaseRequest = PurchaseRequest::findOrFail($pr_id);
-
-        $unitPrice = $validated['unit_price'];
-        $totalPrice = $validated['quantity'] * $unitPrice;
-
-        $purchaseRequest->details()->create([
-            'pr_id' => $purchaseRequest->id,
-            'product_id' => $product->id,
-            'item' => $product->name,
-            'specs' => $product->specs,
-            'unit' => $product->unit?->unit ?? 'pcs',
-            'quantity' => $validated['quantity'],
-            'unit_price' => $unitPrice,
-            'total_price' => $totalPrice,
-        ]);
-
-        return redirect()->back()->with('success', 'Item added successfully to Purchase Request.');
-    }
-
-
-    public function add_details($pr_id)
-    {
-        $purchaseRequest = PurchaseRequest::with('details')->select('id', 'pr_number')->findOrFail($pr_id);
-        
-        // Load details along with their related products and units for easier access
-        $purchaseRequest->load(['details.product.unit']);
-
-        $units = Unit::select('id', 'unit')->get();
-
-        $products = Products::with('unit')
-                    ->select('id', 'name', 'specs', 'unit_id', 'default_price')
-                    ->get();
-
-        return Inertia::render('Requester/AddDetails', [
-            'prId' => $purchaseRequest->id,
-            'units' => $units,
+        $purchaseRequest = PurchaseRequest::with(['details.product.unit', 'focal_person'])->findOrFail($id);
+        $pr = [
+            'id' => $purchaseRequest->id,
             'pr_number' => $purchaseRequest->pr_number,
-            'products' => $products,
-            'prDetails' => $purchaseRequest->details->map(function($detail) {
+            'purpose' => $purchaseRequest->purpose,
+            'created_at' => $purchaseRequest->created_at,
+            'details' => $purchaseRequest->details->map(function ($detail) {
                 return [
-                    'id' => $detail->id,
                     'item' => $detail->product->name ?? '',
                     'specs' => $detail->product->specs ?? '',
                     'unit' => $detail->product->unit->unit ?? '',
                     'quantity' => $detail->quantity,
                     'unit_price' => $detail->unit_price,
-                    'total_price' => $detail->quantity * $detail->unit_price,
                 ];
             }),
+        ];
+
+        $pdf = Pdf::loadView('pdf.purchase_request', [
+            'pr' => $pr,
+            'focal_person' => $purchaseRequest->focal_person,
         ]);
+
+        return $pdf->stream("PR-{$purchaseRequest->pr_number}.pdf");
     }
 
-
-    public function print($id)
-    {
-$purchaseRequest = PurchaseRequest::with(['details.product.unit', 'focal_person'])->findOrFail($id);
-    $pr = [
-        'id' => $purchaseRequest->id,
-        'pr_number' => $purchaseRequest->pr_number,
-        'purpose' => $purchaseRequest->purpose,
-        'created_at' => $purchaseRequest->created_at,
-        'details' => $purchaseRequest->details->map(function ($detail) {
-            return [
-                'item' => $detail->product->name ?? '',
-                'specs' => $detail->product->specs ?? '',
-                'unit' => $detail->product->unit->unit ?? '',
-                'quantity' => $detail->quantity,
-                'unit_price' => $detail->unit_price,
-            ];
-        }),
-    ];
-
-    // 👇 Load Blade instead of React for Snappy
-    $pdf = Pdf::loadView('pdf.purchase_request', [
-        'pr' => $pr,
-        'focal_person' => $purchaseRequest->focal_person,
-    ]);
-
-    return $pdf->stream("PR-{$purchaseRequest->pr_number}.pdf");
-    }
-
-    public function sendForApproval(Request $request, $id)
+    public function sendForReview(Request $request, $id)
     {
         $request->validate([
             'approval_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
@@ -441,46 +230,15 @@ $purchaseRequest = PurchaseRequest::with(['details.product.unit', 'focal_person'
 
         $purchaseRequest->is_sent = true;
         $purchaseRequest->save();
-        $approvers = User::role('bac_approver')->get(); 
-        foreach ($approvers as $approver) {
-            $approver->notify(new PurchaseRequestSubmitted($purchaseRequest));
+        $reviewers = User::role('twg_user')->get(); 
+        foreach ($reviewers as $reviewer) {
+            $reviewer->notify(new PurchaseRequestSubmitted($purchaseRequest));
         }
 
-        return back()->with('success', 'Purchase request and notification sent to the approving body.');
+        return back()->with('success', 'Purchase request and notification sent to the reviewing body.');
     }
 
-    public function update_details(Request $request, $detailId)
-    {
-        $request->validate([
-            'quantity' => 'required|numeric|min:1',
-        ]);
-
-        $detail = PurchaseRequestDetail::where('id', $detailId);
-
-        $detail->update([
-            'quantity' => $request->quantity,
-        ]);
-
-        return redirect()->back()->with('success', 'Item updated successfully.');
-    }
-
-    public function delete_details($detailId)
-    {
-        $detail = PurchaseRequestDetail::where('id', $detailId);
-        $detail->delete();
-
-        return redirect()->back()->with('success', 'Item deleted successfully.');
-    }
-    public function updatePrice(Request $request, Products $product)
-    {
-        $validated = $request->validate([
-            'default_price' => 'required|numeric|min:0',
-        ]);
-
-        $product->update($validated);
-
-        return back()->with('success', 'Product price updated!');
-    }
+    
 
 
 

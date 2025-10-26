@@ -46,9 +46,9 @@ export default function ICSForm({ purchaseOrder, inventoryItem, user, ppeOptions
   });
 const itemType = data.items[0].unit_cost <= 5000 ? "low" : "high";
 useEffect(() => {
-  if (!ppe || !gl || !itemType) return;
+  if (!ppe || !gl) return;
 
-  fetch(`/api/ics-next-series?ppe=${encodeURIComponent(ppe.name.trim())}&gl=${encodeURIComponent(gl.name.trim())}&type=${itemType}`)
+  fetch(`/api/ics-next-series?ppe=${encodeURIComponent(ppe.name.trim())}&gl=${encodeURIComponent(gl.name.trim())}`)
     .then((res) => res.json())
     .then((data) => {
       if (data.series) {
@@ -61,7 +61,7 @@ useEffect(() => {
       setSeries(1);
       setData("items.0.series_number", 1);
     });
-}, [ppe, gl, itemType, office, school]);
+}, [ppe, gl, office, school]);
 
 
 
@@ -224,16 +224,6 @@ useEffect(() => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700">Requested By</label>
-            <input
-              type="text"
-              value={focal}
-              readOnly
-              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Recipient</label>
             <input
               type="text"
               value={focal}

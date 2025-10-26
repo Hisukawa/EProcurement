@@ -267,7 +267,7 @@ useEffect(() => {
 
                   {/* PR Number */}
                   <td className="px-6 py-4 text-center text-indigo-600 font-medium">
-                    {(pr.is_sent === 0 && pr.status !== "Approved") ? (
+                    {(pr.is_sent === 0 && pr.status !== "Reviewed") ? (
                       <TooltipLink
                         to={route("requester.add_details", pr.id)}
                         tooltip="Edit PR"
@@ -332,7 +332,7 @@ useEffect(() => {
                         </div>
                       )}
 
-                      {pr.status === "Approved" && (
+                      {pr.status === "Reviewed" && (
                           <div className="relative group inline-block">
                             <button
                               onClick={() => handlePrint(pr.id)}

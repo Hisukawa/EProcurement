@@ -49,10 +49,13 @@ class AuthenticatedSessionController extends Controller
                 return redirect()->route('admin.dashboard');
             } elseif ($user->hasRole('requester')) {
                 return redirect()->route('requester.dashboard');
-            } elseif ($user->hasRole('bac_approver')) {
-                return redirect()->route('bac_approver.dashboard');
+            } elseif ($user->hasRole('bac_user')) {
+                return redirect()->route('bac_user.dashboard');
             } elseif ($user->hasRole('supply_officer')) {
                 return redirect()->route('supply_officer.dashboard');
+            }
+            elseif ($user->hasRole('twg_user')) {
+                return redirect()->route('twg_user.dashboard');
             }
 
             // fallback route if role doesn't match

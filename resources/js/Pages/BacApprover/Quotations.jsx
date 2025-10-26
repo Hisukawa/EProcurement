@@ -11,7 +11,7 @@ export default function Quotation({ purchaseRequests, filters = {} }) {
   useEffect(() => {
     const timeout = setTimeout(() => {
       router.get(
-        route("bac_approver.for_quotations"),
+        route("bac_user.for_quotations"),
         { prNumber, focalPerson, division },
         { preserveState: true, preserveScroll: true, replace: true }
       );
@@ -100,7 +100,7 @@ export default function Quotation({ purchaseRequests, filters = {} }) {
                       <td className="px-4 py-2 font-semibold">
                         {pr.rfqs && pr.rfqs.length > 0 ? (
                           <TooltipLink
-                            to={route("bac_approver.abstract_of_quotations", pr.id)}
+                            to={route("bac_user.abstract_of_quotations", pr.id)}
                             tooltip="View Abstract of Quotations"
                             className="text-indigo-600 hover:underline"
                           >
@@ -136,7 +136,7 @@ export default function Quotation({ purchaseRequests, filters = {} }) {
                             </small>
                           </div>
                         ) : (
-                          <a href={route("bac_approver.quoted_price", pr.id)} className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition">
+                          <a href={route("bac_user.quoted_price", pr.id)} className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition">
                             Enter Quoted Price
                           </a>
                         )}
