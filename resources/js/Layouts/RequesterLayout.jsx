@@ -15,6 +15,7 @@ import Dropdown from '@/Components/Dropdown';
 import logo from '../src/deped1.png';
 import usePolling from "@/hooks/usePolling";
 import { Toaster } from "@/components/ui/toaster";
+import { Inertia } from '@inertiajs/inertia';
 
 
 export default function RequesterLayout({ header, children }) {
@@ -114,25 +115,29 @@ fetchNotifications();
     hour12: true,
   });
 
-  const markAsRead = async (id, notification) => {
-    try {
-      await axios.post(`/notifications/${id}/read`);
-      setNotifications((prevNotifications) =>
-        prevNotifications.map((n) =>
-          n.id === id ? { ...n, read: true } : n
-        )
-      );
+const markAsRead = async (id, notification) => {
+  try {
+    // Mark the notification as read
+    await axios.post(`/notifications/${id}/read`);
 
-      if (notification.data?.reason) {
-        setSelectedReason(notification.data.reason);
-        setShowReasonModal(true);
-      } else {
-        Inertia.visit(route('bac_approver.for_review'));
-      }
-    } catch (error) {
-      console.error('Failed to mark notification as read:', error);
+    // Check if this is a 'send back' notification
+    const isSendBack =
+      notification?.type === 'App\\Notifications\\PurchaseRequestSentBack' ||
+      notification?.data?.type === 'send_back' ||
+      notification?.data?.action === 'send_back';
+
+    const prId = notification?.data?.pr_id || notification?.data?.prID || notification?.data?.pr_id_fk;
+
+    // If it's a SEND BACK notification, jump straight to the PR's Add Details page
+    if (isSendBack && prId) {
+      Inertia.visit(route('requester.add_details', prId), { preserveScroll: true });
+      return;
     }
-  };
+  } catch (error) {
+    console.error('Failed to mark notification as read:', error);
+  }
+};
+
 
 
   return (

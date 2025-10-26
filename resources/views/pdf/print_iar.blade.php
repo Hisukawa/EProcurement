@@ -87,8 +87,8 @@
         @foreach($iarData->purchaseOrder->details as $detail)
             <tr class="text-center with-border">
                 <td></td>
-                <td>{{ $detail->prDetail->product->name ?? '' }} {{ $detail->prDetail->product->specs ?? '' }}</td>
-                <td>{{ $detail->prDetail->product->unit->unit ?? '' }}</td>
+                <td>{{ $detail->prDetail->item ?? '' }} - {{ $detail->prDetail->specs ?? '' }}</td>
+                <td>{{ $detail->prDetail->unit ?? '' }}</td>
                 <td>{{ $detail->quantity ?? 0 }}</td>
             </tr>
         @endforeach

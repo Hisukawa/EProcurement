@@ -22,5 +22,13 @@ class ICSItems extends Model
     {
         return $this->belongsTo(Inventory::class, 'inventory_item_id');
     }
+    public function reissuedItem() {
+        return $this->hasMany(ReissuedItems::class, 'inventory_item_id', 'inventory_item_id');
+    }
+
+    public function disposedItem() {
+        return $this->hasMany(DisposedItems::class, 'inventory_item_id', 'inventory_item_id');
+    }
+
 }
 

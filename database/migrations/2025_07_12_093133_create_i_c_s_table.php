@@ -28,7 +28,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('ics_id')->constrained('tbl_ics')->onDelete('cascade');
             $table->foreignId('inventory_item_id')->constrained('tbl_inventory')->onDelete('cascade');
-            $table->string('recipient')->nullable();
             $table->string('inventory_item_number')->nullable();
             $table->string('ppe_sub_major_account')->nullable();
             $table->string('general_ledger_account')->nullable();
@@ -39,6 +38,7 @@ return new class extends Migration
             $table->decimal('unit_cost', 12, 2);
             $table->decimal('total_cost', 14, 2);
             $table->enum('type', ['low', 'high'])->nullable();
+            $table->enum('status', ['reissued', 'disposed'])->nullable();
             $table->timestamps();
         });
     }

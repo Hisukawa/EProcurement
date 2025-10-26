@@ -22,14 +22,13 @@ export default function RISForm({ purchaseOrder, inventoryItem, user }) {
     ris_number: purchaseOrder.po_number ?? "",
     requested_by: pr?.focal_person?.id ?? null,
     issued_by: user?.id ?? null,
-    recipient: "", // ✅ new field
     remarks: "",
     items: [
       {
         inventory_item_id: inventoryItem?.id ?? null,
-        quantity: "",
+        quantity: purchaseOrder.detail?.quantity || 0,
         unit_cost: inventoryItem?.unit_cost ?? 0,
-        total_cost: 0,
+        total_cost: purchaseOrder.detail?.quantity * (inventoryItem?.unit_cost ?? 0) || 0,
       },
     ],
   });
@@ -129,7 +128,7 @@ export default function RISForm({ purchaseOrder, inventoryItem, user }) {
                 type="number"
                 min="1"
                 max={inventoryItem.total_stock - inventoryItem.issued_qty}
-                value={data.items[0].quantity}
+                value={purchaseOrder.detail?.quantity}
                 onChange={(e) => {
                   let qty = parseFloat(e.target.value) || 0;
 
@@ -140,8 +139,9 @@ export default function RISForm({ purchaseOrder, inventoryItem, user }) {
                   const unit = data.items[0].unit_cost ?? 0;
                   setData("items", [{ ...data.items[0], quantity: qty, total_cost: qty * unit }]);
                 }}
-                placeholder={`Max: ${inventoryItem.total_stock - inventoryItem.issued_qty}`}
+                placeholder={`Max: ${purchaseOrder.detail?.quantity}`}
                 className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                readOnly
               />
 
             </div>
@@ -156,10 +156,6 @@ export default function RISForm({ purchaseOrder, inventoryItem, user }) {
             <div>
               <label className="block text-sm font-medium text-gray-700">Requested By</label>
               <input type="text" value={focal} readOnly className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"/>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Recipient</label>
-              <input type="text" value={focal} placeholder="Enter recipient name" className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm"/>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Remarks</label>

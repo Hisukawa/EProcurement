@@ -45,29 +45,41 @@ class PARSearchController extends Controller
             ->get(['id','code','name']);
     }
     public function getNextSeries(Request $request)
-    {
-        try {
-            $type = $request->input('type'); // "low" or "high"
+{
+    try {
+        $type = $request->input('type'); // e.g. "low" or "high"
 
-            // Get the last series just by type (low/high) for the current year
-            $lastSeries = PARItems::whereYear('created_at', now()->year)
-                ->max('series_number'); // e.g. "0007"
+        // Get the last series from ICSItems and PARItems for the current year
+        $lastIcsSeries = \App\Models\ICSItems::whereYear('created_at', now()->year)
+            ->max('series_number');
 
-            // Convert to integer, increment, then pad back to 4 digits
-            $lastNumeric = $lastSeries ? (int) $lastSeries : 0;
-            $nextNumeric = $lastNumeric + 1;
-            $formatted = str_pad($nextNumeric, 4, '0', STR_PAD_LEFT);
+        $lastParSeries = \App\Models\PARItems::whereYear('created_at', now()->year)
+            ->max('series_number');
 
-            return response()->json([
-                'series'    => $formatted,   // "0008"
-                'formatted' => $formatted,
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'error' => $e->getMessage(),
-            ], 500);
-        }
+        // Convert both to integers for comparison
+        $lastIcsNum = $lastIcsSeries ? (int) $lastIcsSeries : 0;
+        $lastParNum = $lastParSeries ? (int) $lastParSeries : 0;
+
+        // Get the highest between both
+        $highest = max($lastIcsNum, $lastParNum);
+
+        // Increment to get the next series number
+        $nextNumeric = $highest + 1;
+
+        // Format back to 4 digits (e.g. 0002, 0010, 0123)
+        $formatted = str_pad($nextNumeric, 4, '0', STR_PAD_LEFT);
+
+        return response()->json([
+            'series'    => $formatted,
+            'formatted' => $formatted,
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+        ], 500);
     }
+}
+
 
 
 

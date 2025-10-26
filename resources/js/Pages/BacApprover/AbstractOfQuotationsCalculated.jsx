@@ -70,9 +70,10 @@ const handleSavePrice = async (supplierId, detailId) => {
 
   try {
     const { data } = await axios.post(
-      route("bac_approver.save_unit_price", { id: rfq.id }),
+      route("bac_user.save_unit_price", { id: rfq.id }),
       { supplier_id: supplierId, detail_id: detailId, unit_price: price }
     );
+    console.log(detailId);
 
     toast({
       title: data.success ? "Price Saved" : "Save Failed",
@@ -111,7 +112,7 @@ const handleConfirmRollback = () => {
     ...(awardMode === "per-item" ? { detail_id: rollbackTarget.detailId } : {}),
   };
 
-  router.post(route("bac_approver.rollback_winner_as_calculated", { id: rollbackTarget.rfqId }), payload, {
+  router.post(route("bac_user.rollback_winner_as_calculated", { id: rollbackTarget.rfqId }), payload, {
     preserveScroll: true,
     onSuccess: () => {
       setRollbackDialogOpen(false);
@@ -142,9 +143,9 @@ const handleConfirmRollback = () => {
 
 
   const handlePrintAOQ = (rfqId) =>
-    window.open(route("bac_approver.print_aoq_calculated", { id: rfqId }), "_blank");
+    window.open(route("bac_user.print_aoq_calculated", { id: rfqId }), "_blank");
   const handlePrintItemAOQ = (rfqId, detailId) =>
-  window.open(route("bac_approver.print_aoq", { id: rfqId, pr_detail_id: detailId }), "_blank");
+  window.open(route("bac_user.print_aoq", { id: rfqId, pr_detail_id: detailId }), "_blank");
 
 
   const handleOpenWinnerDialog = (rfqId, supplierId, detailId = null) => {
@@ -169,7 +170,7 @@ const handleConfirmWinner = async () => {
 
   try {
     const response = await axios.post(
-      route("bac_approver.mark_winner_as_calculated", { id: selectedWinner.rfqId }),
+      route("bac_user.mark_winner_as_calculated", { id: selectedWinner.rfqId }),
       payload
     );
 
@@ -289,7 +290,7 @@ const handleSaveRemarks = () => {
     ...(awardMode === "per-item" ? { detail_id: remarksTarget.detailId } : {}),
   };
 
-  router.post(route("bac_approver.save_remarks_as_calculated", { id: remarksTarget.rfqId }), payload, {
+  router.post(route("bac_user.save_remarks_as_calculated", { id: remarksTarget.rfqId }), payload, {
     preserveScroll: true,
     onSuccess: () => {
       setSavingRemarks(false);
@@ -453,7 +454,7 @@ const handlePriceChange = (supplierId, detailId, value) => {
 
                   return (
                     <tr key={detail.id} className={rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                      <td className="border px-4 py-2 font-medium">{detail.item}</td>
+                      <td className="border px-4 py-2 font-medium">{detail.item} {detail.specs}</td>
 
                       {fullBidSuppliers.map((s) => {
                         const quote = quotes.find(q => q.supplier.id === s.supplier.id);

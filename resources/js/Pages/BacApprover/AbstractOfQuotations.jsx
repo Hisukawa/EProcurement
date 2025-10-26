@@ -18,7 +18,6 @@ import { Undo2 } from "lucide-react";
 export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committee }) {
   const pr = rfq.purchase_request;
 
-  const [winnerDialogOpen, setWinnerDialogOpen] = useState(false);
   const [remarks_as_read, setRemarks] = useState("");
   const [resultDialog, setResultDialog] = useState({
     open: false,
@@ -27,11 +26,6 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
     description: "",
   });
 
-  const [selectedWinner, setSelectedWinner] = useState({
-    rfqId: null,
-    supplierId: null,
-    detailId: null,
-  });
   const [committeeDialogOpen, setCommitteeDialogOpen] = useState(false);
   const { toast } = useToast();
   const [selectedMember, setSelectedMember] = useState(null);
@@ -56,11 +50,11 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
 
     return { status: committee?.status || "draft", members };
   });
+
   const [rollbackDialogOpen, setRollbackDialogOpen] = useState(false);
   const [rollbackTarget, setRollbackTarget] = useState(null);
   const [savingCommittee, setSavingCommittee] = useState(false);
   const [rollingBack, setRollingBack] = useState(false);
-  const [confirmingWinner, setConfirmingWinner] = useState(false);
   const [submissionType, setSubmissionType] = useState('as-read'); // default
 
   const handleOpenRollbackDialog = (rfqId, supplierId, detailId = null) => {
@@ -77,7 +71,7 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
       ...(awardMode === "per-item" ? { detail_id: rollbackTarget.detailId } : {}),
     };
 
-    router.post(route("bac_approver.rollback_winner_as_read", { id: rollbackTarget.rfqId }), payload, {
+    router.post(route("bac_user.rollback_winner_as_read", { id: rollbackTarget.rfqId }), payload, {
       preserveScroll: true,
       onSuccess: () => {
         setRollbackDialogOpen(false);
@@ -106,89 +100,28 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
     });
   };
 
-  const handlePrintAOQ = (rfqId) =>
-    window.open(route("bac_approver.print_aoq", { id: rfqId }), "_blank");
-  const handlePrintItemAOQ = (rfqId, detailId) =>
-    window.open(route("bac_approver.print_aoq", { id: rfqId, pr_detail_id: detailId }), "_blank");
-
-  const handleOpenWinnerDialog = (rfqId, supplierId, detailId = null) => {
-    setSelectedWinner({ rfqId, supplierId, detailId });
-    setRemarks("");
-    setWinnerDialogOpen(true);
-  };
-
-const handleConfirmWinner = async () => {
-  setConfirmingWinner(true);
-
-  const payload = {
-    supplier_id: selectedWinner.supplierId,
-    remarks_as_read,
-    mode: awardMode,
-    ...(awardMode === "per-item" ? { detail_id: selectedWinner.detailId } : {}),
-  };
-
-  try {
-    const response = await axios.post(
-      route("bac_approver.mark_winner", { id: selectedWinner.rfqId }),
-      payload
-    );
-
-    if (response.data.success) {
-      setWinnerDialogOpen(false);
-      setResultDialog({
-        open: true,
-        type: "success",
-        title: "Winner Marked",
-        description:
-          awardMode === "per-item"
-            ? "Supplier has been awarded for the selected item."
-            : "Supplier has been awarded for the entire PR.",
-      });
-      toast({
-        title: "Winner Marked",
-        description:
-          awardMode === "per-item"
-            ? "Supplier has been awarded for the selected item."
-            : "Supplier has been awarded for the entire PR.",
-        duration: 3000,
-      });
-      router.reload({ preserveScroll: true });
-    }
-  } catch (error) {
-    setConfirmingWinner(false);
-    setResultDialog({
-      open: true,
-      type: "error",
-      title: "Failed to Mark Winner",
-      description: "Something went wrong while marking the winner. Please try again.",
-    });
-  }
-};
-
-
   // --- Process supplier data ---
   const supplierMap = {};
   const winnerCounts = {};
   pr.details.forEach((detail) => {
-  const quotesForItem = groupedDetails[detail.id] || [];
-  quotesForItem.forEach((quote) => {
-    const sid = quote.supplier.id;
-    if (!supplierMap[sid]) {
-      supplierMap[sid] = { supplier: quote.supplier, detailIds: new Set(), total: 0, quotes: [] };
-      winnerCounts[sid] = 0;
-    }
-    supplierMap[sid].detailIds.add(detail.id);
+    const quotesForItem = groupedDetails[detail.id] || [];
+    quotesForItem.forEach((quote) => {
+      const sid = quote.supplier.id;
+      if (!supplierMap[sid]) {
+        supplierMap[sid] = { supplier: quote.supplier, detailIds: new Set(), total: 0, quotes: [] };
+        winnerCounts[sid] = 0;
+      }
+      supplierMap[sid].detailIds.add(detail.id);
 
-    // --- Multiply by quantity safely ---
-    const quantity = detail.quantity ?? 1; // fallback to 1 if undefined
-    const price = parseFloat(quote.quoted_price ?? 0) || 0; // fallback to 0
-    supplierMap[sid].total += price * quantity;
+      // --- Multiply by quantity safely ---
+      const quantity = detail.quantity ?? 1; // fallback to 1 if undefined
+      const price = parseFloat(quote.quoted_price ?? 0) || 0; // fallback to 0
+      supplierMap[sid].total += price * quantity;
 
-    supplierMap[sid].quotes.push(quote); // Store quotes for easy remark comparison
-    if (quote.is_winner_as_read) winnerCounts[sid]++;
+      supplierMap[sid].quotes.push(quote); // Store quotes for easy remark comparison
+      if (quote.is_winner_as_read) winnerCounts[sid]++;
+    });
   });
-});
-
 
   const totalDetailsCount = pr.details.length;
   const fullBidSuppliers = Object.values(supplierMap).filter(
@@ -223,14 +156,7 @@ const handleConfirmWinner = async () => {
       ...(remarksTarget.detailId !== null ? { detail_id: remarksTarget.detailId } : {}),
     };
 
-    // If detailId is null, it means we are in "whole-pr" mode and want to update all item remarks
-    // for this supplier. THIS ASSUMES YOUR BACKEND CAN HANDLE `detail_id: null`
-    // to apply the remark to all quotes for that supplier within the RFQ.
-    // If your backend *only* updates a single item, you'll need to refactor this
-    // to loop through all supplierMap[remarksTarget.supplierId].quotes
-    // and send a separate request for each with its specific detail_id.
-    // For now, adhering to the assumption that `detail_id: null` applies broadly.
-    router.post(route("bac_approver.save_remarks_as_read", { id: remarksTarget.rfqId }), payload, {
+    router.post(route("bac_user.save_remarks_as_read", { id: remarksTarget.rfqId }), payload, {
       preserveScroll: true,
       onSuccess: () => {
         setSavingRemarks(false);
@@ -240,8 +166,6 @@ const handleConfirmWinner = async () => {
           description: "Supplier remarks updated successfully.",
           duration: 3000,
         });
-        // IMPORTANT: Trigger a reload to get updated groupedDetails
-        // so the frontend reflects the changes.
         router.reload({ only: ['rfq', 'groupedDetails'] });
       },
       onError: () => {
@@ -283,13 +207,6 @@ const handleConfirmWinner = async () => {
           >
             Winner for Entire PR
           </Button>
-          {/* <Button
-            variant={awardMode === "per-item" ? "default" : "outline"}
-            onClick={() => setAwardMode("per-item")}
-            disabled={!!rfq.award_mode} // disable if mode already chosen
-          >
-            Winner per Item
-          </Button> */}
         </div>
 
         {!hasFullBidSuppliers && (
@@ -315,13 +232,6 @@ const handleConfirmWinner = async () => {
                     <strong>Division:</strong> {pr.division.division}
                   </p>
                 </div>
-
-                {/* 📝 Add note if only 1 supplier submitted full bid */}
-                {fullBidSuppliers.length === 1 && (
-                  <p className="mt-2 text-sm text-orange-600 font-medium">
-                    ⚠️ Note: Only one supplier submitted quotes for the entire PR.
-                  </p>
-                )}
               </div>
               <button
                 onClick={() => handlePrintAOQ(rfq.id)}
@@ -363,7 +273,7 @@ const handleConfirmWinner = async () => {
                       className={rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}
                     >
                       {/* Item Name */}
-                      <td className="border px-4 py-2 font-medium">{detail.item}</td>
+                      <td className="border px-4 py-2 font-medium">{detail.item} {detail.specs}</td>
 
                       {/* Supplier Quotes (No item-level remarks here anymore) */}
                       {fullBidSuppliers.map((s) => {
@@ -391,8 +301,6 @@ const handleConfirmWinner = async () => {
                                 <span className="mr-1">{detail.quantity}</span>
                                 <span>{detail.unit}</span>
                               </span>
-
-                              
                             ) : (
                               <span className="text-gray-400">—</span>
                             )}
@@ -469,178 +377,12 @@ const handleConfirmWinner = async () => {
                     );
                   })}
                 </tr>
-
-                {/* Winner Row */}
-                <tr className="bg-gray-100">
-                  <td className="border px-4 py-3 text-right font-semibold">Winner</td>
-                  {fullBidSuppliers.map((s) => (
-                    <td key={s.supplier.id} className="border px-4 py-3 text-center">
-                      {winnerCounts[s.supplier.id] === totalDetailsCount ? (
-                        <div className="flex flex-col items-center gap-1">
-                          <span className="text-green-600 font-bold">✔ Winner</span>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleOpenRollbackDialog(rfq.id, s.supplier.id)}
-                            disabled={!!rfq.purchase_order} // ✅ correct: check RFQ
-                          >
-                            <Undo2 className="h-4 w-4" />
-                            Undo
-                          </Button>
-                        </div>
-                      ) : hasAnyWinner ? (
-                        "—"
-                      ) : (
-                        <Button
-                          size="sm"
-                          onClick={() => handleOpenWinnerDialog(rfq.id, s.supplier.id)}
-                        >
-                          Mark as Winner
-                        </Button>
-                      )}
-                    </td>
-                  ))}
-                </tr>
               </tbody>
             </table>
           </div>
         )}
 
-        {/* PER ITEM MODE */}
-        {awardMode === "per-item" && (
-          <div className="space-y-8 mb-10 border p-4 rounded-lg bg-white shadow-sm">
-            {pr.details.map((detail) => {
-              const quotes = groupedDetails[detail.id] || [];
-              const itemHasWinner = quotes.some((q) => q.is_winner_as_read);
-
-              return (
-                <div
-                  key={detail.id}
-                  className="border p-4 bg-white rounded-lg shadow-sm"
-                >
-                  {/* Header with Print Button */}
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="font-semibold">{detail.item}</h4>
-                    <button
-                      onClick={() => handlePrintItemAOQ(rfq.id, detail.id)}
-                      className="text-sm text-white bg-green-600 hover:bg-green-700 px-3 py-2 rounded-md"
-                    >
-                      🖨️ Print AOQ
-                    </button>
-                  </div>
-
-                  <p className="text-sm text-gray-600 mb-2">
-                    <strong>Description:</strong> {detail.specs || "—"} <br />
-                    <strong>Quantity:</strong> {detail.quantity} {detail.unit} <br />
-                  </p>
-
-                  <table className="w-full text-sm border rounded-lg overflow-hidden shadow">
-                    <thead className="bg-gray-100 text-gray-700">
-                      <tr>
-                        <th className="px-4 py-2 text-left">Supplier</th>{" "}
-                        {quotes.map((q) => (
-                          <th
-                            key={q.supplier.id}
-                            className="px-4 py-2 text-center"
-                          >
-                            {q.supplier.company_name}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td className="px-4 py-2 font-medium">Quoted Price</td>
-                        {quotes.map((q) => (
-                          <td
-                            key={q.supplier.id}
-                            className="px-4 py-2 text-center align-top"
-                          >
-                            <span className="font-semibold text-gray-800">
-                              ₱{parseFloat(q.quoted_price || 0).toLocaleString()}
-                            </span>
-                          </td>
-                        ))}
-                      </tr>
-                      {/* Remarks row for per-item mode */}
-                      <tr>
-                        <td className="px-4 py-2 font-medium">Remarks</td>
-                        {quotes.map((q) => {
-                          const itemSpecificRemarks = q.remarks_as_read?.trim() || "No remarks"; // Use q.remarks directly
-                          return (
-                            <td key={`item-remarks-${q.supplier.id}`} className="px-4 py-2 text-center align-top">
-                              <div className="flex flex-col gap-1 items-center">
-                                <span className="text-xs text-gray-600 italic">
-                                  {itemSpecificRemarks}
-                                </span>
-                                <Button
-                                  size="xs"
-                                  variant="outline"
-                                  className="px-2 py-1"
-                                  onClick={() => {
-                                    setRemarksTarget({
-                                      rfqId: rfq.id,
-                                      supplierId: q.supplier.id,
-                                      detailId: detail.id,
-                                      currentRemarks: itemSpecificRemarks === "No remarks" ? "" : itemSpecificRemarks,
-                                    });
-                                    setRemarksInput(itemSpecificRemarks === "No remarks" ? "" : itemSpecificRemarks);
-                                    setRemarksDialogOpen(true);
-                                  }}
-                                >
-                                  Edit
-                                </Button>
-                              </div>
-                            </td>
-                          );
-                        })}
-                      </tr>
-
-                      {/* Winner controls row for per-item mode */}
-                      <tr>
-                        <td className="px-4 py-2 font-medium">Winner Status</td>
-                        {quotes.map((q) => (
-                          <td
-                            key={`item-winner-${q.supplier.id}`}
-                            className="px-4 py-2 text-center align-top"
-                          >
-                            {q.is_winner_as_read ? (
-                              <div className="flex flex-col items-center gap-1">
-                                <span className="text-green-600 font-bold">✔ Winner</span>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() =>
-                                    handleOpenRollbackDialog(rfq.id, q.supplier.id, detail.id)
-                                  }
-                                >
-                                  Rollback
-                                </Button>
-                              </div>
-                            ) : itemHasWinner ? (
-                              <span className="text-gray-400">—</span>
-                            ) : (
-                              <Button
-                                size="sm"
-                                onClick={() =>
-                                  handleOpenWinnerDialog(rfq.id, q.supplier.id, detail.id)
-                                }
-                              >
-                                Mark as Winner
-                              </Button>
-                            )}
-                          </td>
-                        ))}
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* BAC COMMITTEE */}
+                {/* BAC COMMITTEE */}
         <div className="mb-8 p-4 border rounded-lg bg-gray-50 shadow-sm">
           <h3 className="text-lg font-semibold mb-4">BAC Committee</h3>
           <ul className="space-y-3">
@@ -678,24 +420,6 @@ const handleConfirmWinner = async () => {
           </ul>
         </div>
       </div>
-
-
-      {/* WINNER CONFIRMATION DIALOG */}
-      <Dialog open={winnerDialogOpen} onOpenChange={setWinnerDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Winner</DialogTitle>
-            <DialogDescription>Provide remarks for awarding this supplier.</DialogDescription>
-          </DialogHeader>
-          <Textarea value={remarks_as_read} onChange={(e) => setRemarks(e.target.value)} />
-          <DialogFooter>
-            <Button variant="secondary" onClick={() => setWinnerDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button disabled={confirmingWinner} onClick={handleConfirmWinner}>{confirmingWinner ? "Confirming Winner..." : "Confirm" }</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* COMMITTEE REPLACEMENT DIALOG */}
       <Dialog open={committeeDialogOpen} onOpenChange={setCommitteeDialogOpen}>
@@ -855,7 +579,6 @@ const handleConfirmWinner = async () => {
     </DialogFooter>
   </DialogContent>
 </Dialog>
-
 
     </ApproverLayout>
   );

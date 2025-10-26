@@ -1,8 +1,17 @@
 import IssuanceTabs from '@/Layouts/IssuanceTabs';
 import SupplyOfficerLayout from '@/Layouts/SupplyOfficerLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { PrinterCheck } from 'lucide-react';
 import { useState } from 'react';
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export default function IcsHigh({ ics, user, filters }) {
   const [search, setSearch] = useState('');
@@ -35,6 +44,35 @@ export default function IcsHigh({ ics, user, filters }) {
 
     return matchesSearch && matchesMonth && matchesYear;
   });
+const [showReturnModal, setShowReturnModal] = useState(false);
+const [selectedRecord, setSelectedRecord] = useState(null);
+const [selectedItems, setSelectedItems] = useState([]);
+const [returnType, setReturnType] = useState("");
+const handleActionSelect = (e, record) => {
+  const action = e.target.value;
+  e.target.value = ""; // reset immediately after selection
+
+  if (action === "return") {
+    setSelectedRecord(record);
+    setSelectedItems([]);
+    setReturnType("");
+    setShowReturnModal(true);
+    return; // stop here — no redirect
+  }
+
+  if (action === "reissuance" || action === "disposal") {
+    const routeName =
+      action === "reissuance"
+        ? "supply_officer.reissuance_form"
+        : "supply_officer.disposal_form";
+
+    window.location.href = route(routeName, { id: record.id, type: "ics" });
+  }
+};
+
+const [showSwitchModal, setShowSwitchModal] = useState(false);
+const [switchItems, setSwitchItems] = useState([]);
+const [switchRecord, setSwitchRecord] = useState(null);
 
   return (
     <SupplyOfficerLayout header="Schools Divisions Office - Ilagan | Inventory Custodian Slip (ICS) - HIGH">
@@ -132,17 +170,13 @@ export default function IcsHigh({ ics, user, filters }) {
             <tbody>
               {filteredIcs && filteredIcs.length > 0 ? (
                 filteredIcs.map((record, index) => {
-                  const isExpanded = expandedRows.includes(record.id);
-                  const hasMoreThanTwoItems = record.items?.length > 2;
-
+                  console.log("Record Items:", record); // Debugging line
                   const itemsWithDetails =
                     record.items
                       ?.filter((item) => item.type === 'high')
                       .map((item) => ({
                         description:
-                          item.inventoryItem?.product?.name ??
-                          item.inventory_item?.item_desc ??
-                          'N/A',
+                          item.inventoryItem?.product?.name ?? item.inventory_item?.item_desc ?? 'N/A',
                         specs: item.inventoryItem?.product?.specs ?? '',
                         quantity: item.quantity,
                         unitCost: Number(item.unit_cost ?? 0),
@@ -152,106 +186,147 @@ export default function IcsHigh({ ics, user, filters }) {
                           month: 'long',
                           day: 'numeric',
                         }),
+                        recipient: item.recipient ?? null,  // Track if there's a recipient
                       })) || [];
 
-                  return (
-                    <tr key={record.id}>
-                      <td className="px-4 py-2">{index + 1}</td>
-                      <td className="px-4 py-2">H-{record.ics_number}</td>
-                      <td className="px-4 py-2">
-                        {record.po?.rfq?.purchase_request?.division?.division ?? 'N/A'}
-                      </td>
-                      <td className="px-4 py-2">
-                        {record.requested_by?.firstname} {record.requested_by?.lastname}
-                      </td>
+                  const isExpanded = expandedRows.includes(record.id);
 
-                      {/* Item Description */}
-                      <td className="px-4 py-2">
-                        {itemsWithDetails.slice(0, 2).map((item, idx) => (
-                          <div key={idx}>
-                            {item.description}
-                            {item.specs && ` - ${item.specs}`}
-                          </div>
-                        ))}
-                        {hasMoreThanTwoItems && !isExpanded && (
-                          <button
-                            onClick={() => toggleRow(record.id)}
-                            className="text-blue-600 hover:underline text-sm mt-1"
-                          >
-                            +{itemsWithDetails.length - 2} more
-                          </button>
-                        )}
-                        {isExpanded &&
-                          itemsWithDetails.slice(2).map((item, idx) => (
-                            <div key={idx + 2}>
+                  return (
+                    <>
+                      {itemsWithDetails.map((item, itemIdx) => {
+                        // Render each item separately if recipient exists
+                        if (item.recipient) {
+                          return (
+                            <tr key={`${record.id}-${itemIdx}`}>
+                              <td className="px-4 py-2">{index + 1}</td>
+                              <td className="px-4 py-2">L-{record.ics_number}</td>
+                              <td className="px-4 py-2">
+                                {record.po?.rfq?.purchase_request?.division?.division ?? 'N/A'}
+                              </td>
+                              <td className="px-4 py-2">
+                                {record.requested_by?.firstname} {record.requested_by?.lastname}
+                              </td>
+                              <td className="px-4 py-2">
+                                {item.description}
+                                {item.specs && ` - ${item.specs}`}
+                              </td>
+                              <td className="px-4 py-2 text-center">{item.quantity}</td>
+                              <td className="px-4 py-2 text-right">₱{item.unitCost.toFixed(2)}</td>
+                              <td className="px-4 py-2 text-right">₱{item.totalCost.toFixed(2)}</td>
+                              <td className="px-4 py-2">{item.date}</td>
+
+                              {/* Actions */}
+                              <td className="flex px-4 py-2 text-center space-x-2">
+                                {/* <a
+                                  href={route('supply_officer.print_ics', { id: record.id, type: 'low' })}
+                                  className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-1"
+                                  target="_blank"
+                                >
+                                  <PrinterCheck size={16} /> Print
+                                </a> */}
+                                <a
+                                  href={route('supply_officer.print_ics_all', record.id)}
+                                  className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-1"
+                                  target="_blank"
+                                >
+                                  <PrinterCheck size={16} /> Print
+                                </a>
+                                 <Button
+                                type="button"
+                                className="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700"
+                                onClick={() => {
+                                  setSwitchRecord(record);
+                                  setSwitchItems([]);
+                                  setShowSwitchModal(true);
+                                }}
+                              >
+                                Switch Type
+                              </Button>
+                              <Button
+                                type="button"
+                                onClick={(e) => handleActionSelect(e, record)}
+                                value="return"
+                              >
+                                Return
+                              </Button>
+
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        // Render all items on one row if recipient is null
+                        return (
+                          <tr key={`${record.id}-no-recipient`}>
+                            {itemIdx === 0 && (
+                              <>
+                                <td rowSpan={itemsWithDetails.length} className="px-4 py-2">
+                                  {index + 1}
+                                </td>
+                                <td rowSpan={itemsWithDetails.length} className="px-4 py-2">
+                                  L-{record.ics_number}
+                                </td>
+                                <td rowSpan={itemsWithDetails.length} className="px-4 py-2">
+                                  {record.po?.rfq?.purchase_request?.division?.division ?? 'N/A'}
+                                </td>
+                                <td rowSpan={itemsWithDetails.length} className="px-4 py-2">
+                                  {record.requested_by?.firstname} {record.requested_by?.lastname}
+                                </td>
+                              </>
+                            )}
+                            <td className="px-4 py-2">
                               {item.description}
                               {item.specs && ` - ${item.specs}`}
-                            </div>
-                          ))}
-                      </td>
+                            </td>
+                            <td className="px-4 py-2 text-center">{item.quantity}</td>
+                            <td className="px-4 py-2 text-right">₱{item.unitCost.toFixed(2)}</td>
+                            <td className="px-4 py-2 text-right">₱{item.totalCost.toFixed(2)}</td>
+                            <td className="px-4 py-2">{item.date}</td>
 
-                      {/* Quantity */}
-                      <td className="px-4 py-2 text-center">
-                        {itemsWithDetails.slice(0, 2).map((item, idx) => (
-                          <div key={idx}>{item.quantity}</div>
-                        ))}
-                        {isExpanded &&
-                          itemsWithDetails.slice(2).map((item, idx) => (
-                            <div key={idx + 2}>{item.quantity}</div>
-                          ))}
-                      </td>
+                            {/* Actions for all items */}
+                            {itemIdx === itemsWithDetails.length - 1 && (
+                              <td rowSpan={itemsWithDetails.length} className="flex px-4 py-2 text-center space-x-2">
+                                {/* <a
+                                  href={route('supply_officer.print_ics', { id: record.id, type: 'low' })}
+                                  className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-1"
+                                  target="_blank"
+                                >
+                                  <PrinterCheck size={16} /> Print
+                                </a> */}
+                                <a
+                                  href={route('supply_officer.print_ics_all', record.id)}
+                                  className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-1"
+                                  target="_blank"
+                                >
+                                  <PrinterCheck size={16} /> Print
+                                </a>
+                                
+                           <Button
+                                type="button"
+                                className="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700"
+                                onClick={() => {
+                                  setSwitchRecord(record);
+                                  setSwitchItems([]);
+                                  setShowSwitchModal(true);
+                                }}
+                              >
+                                Switch Type
+                              </Button>
+                              <Button
+                                type="button"
+                                onClick={(e) => handleActionSelect(e, record)}
+                                value="return"
+                              >
+                                Return
+                              </Button>
 
-                      {/* Unit Cost */}
-                      <td className="px-4 py-2 text-right">
-                        {itemsWithDetails.slice(0, 2).map((item, idx) => (
-                          <div key={idx}>₱{item.unitCost.toFixed(2)}</div>
-                        ))}
-                        {isExpanded &&
-                          itemsWithDetails.slice(2).map((item, idx) => (
-                            <div key={idx + 2}>₱{item.unitCost.toFixed(2)}</div>
-                          ))}
-                      </td>
 
-                      {/* Total Cost */}
-                      <td className="px-4 py-2 text-right">
-                        {itemsWithDetails.slice(0, 2).map((item, idx) => (
-                          <div key={idx}>₱{item.totalCost.toFixed(2)}</div>
-                        ))}
-                        {isExpanded &&
-                          itemsWithDetails.slice(2).map((item, idx) => (
-                            <div key={idx + 2}>₱{item.totalCost.toFixed(2)}</div>
-                          ))}
-                      </td>
-
-                      {/* Date */}
-                      <td className="px-4 py-2">
-                        {itemsWithDetails.slice(0, 2).map((item, idx) => (
-                          <div key={idx}>{item.date}</div>
-                        ))}
-                        {isExpanded &&
-                          itemsWithDetails.slice(2).map((item, idx) => (
-                            <div key={idx + 2}>{item.date}</div>
-                          ))}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="flex px-4 py-2 text-center space-x-2">
-                        <a
-                          href={route('supply_officer.print_ics', { id: record.id, type: 'high' })}
-                          className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-1"
-                          target="_blank"
-                        >
-                          <PrinterCheck size={16} /> Print
-                        </a>
-                        <a
-                          href={route('supply_officer.print_ics_all', record.id)}
-                          className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-1"
-                          target="_blank"
-                        >
-                          <PrinterCheck size={16} /> Print All
-                        </a>
-                      </td>
-                    </tr>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </>
                   );
                 })
               ) : (
@@ -283,6 +358,385 @@ export default function IcsHigh({ ics, user, filters }) {
           </nav>
         )}
       </div>
+    <Dialog open={showReturnModal} onOpenChange={setShowReturnModal}>
+      <DialogContent className="max-w-lg rounded-xl border border-gray-200 shadow-md bg-white">
+        <DialogHeader className="pb-3 border-b border-gray-100">
+          <DialogTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            Return Items
+          </DialogTitle>
+          <DialogDescription className="text-sm text-gray-500">
+            Select items to return and specify whether they are for reissuance or disposal.
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Item Selection */}
+        {selectedRecord ? (
+          (() => {
+            const highItems = (selectedRecord.items || []).filter((it) => it.type === "high");
+
+            // ✅ Proper quantity-based check
+            const allItemsProcessed = highItems.every((it) => {
+              const totalQty = Number(it.quantity ?? 0);
+              const reissuedQty = Number(it.total_reissued_quantity ?? 0);
+              const disposedQty = Number(it.total_disposed_quantity ?? 0);
+              return reissuedQty + disposedQty >= totalQty;
+            });
+            console.log("allItemsProcessed", allItemsProcessed);
+
+            return (
+              <div className="mt-4 space-y-2 max-h-72 overflow-y-auto p-2 border rounded-md bg-gray-50">
+                {/* Select All */}
+                {!allItemsProcessed && (
+                  <div className="flex items-center gap-2 mb-2 px-2 py-1 rounded-md hover:bg-gray-100">
+                    <input
+                      id="select-all-return"
+                      type="checkbox"
+                      checked={highItems
+                        .filter((it) => {
+                          const totalQty = Number(it.quantity ?? 0);
+                          const reissuedQty = Number(it.total_reissued_quantity ?? 0);
+                          const disposedQty = Number(it.total_disposed_quantity ?? 0);
+                          return reissuedQty + disposedQty < totalQty;
+                        })
+                        .every((it) => selectedItems.includes(it.id))}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          // ✅ Only add unprocessed items
+                          const unprocessedIds = highItems
+                            .filter((it) => {
+                              const totalQty = Number(it.quantity ?? 0);
+                              
+                              const reissuedQty = Number(it.total_reissued_quantity ?? 0);
+                              const disposedQty = Number(it.total_disposed_quantity ?? 0);
+                              return reissuedQty + disposedQty < totalQty;
+                            })
+                            .map((it) => it.id);
+                          setSelectedItems((prev) => [...new Set([...prev, ...unprocessedIds])]);
+                        } else {
+                          const idsToRemove = highItems.map((it) => it.id);
+                          setSelectedItems((prev) => prev.filter((id) => !idsToRemove.includes(id)));
+                        }
+                      }}
+                      className="h-4 w-4 accent-blue-600"
+                    />
+                    <label
+                      htmlFor="select-all-return"
+                      className="text-sm font-medium text-gray-700 cursor-pointer select-none"
+                    >
+                      Select all
+                    </label>
+                  </div>
+                )}
+
+                {/* All items already processed */}
+                {allItemsProcessed ? (
+                  <div className="p-4 text-center text-gray-500 text-sm italic bg-gray-50 rounded-md border border-gray-200">
+                    All items in this issuance have already been{" "}
+                    <span className="font-semibold text-blue-600">reissued</span> or{" "}
+                    <span className="font-semibold text-rose-600">disposed</span>.
+                  </div>
+                ) : (
+                  highItems.map((item) => {
+                    const itemName =
+                      item.inventoryItem?.product?.name ??
+                      item.inventory_item?.item_desc ??
+                      "N/A";
+                    const itemSpecs = item.inventoryItem?.product?.specs ?? "";
+
+                    const totalQty = Number(item.quantity ?? 0);
+                    const reissuedQty = Number(item.total_reissued_quantity ?? 0);
+                    const disposedQty = Number(item.total_disposed_quantity ?? 0);
+                    const totalProcessed = reissuedQty + disposedQty;
+                    const remainingQty = Math.max(totalQty - totalProcessed, 0);
+                    const fullyProcessed = totalProcessed >= totalQty;
+
+                    return (
+                      <label
+                        key={item.id}
+                        className={`flex items-start gap-3 p-3 rounded-md border transition-colors ${
+                          selectedItems.includes(item.id)
+                            ? "bg-blue-50 border-blue-300"
+                            : "bg-white hover:bg-gray-50 border-gray-200"
+                        } ${fullyProcessed ? "opacity-50 cursor-not-allowed" : ""}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.includes(item.id)}
+                          disabled={fullyProcessed}
+                          onChange={(e) => {
+                            if (fullyProcessed) return;
+                            setSelectedItems((prev) =>
+                              e.target.checked
+                                ? [...prev, item.id]
+                                : prev.filter((id) => id !== item.id)
+                            );
+                          }}
+                          className="mt-1 h-4 w-4 accent-blue-600"
+                        />
+
+                        <div className="flex flex-col flex-1">
+                          <div className="flex justify-between items-center">
+                            <div className="font-medium text-gray-800">{itemName}</div>
+
+                            {fullyProcessed ? (
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-300">
+                                Fully processed
+                              </span>
+                            ) : totalProcessed > 0 ? (
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-300">
+                                Some Items are returned ({totalProcessed}/{totalQty})
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-600">
+                                Remaining: {remainingQty}
+                              </span>
+                            )}
+                          </div>
+
+                          {itemSpecs && (
+                            <div className="text-gray-500 text-xs">{itemSpecs}</div>
+                          )}
+
+                          <div className="text-gray-500 text-xs mt-0.5">
+                            Qty: {item.quantity} | ₱{Number(item.unit_cost ?? 0).toFixed(2)}
+                          </div>
+
+                          {(reissuedQty > 0 || disposedQty > 0) && (
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              Returned:{" "}
+                              <span className="text-blue-600 font-medium">
+                                {reissuedQty} reissued
+                              </span>{" "}
+                              |{" "}
+                              <span className="text-rose-600 font-medium">
+                                {disposedQty} disposed
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+            );
+          })()
+        ) : (
+          <p className="text-gray-500 text-sm mt-3 italic">No items available.</p>
+        )}
+
+        {/* Return Type */}
+        <div className="mt-5 border-t pt-4">
+          <div className="font-medium text-gray-700 mb-2">Return Type</div>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <label
+              className={`flex items-center gap-2 cursor-pointer px-3 py-2 border rounded-md transition-all ${
+                returnType === "reissuance"
+                  ? "border-blue-400 bg-blue-50"
+                  : "border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              <input
+                type="radio"
+                name="returnType"
+                value="reissuance"
+                checked={returnType === "reissuance"}
+                onChange={(e) => setReturnType(e.target.value)}
+                className="h-4 w-4 accent-blue-600"
+              />
+              <span className="text-sm text-gray-700">For Reissuance</span>
+            </label>
+
+            <label
+              className={`flex items-center gap-2 cursor-pointer px-3 py-2 border rounded-md transition-all ${
+                returnType === "disposal"
+                  ? "border-rose-400 bg-rose-50"
+                  : "border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              <input
+                type="radio"
+                name="returnType"
+                value="disposal"
+                checked={returnType === "disposal"}
+                onChange={(e) => setReturnType(e.target.value)}
+                className="h-4 w-4 accent-rose-600"
+              />
+              <span className="text-sm text-gray-700">For Disposal</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <DialogFooter className="pt-5 border-t mt-4">
+          <Button
+            variant="outline"
+            className="w-28"
+            onClick={() => {
+              setShowReturnModal(false);
+              setSelectedItems([]);
+              setReturnType("");
+              setSelectedRecord(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            className={`w-28 text-white ${
+              returnType === "disposal"
+                ? "bg-rose-600 hover:bg-rose-700"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
+            disabled={!selectedItems.length || !returnType}
+            onClick={() => {
+              const highItems = (selectedRecord.items || []).filter((it) => it.type === "high");
+              const allItemsProcessed = highItems.every((it) => {
+              const totalQty = Number(it.quantity ?? 0);
+              const reissuedQty = Number(it.total_reissued_quantity ?? 0);
+              const disposedQty = Number(it.total_disposed_quantity ?? 0);
+                return reissuedQty + disposedQty >= totalQty;
+              });
+
+              if (allItemsProcessed) {
+                toast({
+                  title: "All items already processed",
+                  description: "There are no items left to return.",
+                  variant: "destructive",
+                });
+                return;
+              }
+
+              if (selectedItems.length === 0) {
+                toast({
+                  title: "No items selected",
+                  description: "Please select at least one item to return.",
+                  variant: "destructive",
+                });
+                return;
+              }
+
+              if (!returnType) {
+                toast({
+                  title: "No return type chosen",
+                  description:
+                    "Please specify whether this return is for reissuance or disposal.",
+                  variant: "destructive",
+                });
+                return;
+              }
+
+              const routeName =
+                returnType === "reissuance"
+                  ? "supply_officer.reissuance_form"
+                  : "supply_officer.disposal_form";
+
+              router.visit(
+                route(routeName, {
+                  id: selectedRecord.id,
+                  type: "ics",
+                  items: selectedItems.join(","),
+                })
+              );
+
+              setShowReturnModal(false);
+            }}
+          >
+            Proceed
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={showSwitchModal} onOpenChange={setShowSwitchModal}>
+  <DialogContent className="max-w-lg rounded-xl border border-gray-200 shadow-md bg-white">
+    <DialogHeader className="pb-3 border-b border-gray-100">
+      <DialogTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+        Switch Type
+      </DialogTitle>
+      <DialogDescription className="text-sm text-gray-500">
+        Select items you want to switch to <b>High Value</b> type.
+      </DialogDescription>
+    </DialogHeader>
+
+    {/* Item Selection */}
+    {switchRecord ? (
+      <div className="mt-4 space-y-2 max-h-72 overflow-y-auto p-2 border rounded-md bg-gray-50">
+        {(switchRecord.items || [])
+          .filter((it) => it.type === "high")
+          .map((item) => {
+            const itemName =
+              item.inventoryItem?.product?.name ?? item.inventory_item?.item_desc ?? "N/A";
+            const itemSpecs = item.inventoryItem?.product?.specs ?? "";
+            return (
+              <label
+                key={item.id}
+                className={`flex items-start gap-3 p-3 rounded-md border transition-colors ${
+                  switchItems.includes(item.id)
+                    ? "bg-blue-50 border-blue-300"
+                    : "bg-white hover:bg-gray-50 border-gray-200"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={switchItems.includes(item.id)}
+                  onChange={(e) => {
+                    setSwitchItems((prev) =>
+                      e.target.checked
+                        ? [...prev, item.id]
+                        : prev.filter((id) => id !== item.id)
+                    );
+                  }}
+                  className="mt-1 h-4 w-4 accent-blue-600"
+                />
+                <div className="flex flex-col flex-1">
+                  <div className="font-medium text-gray-800">{itemName}</div>
+                  {itemSpecs && (
+                    <div className="text-gray-500 text-xs">{itemSpecs}</div>
+                  )}
+                  <div className="text-gray-500 text-xs mt-0.5">
+                    Qty: {item.quantity} | ₱{Number(item.unit_cost ?? 0).toFixed(2)}
+                  </div>
+                </div>
+              </label>
+            );
+          })}
+      </div>
+    ) : (
+      <p className="text-gray-500 text-sm mt-3 italic">No items available.</p>
+    )}
+
+    {/* Footer */}
+    <DialogFooter className="pt-5 border-t mt-4">
+      <Button
+        variant="outline"
+        className="w-28"
+        onClick={() => {
+          setShowSwitchModal(false);
+          setSwitchItems([]);
+          setSwitchRecord(null);
+        }}
+      >
+        Cancel
+      </Button>
+      <Button
+        className="w-28 bg-blue-600 text-white hover:bg-blue-700"
+        disabled={!switchItems.length}
+        onClick={() => {
+          // Navigate to the route with selected items
+          router.visit(route('supply_officer.switch_type', {
+            type: 'ics',
+            id: switchRecord.id,
+            po_id: switchRecord.po?.id,
+            items: switchItems, // send selected item IDs
+          }));
+        }}
+      >
+        Continue
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
     </SupplyOfficerLayout>
   );
 }

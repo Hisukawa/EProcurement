@@ -16,17 +16,20 @@ class RoleSeeder extends Seeder
     {
         $roles = [
             'admin' => [
-                'manage all', // Full access
+                'manage all',
             ],
             'requester' => [
                 'request',
             ],
-            'bac_approver' => [
+            'bac_user' => [
                 'approve requests',
                 
             ],
             'supply_officer' => [
                 'create purchase orders',
+            ],
+            'twg_user' => [
+                'review requests',
             ],
         ];
 

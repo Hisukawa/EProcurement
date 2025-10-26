@@ -72,7 +72,6 @@ public function store_ris(Request $request)
         'items.*.unit_cost'         => 'required|numeric|min:0.01',
         'items.*.total_cost'        => 'required|numeric|min:0.01',
         'items.*.quantity'          => 'required|numeric|min:0.01',
-        'items.*.recipient'         => 'nullable|string|max:255', // ✅ per item
     ]);
 
     DB::beginTransaction();
@@ -103,7 +102,6 @@ public function store_ris(Request $request)
                 'quantity'          => $item['quantity'],
                 'unit_cost'         => $item['unit_cost'],
                 'total_cost'        => $item['quantity'] * $item['unit_cost'], // recalc
-                'recipient'         => $item['recipient'] ?? null,
             ]);
 
             // Update stock
@@ -151,7 +149,15 @@ public function store_ris(Request $request)
             'issuedBy.division',
             'po.details.prDetail.purchaseRequest.division',
             'items.inventoryItem.unit',
-        ])->latest()->paginate(10);
+        ])
+        ->with(['items' => function ($query) {
+            $query->withSum('reissuedItem as total_reissued_quantity', 'quantity')
+                ->withSum('disposedItem as total_disposed_quantity', 'quantity')
+                ->with(['reissuedItem', 'disposedItem']);
+        }])
+        ->latest()
+        ->paginate(10);
+
 
         return Inertia::render('Supply/Ris', [
             'ris'            => $ris,
@@ -371,10 +377,15 @@ public function print_ics_all($id)
                     'items.inventoryItem.unit',
                     'po.rfq.purchaseRequest.division',
                     'po.rfq.purchaseRequest.focal_person',
-                ])
+                    ])
+                ->with(['items' => function ($query) {
+                    $query->withSum('reissuedItem as total_reissued_quantity', 'quantity')
+                        ->withSum('disposedItem as total_disposed_quantity', 'quantity')
+                        ->with(['reissuedItem', 'disposedItem']);
+                }])
                 ->latest()
                 ->paginate(10);
-
+            $inventoryItems = [];
             foreach ($purchaseOrders as $po) {
                 foreach ($po->details as $detail) {
                     $product = $detail->prDetail->product ?? null;
@@ -420,9 +431,14 @@ public function print_ics_all($id)
                 'items.inventoryItem.unit',
                 'po.rfq.purchaseRequest.division',
                 'po.rfq.purchaseRequest.focal_person',
-            ])
-            ->latest()
-            ->paginate(10);
+                ])
+        ->with(['items' => function ($query) {
+            $query->withSum('reissuedItem as total_reissued_quantity', 'quantity')
+                ->withSum('disposedItem as total_disposed_quantity', 'quantity')
+                ->with(['reissuedItem', 'disposedItem']);
+        }])
+        ->latest()
+        ->paginate(10);
 
         // Map all related inventory items (optional)
         $inventoryItems = [];
@@ -571,11 +587,18 @@ public function par_issuance(Request $request)
 
     // Load PAR headers with nested items and related data
     $parQuery = PAR::with([
-        'po.rfq.purchaseRequest.division',
-        'po.rfq.purchaseRequest.focal_person',
-        'items.inventoryItem.unit', // ensures items are nested
-        'requestedBy',
-    ]);
+    'po.rfq.purchaseRequest.division',
+    'po.rfq.purchaseRequest.focal_person',
+    'items.inventoryItem.unit',
+    'requestedBy',
+    ])
+    ->with(['items' => function ($query) {
+        // use plural relation names if relation is hasMany
+        $query->withSum('reissuedItem as total_reissued_quantity', 'quantity')
+            ->withSum('disposedItem as total_disposed_quantity', 'quantity')
+            ->with(['reissuedItem', 'disposedItem']);
+    }]);
+
 
     // Apply search to PAR number or item description
     if ($search) {

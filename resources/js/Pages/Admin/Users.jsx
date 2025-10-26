@@ -11,20 +11,25 @@ import {
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/Components/ui/input";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import axios from "axios";
 
 export default function Users({ users, filters, divisions, roles }) {
     const { props } = usePage();
     const success = props.flash?.success;
     const error = props.flash?.error;
-
-    const { toast } = useToast(); // toast
+    const { toast } = useToast();
 
     const [editOpen, setEditOpen] = useState(false);
+    const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+    const [action, setAction] = useState(""); // 'update' | 'delete'
     const [selectedUser, setSelectedUser] = useState(null);
+    const [password, setPassword] = useState("");
+    const [processing, setProcessing] = useState(false);
 
-    const { data, setData, put, get, processing, reset } = useForm({
+    const { data, setData, put, get, reset } = useForm({
         search: filters.search || "",
         division: filters.division || "",
         firstname: "",
@@ -36,75 +41,125 @@ export default function Users({ users, filters, divisions, roles }) {
         role: "",
     });
 
-    // Debounced search & filter
+    // Debounced search
     useEffect(() => {
-        const delayDebounce = setTimeout(() => {
+        const delay = setTimeout(() => {
             get(route("admin.view_users"), { preserveState: true, replace: true });
         }, 300);
-        return () => clearTimeout(delayDebounce);
+        return () => clearTimeout(delay);
     }, [data.search, data.division]);
 
-    // Toast messages
+    // Flash toast messages
     useEffect(() => {
-        if (success) {
+        if (success)
             toast({ title: "✅ Success", description: success });
-        }
-        if (error) {
+        if (error)
             toast({ title: "❌ Error", description: error, variant: "destructive" });
-        }
     }, [success, error]);
 
-    // Open edit modal
+    /** Prompt password before editing */
     const handleEdit = (user) => {
+        setAction("update");
         setSelectedUser(user);
+        setPassword("");
+        setPasswordModalOpen(true);
+    };
+
+    /** Prompt password before deleting */
+    const handleDelete = (userId) => {
+        setAction("delete");
+        setSelectedUser({ id: userId });
+        setPassword("");
+        setPasswordModalOpen(true);
+    };
+
+    /** Verify password then continue */
+    const handlePasswordSubmit = async () => {
+        if (!password.trim()) {
+            toast({ title: "⚠️ Required", description: "Please enter your password." });
+            return;
+        }
+
+        setProcessing(true);
+        try {
+            const response = await axios.post(route("admin.verify_password"), { password });
+
+            if (!response.data.success) {
+                toast({
+                    title: "❌ Error",
+                    description: "Incorrect password. Please try again.",
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            if (action === "update") {
+                openEditModal();
+            } else if (action === "delete") {
+                await deleteUser();
+            }
+
+            setPasswordModalOpen(false);
+        } catch (error) {
+            toast({
+                title: "❌ Error",
+                description: "Something went wrong verifying password.",
+                variant: "destructive",
+            });
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    /** Open edit modal after password verification */
+    const openEditModal = () => {
+        if (!selectedUser) return;
         setData({
-            firstname: user.firstname,
-            middlename: user.middleinitial,
-            lastname: user.lastname,
-            email: user.email,
-            position: user.position || "",
-            division_id: user.division?.id || "",
-            role: user.roles[0]?.name || "",
+            firstname: selectedUser.firstname,
+            middlename: selectedUser.middleinitial,
+            lastname: selectedUser.lastname,
+            email: selectedUser.email,
+            position: selectedUser.position || "",
+            division_id: selectedUser.division?.id || "",
+            role: selectedUser.roles[0]?.name || "",
         });
         setEditOpen(true);
     };
 
-    // Update user
-const updateUser = async () => {
-    try {
-        const response = await axios.put(route("admin.update_user", selectedUser.id), data);
-        toast({ title: "✅ Success", description: response.data.message || "User updated successfully" });
-        setEditOpen(false);
-        reset();
-        setSelectedUser(null);
-        // optionally refresh the users list
-        get(route("admin.view_users"), { preserveState: true });
-    } catch (error) {
-        const msg = error.response?.data?.message || "Something went wrong";
-        toast({ title: "❌ Error", description: msg, variant: "destructive" });
-    }
-};
-
-
-    const handleDelete = (userId) => {
-        if (confirm("Are you sure you want to deactivate this user?")) {
-            put(route("admin.deactivate_user", userId), {
-                onSuccess: () => {
-                    toast({ title: "✅ Success", description: "User deactivated successfully" });
-                    // Optionally refresh the page or remove the user from state
-                    get(route("admin.view_users"), { preserveState: true });
-                },
-                onError: (errors) => {
-                    toast({ title: "❌ Error", description: errors.message || "Something went wrong", variant: "destructive" });
-                }
+    /** Save user update */
+    const updateUser = async () => {
+        try {
+            const response = await axios.put(route("admin.update_user", selectedUser.id), data);
+            toast({ title: "✅ Success", description: response.data.message || "User updated successfully" });
+            setEditOpen(false);
+            reset();
+            setSelectedUser(null);
+            get(route("admin.view_users"), { preserveState: true });
+        } catch (error) {
+            toast({
+                title: "❌ Error",
+                description: error.response?.data?.message || "Something went wrong",
+                variant: "destructive",
             });
         }
     };
 
+    /** Delete user */
+    const deleteUser = async () => {
+        try {
+            await put(route("admin.deactivate_user", selectedUser.id), {});
+            toast({ title: "✅ Success", description: "User deactivated successfully" });
+            get(route("admin.view_users"), { preserveState: true });
+        } catch {
+            toast({ title: "❌ Error", description: "Something went wrong", variant: "destructive" });
+        }
+    };
 
     return (
         <AdminLayout header="Schools Division Office - Ilagan | Users">
             <Head title="Users" />
+
+            {/* Filters and Add Button */}
             <div className="rounded-lg mb-6">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-4">
                     <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto mb-4 md:mb-0">
@@ -139,6 +194,7 @@ const updateUser = async () => {
                 </div>
             </div>
 
+            {/* User Table */}
             <div className="overflow-x-auto bg-white rounded-lg shadow-md">
                 <Table>
                     <TableHeader>
@@ -155,7 +211,12 @@ const updateUser = async () => {
                     <TableBody>
                         {users.data.length > 0 ? (
                             users.data.map((user) => (
-                                <TableRow key={user.id} className={`hover:bg-blue-50 transition duration-150 ${user.account_status === 'inactive' ? 'opacity-50 line-through' : ''}`}>
+                                <TableRow
+                                    key={user.id}
+                                    className={`hover:bg-blue-50 transition duration-150 ${
+                                        user.account_status === "inactive" ? "opacity-50 line-through" : ""
+                                    }`}
+                                >
                                     <TableCell>{user.id}</TableCell>
                                     <TableCell className="flex items-center">
                                         <UserCircleIcon className="w-5 h-5 text-gray-400 mr-2" />
@@ -206,86 +267,110 @@ const updateUser = async () => {
                             key={index}
                             href={link.url || "#"}
                             className={`min-w-[40px] px-3 py-2 text-sm font-medium rounded-lg transition ${
-                                link.active ? "bg-blue-600 text-white shadow-md" : "bg-white text-gray-700 border hover:bg-blue-50"
-                            } ${!link.url ? "cursor-not-allowed opacity-50" : ""}`}
+                                link.active
+                                    ? "bg-blue-600 text-white shadow-md"
+                                    : "bg-white text-gray-700 border hover:bg-blue-50"
+                            }`}
                             dangerouslySetInnerHTML={{ __html: link.label }}
                         />
                     ))}
                 </div>
             </div>
 
-            {/* Edit User Modal */}
+            {/* Password Prompt Modal */}
+            <Dialog open={passwordModalOpen} onOpenChange={setPasswordModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Confirm Admin Action</DialogTitle>
+                        <DialogDescription>
+                            Please enter your admin password to continue.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <Input
+                        type="password"
+                        placeholder="Admin Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        disabled={processing}
+                    />
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setPasswordModalOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handlePasswordSubmit} disabled={processing}>
+                            {processing ? "Verifying..." : "Submit"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Modal */}
             <Dialog open={editOpen} onOpenChange={setEditOpen}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Edit User</DialogTitle>
-                        <DialogDescription>Update the user information below.</DialogDescription>
+                        <DialogDescription>Modify the user’s details below.</DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={(e) => { e.preventDefault(); updateUser(); }} className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <input
-                                type="text"
-                                placeholder="First Name"
-                                value={data.firstname}
-                                onChange={(e) => setData("firstname", e.target.value)}
-                                className="w-full border-gray-300 rounded-md shadow-sm"
-                            />
-                            <input
-                                type="text"
-                                placeholder="Middle Name"
-                                value={data.middlename}
-                                onChange={(e) => setData("middlename", e.target.value)}
-                                className="w-full border-gray-300 rounded-md shadow-sm"
-                            />
-                            <input
-                                type="text"
-                                placeholder="Last Name"
-                                value={data.lastname}
-                                onChange={(e) => setData("lastname", e.target.value)}
-                                className="w-full border-gray-300 rounded-md shadow-sm"
-                            />
-                        </div>
-                        <input
-                            type="email"
+
+                    <div className="space-y-3">
+                        <Input
+                            placeholder="First Name"
+                            value={data.firstname}
+                            onChange={(e) => setData("firstname", e.target.value)}
+                        />
+                        <Input
+                            placeholder="Middle Name"
+                            value={data.middlename}
+                            onChange={(e) => setData("middlename", e.target.value)}
+                        />
+                        <Input
+                            placeholder="Last Name"
+                            value={data.lastname}
+                            onChange={(e) => setData("lastname", e.target.value)}
+                        />
+                        <Input
                             placeholder="Email"
+                            type="email"
                             value={data.email}
                             onChange={(e) => setData("email", e.target.value)}
-                            className="w-full border-gray-300 rounded-md shadow-sm"
                         />
-                        <input
-                            type="text"
+                        <Input
                             placeholder="Position"
                             value={data.position}
                             onChange={(e) => setData("position", e.target.value)}
-                            className="w-full border-gray-300 rounded-md shadow-sm"
                         />
                         <select
                             value={data.division_id}
                             onChange={(e) => setData("division_id", e.target.value)}
-                            className="w-full border-gray-300 rounded-md shadow-sm"
+                            className="w-full border border-gray-300 px-3 py-2 rounded-md focus:outline-none"
                         >
                             <option value="">Select Division</option>
-                            {divisions.map((division) => (
-                                <option key={division.id} value={division.id}>{division.division}</option>
+                            {divisions.map((div) => (
+                                <option key={div.id} value={div.id}>{div.division}</option>
                             ))}
                         </select>
                         <select
                             value={data.role}
                             onChange={(e) => setData("role", e.target.value)}
-                            className="w-full border-gray-300 rounded-md shadow-sm"
+                            className="w-full border border-gray-300 px-3 py-2 rounded-md focus:outline-none"
                         >
                             <option value="">Select Role</option>
-                            {roles.map((role) => (
-                                <option key={role.id} value={role.name}>
-                                    {role.name.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
-                                </option>
+                            {roles.map((role, idx) => (
+                                <option key={idx} value={role.name}>{role.name}</option>
                             ))}
                         </select>
-                        <DialogFooter>
-                            {/* <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button> */}
-                            <Button type="submit" disabled={processing}>{processing ? "Saving..." : "Update"}</Button>
-                        </DialogFooter>
-                    </form>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={updateUser}>
+                            Save Changes
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </AdminLayout>

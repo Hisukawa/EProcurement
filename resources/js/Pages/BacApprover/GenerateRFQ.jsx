@@ -27,11 +27,11 @@ export default function GenerateRFQ({ pr, purchaseRequest }) {
 const handlePrint = () => {
   if (selectedItems.length === 0) {
     // Print all items
-    window.open(route("bac_approver.print_rfq", { id: pr.id }), "_blank");
+    window.open(route("bac_user.print_rfq", { id: pr.id }), "_blank");
   } else {
     // Print only selected items
     window.open(
-      route("bac_approver.print_rfq_selected", { pr: pr.id }) +
+      route("bac_user.print_rfq_selected", { pr: pr.id }) +
         "?items[]=" +
         selectedItems.join("&items[]="),
       "_blank"
@@ -137,8 +137,8 @@ const handlePrint = () => {
                             onChange={() => toggleItem(item.id)}
                           />
                         </td>
-                        <td className="py-2 px-4 border">{item.product?.name || "N/A"}</td>
-                        <td className="py-2 px-4 border">{item.product?.specs || "N/A"}</td>
+                        <td className="py-2 px-4 border">{item.item || "N/A"}</td>
+                        <td className="py-2 px-4 border">{item.specs || "N/A"}</td>
                         <td className="py-2 px-4 border">{item.quantity}</td>
                         <td className="py-2 px-4 border">{item.unit}</td>
                         <td className="py-2 px-4 border">

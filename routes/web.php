@@ -1,20 +1,32 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Approver\AbstractController;
 use App\Http\Controllers\Approver\ApproverController;
+use App\Http\Controllers\Approver\ApprovingProcessController;
+use App\Http\Controllers\Approver\PrintContoller;
+use App\Http\Controllers\Approver\PrintController;
+use App\Http\Controllers\Approver\QuotationController;
+use App\Http\Controllers\Approver\RFQController;
 use App\Http\Controllers\PARSearchController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Requester\IssuedController;
 use App\Http\Controllers\Requester\RequesterController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\Supply\IssuanceController;
+use App\Http\Controllers\Supply\ReturnController;
+use App\Http\Controllers\Supply\SwitchTypeController;
 use Barryvdh\Snappy\Facades\SnappyPdf;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Requester\PurchaseRequestController;
+use App\Http\Controllers\Supply\DisposedItemsController;
 use App\Http\Controllers\Supply\ExcelReportsController;
+use App\Http\Controllers\Supply\ReissuanceController;
 use App\Http\Controllers\Supply\SupplyController;
+use App\Http\Controllers\TwgUserController\TwgController;
 use App\Models\PurchaseRequest;
 use Illuminate\Support\Facades\Auth;
 
@@ -26,8 +38,8 @@ Route::get('/', function () {
             return redirect()->route('admin.dashboard');
         } elseif ($user->roles->contains('name', 'requester')) {
             return redirect()->route('requester.dashboard');
-        } elseif ($user->roles->contains('name', 'bac_approver')) {
-            return redirect()->route('bac_approver.dashboard');
+        } elseif ($user->roles->contains('name', 'bac_user')) {
+            return redirect()->route('bac_user.dashboard');
         } elseif ($user->roles->contains('name', 'supply_officer')) {
             return redirect()->route('supply_officer.dashboard');
         }
@@ -60,6 +72,7 @@ Route::middleware('auth')->post('/notifications/{id}/read', [NotificationControl
 // Admin routes
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     Route::get('/', [AdminController::class, 'dashboard'])->name('admin.dashboard');
+    Route::post('/verify_password', [AdminController::class, 'verify_password'])->name('admin.verify_password');
     Route::get('/activity_logs', [AdminController::class, 'activity_logs'])->name('admin.activity_logs');
     Route::get('/view_users', [AdminController::class, 'view_users'])->name('admin.view_users');
     Route::put('/users/{id}', [AdminController::class, 'update_user'])->name('admin.update_user');
@@ -69,75 +82,70 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     Route::get('/edit_requesitioning{division}', [AdminController::class, 'edit_requesting'])->name('admin.edit_requesting');
     Route::post('/requesting-officers/{division}', [AdminController::class, 'update_requesting'])->name('admin.update_requesting');
     Route::get('/admin/audit-logs', [AdminController::class, 'audit_logs'])->name('admin.audit_logs');
-    Route::post('/admin/inspection/{id}/update', [AdminController::class, 'updateInspection'])->name('admin.update_inspection');
-    Route::post('/admin/bac/{committee}/update', [AdminController::class, 'updateBac'])->name('admin.update_bac');
+    Route::post('/update-inspection/{id}', [AdminController::class, 'updateInspection'])->name('admin.update_inspection');
+    Route::post('/update-bac/{id}', [AdminController::class, 'updateBac'])->name('admin.update_bac');
     Route::put('/admin/users/{user}/deactivate', [AdminController::class, 'deactivate'])->name('admin.deactivate_user');
 });
 
 // Requester routes
 Route::middleware(['auth', 'role:requester'])->prefix('requester')->group(function () {
     Route::get('/', [RequesterController::class, 'dashboard'])->name('requester.dashboard');
-    Route::get('/create', [RequesterController::class, 'create'])->name('requester.create');
-    Route::get('/create_product', [RequesterController::class, 'create_product'])->name('requester.create_product');
-    Route::post('/store_product', [RequesterController::class, 'store_product'])->name('requester.store_product');
-    Route::post('/store', [RequesterController::class, 'store'])->name('requester.store');
     Route::get('/manage_requests', [RequesterController::class, 'manage_requests'])->name('requester.manage_requests');
-    Route::get('/add_details/{pr}', [RequesterController::class, 'add_details'])->name('requester.add_details');
-    Route::post('/store_details/{pr}', [RequesterController::class, 'store_details'])->name('requester.store_details');
-    Route::put('/update_details/{detail}', [RequesterController::class, 'update_details'])->name('requester.update_details');
-    Route::delete('/delete_details/{detailId}', [RequesterController::class, 'delete_details'])->name('requester.delete_details');
     Route::get('/print/{id}', [RequesterController::class, 'print'])->name('requester.print');
-    Route::post('/requests/{id}/send-for-approval', [RequesterController::class, 'sendForApproval'])->name('requester.pr.send_for_approval');
-    Route::put('/{product}/update-price', [RequesterController::class, 'updatePrice'])->name('requester.update_price');
+    Route::post('/requests/{id}/send-for-approval', [RequesterController::class, 'sendForReview'])->name('requester.pr.send_for_approval');
+    Route::get('/create', [PurchaseRequestController::class, 'create'])->name('requester.create');
+    Route::get('/create_product', [RequesterController::class, 'create_product'])->name('requester.create_product');
+    Route::post('/store_product', [PurchaseRequestController::class, 'store_product'])->name('requester.store_product');
+    Route::post('/store', [PurchaseRequestController::class, 'store'])->name('requester.store');
+    Route::get('/add_details/{pr}', [PurchaseRequestController::class, 'add_details'])->name('requester.add_details');
+    Route::post('/store_details/{pr}', [PurchaseRequestController::class, 'store_details'])->name('requester.store_details');
+    Route::put('/update_details/{detail}', [PurchaseRequestController::class, 'update_details'])->name('requester.update_details');
+    Route::delete('/delete_details/{detailId}', [PurchaseRequestController::class, 'delete_details'])->name('requester.delete_details');
+    Route::put('/{product}/update-price', [PurchaseRequestController::class, 'updatePrice'])->name('requester.update_price');
+    Route::post('/units', [PurchaseRequestController::class, 'storeUnit'])->name('requester.store_unit');
     Route::get('/ris_issued', [IssuedController::class, 'ris_issued'])->name('requester.ris_issued');
     Route::get('/ics_issued_low', [IssuedController::class, 'ics_issued_low'])->name('requester.ics_issued_low');
     Route::get('/ics_issued_high', [IssuedController::class, 'ics_issued_high'])->name('requester.ics_issued_high');
     Route::get('/par_issued', [IssuedController::class, 'par_issued'])->name('requester.par_issued');
+    Route::put('/update_purpose/{pr}', [PurchaseRequestController::class, 'updatePurpose'])->name('requester.update_purpose');
+});
 
-    // routes/web.php
-    Route::post('/units', [RequesterController::class, 'storeUnit'])->name('requester.store_unit');
-
+Route::middleware(['auth','role:twg_user'])->prefix('twg_user')->group(function () {
+    Route::get('/', [TwgController::class, 'dashboard'])->name('twg_user.dashboard');
+    Route::get('/for_review', [TwgController::class, 'for_review'])->name('twg_user.for_review');
+    Route::get('/show_details/{pr}', [TwgController::class, 'show_details'])->name('twg_user.show_details');
+    Route::post('/review/{pr}', [TwgController::class, 'review'])->name('twg_user.review');
+    Route::post('/requests/{id}/send_back', [TwgController::class, 'send_back'])->name('twg_user.send_back');
+    Route::post('/submit_review/{pr}', [TwgController::class, 'submit_review'])->name('twg_user.submit_review');
 });
 
 // Approver routes
-Route::middleware(['auth', 'role:bac_approver'])->prefix('bac_approver')->group(function () {
-    Route::get('/', [ApproverController::class, 'dashboard'])->name('bac_approver.dashboard');
-    Route::get('/purchase_requests', [ApproverController::class, 'purchase_requests'])->name('bac_approver.purchase_requests');
-    Route::get('/approved_requests', [ApproverController::class, 'approved_requests'])->name('bac_approver.approved_requests');
-    Route::get('/generate_rfq/{pr}', [ApproverController::class, 'generate_rfq'])->name('bac_approver.generate_rfq');
-    Route::post('/store_rfq', [ApproverController::class, 'store_rfq'])->name('bac_approver.store_rfq');
-    Route::get('/print_rfq/{id}', [ApproverController::class, 'print_rfq'])->name('bac_approver.print_rfq');
-    Route::get('/print_rfq_selected/{pr}', [ApproverController::class, 'print_rfq_selected'])
-    ->name('bac_approver.print_rfq_selected');
-    Route::get('/for_review', [ApproverController::class, 'for_review'])->name('bac_approver.for_review');
-    Route::post('/approve/{pr}', [ApproverController::class, 'approve'])->name('bac_approver.approve');
-    Route::get('/show_details/{pr}', [ApproverController::class, 'show_details'])->name('bac_approver.show_details');
-    Route::get('/quoted_price/{pr}', [ApproverController::class, 'quoted_price'])->name('bac_approver.quoted_price');
-    Route::get('/for_quotations', [ApproverController::class, 'for_quotations'])->name('bac_approver.for_quotations');
-    Route::post('/submit_quoted', [ApproverController::class, 'submit_quoted'])->name('bac_approver.submit_quoted');
-    Route::post('/submit_bulk_quoted', [ApproverController::class, 'submit_bulk_quoted'])->name('bac_approver.submit_bulk_quoted');
-    Route::get('/abstract/{pr}', [ApproverController::class, 'abstract_of_quotations'])->name('bac_approver.abstract_of_quotations');
-    Route::get('/abstract/{pr}/calculated', [ApproverController::class, 'abstract_of_quotations_calculated'])->name('bac_approver.abstract_of_quotations_calculated');
-    Route::post('/abstract/{id}/save-unit-price', [ApproverController::class, 'saveUnitPrice'])->name('bac_approver.save_unit_price');
-    Route::post('/mark-winner/{id}/{pr_detail_id?}', [ApproverController::class, 'markWinner'])->name('bac_approver.mark_winner');
-    Route::post('/mark-winner-as-calculated/{id}/{pr_detail_id?}', [ApproverController::class, 'markWinnerAsCalculated'])
-    ->name('bac_approver.mark_winner_as_calculated');
-    Route::get('/approver/print_aoq/{id}/{pr_detail_id?}', [ApproverController::class, 'printAOQ'])->name('bac_approver.print_aoq');
-    Route::get('/approver/print_aoq_calculated/{id}/{pr_detail_id?}', [ApproverController::class, 'printAOQCalculated'])->name('bac_approver.print_aoq_calculated');
-    Route::post('/store_supplier', [ApproverController::class, 'store_supplier'])->name('bac_approver.store_supplier');
-    Route::post('/requests/{id}/send_back', [ApproverController::class, 'send_back'])->name('requester.send_back');
-    Route::delete('/delete_quoted', [ApproverController::class, 'delete_quoted'])->name('bac_approver.delete_quoted');
+Route::middleware(['auth', 'role:bac_user'])->prefix('bac_user')->group(function () {
+    Route::get('/', [ApproverController::class, 'dashboard'])->name('bac_user.dashboard');
+    Route::get('/purchase_requests', [ApprovingProcessController::class, 'purchase_requests'])->name('bac_user.purchase_requests');
+    Route::get('/approved_requests', [ApprovingProcessController::class, 'approved_requests'])->name('bac_user.approved_requests');
+    Route::get('/generate_rfq/{pr}', [RFQController::class, 'generate_rfq'])->name('bac_user.generate_rfq');
+    Route::post('/store_rfq', [RFQController::class, 'store_rfq'])->name('bac_user.store_rfq');
+    Route::get('/print_rfq/{id}', [PrintController::class, 'print_rfq'])->name('bac_user.print_rfq');
+    Route::get('/print_rfq_selected/{pr}', [PrintController::class, 'print_rfq_selected'])->name('bac_user.print_rfq_selected');
+    Route::get('/quoted_price/{pr}', [QuotationController::class, 'quoted_price'])->name('bac_user.quoted_price');
+    Route::get('/for_quotations', [QuotationController::class, 'for_quotations'])->name('bac_user.for_quotations');
+    Route::post('/submit_quoted', [QuotationController::class, 'submit_quoted'])->name('bac_user.submit_quoted');
+    Route::post('/submit_bulk_quoted', [QuotationController::class, 'submit_bulk_quoted'])->name('bac_user.submit_bulk_quoted');
+    Route::get('/abstract/{pr}', [AbstractController::class, 'abstract_of_quotations'])->name('bac_user.abstract_of_quotations');
+    Route::get('/abstract/{pr}/calculated', [AbstractController::class, 'abstract_of_quotations_calculated'])->name('bac_user.abstract_of_quotations_calculated');
+    Route::post('/abstract/{id}/save-unit-price', [AbstractController::class, 'saveUnitPrice'])->name('bac_user.save_unit_price');
+    Route::post('/mark-winner/{id}/{pr_detail_id?}', [AbstractController::class, 'markWinner'])->name('bac_user.mark_winner');
+    Route::post('/mark-winner-as-calculated/{id}/{pr_detail_id?}', [AbstractController::class, 'markWinnerAsCalculated'])->name('bac_user.mark_winner_as_calculated');
+    Route::get('/approver/print_aoq/{id}/{pr_detail_id?}', [PrintController::class, 'printAOQ'])->name('bac_user.print_aoq');
+    Route::get('/approver/print_aoq_calculated/{id}/{pr_detail_id?}', [PrintController::class, 'printAOQCalculated'])->name('bac_user.print_aoq_calculated');
+    Route::post('/store_supplier', [ApproverController::class, 'store_supplier'])->name('bac_user.store_supplier');
+    Route::delete('/delete_quoted', [QuotationController::class, 'delete_quoted'])->name('bac_user.delete_quoted');
     Route::post('/bac-committee/save', [ApproverController::class, 'save_committee'])->name('bac.committee.save');
-    Route::post('/rollback-winner-as-read/{id}', [ApproverController::class, 'rollbackWinnerAsRead'])
-        ->name('bac_approver.rollback_winner_as_read');
-    Route::post('/rollback-winner-as-calculated/{id}', [ApproverController::class, 'rollbackWinnerAsCalculated'])
-        ->name('bac_approver.rollback_winner_as_calculated');
-    Route::post('/save-remarks-as-read/{id}/{pr_detail_id?}', [ApproverController::class, 'saveRemarksAsRead'])
-    ->name('bac_approver.save_remarks_as_read');
-     Route::post('/save-remarks-as-calculated/{id}/{pr_detail_id?}', [ApproverController::class, 'saveRemarksAsCalculated'])
-    ->name('bac_approver.save_remarks_as_calculated');
-
-
+    Route::post('/rollback-winner-as-read/{id}', [AbstractController::class, 'rollbackWinnerAsRead'])->name('bac_user.rollback_winner_as_read');
+    Route::post('/rollback-winner-as-calculated/{id}', [AbstractController::class, 'rollbackWinnerAsCalculated'])->name('bac_user.rollback_winner_as_calculated');
+    Route::post('/save-remarks-as-read/{id}/{pr_detail_id?}', [AbstractController::class, 'saveRemarksAsRead'])->name('bac_user.save_remarks_as_read');
+    Route::post('/save-remarks-as-calculated/{id}/{pr_detail_id?}', [AbstractController::class, 'saveRemarksAsCalculated'])->name('bac_user.save_remarks_as_calculated');
 });
 
 // Supply Routes
@@ -175,6 +183,19 @@ Route::middleware(['auth', 'role:supply_officer'])->prefix('supply_officer')->gr
     Route::get('/supply-officer/generate-ics-report', [ExcelReportsController::class, 'generateIcsReport'])->name('supply_officer.generate_ics_report');
     Route::get('/supply-officer/generate-ics-report-high', [ExcelReportsController::class, 'generateIcsReportHigh'])->name('supply_officer.generate_ics_report_high');
     Route::get('/supply-officer/generate-par-report', [ExcelReportsController::class, 'generateParReport'])->name('supply_officer.generate_par_report');
+
+    Route::get('/switch_type/{type}/{id}', [SwitchTypeController::class, 'switchType'])->name('supply_officer.switch_type');
+    Route::post('/switch_to_ris', [SwitchTypeController::class, 'switchToRis'])->name('supply_officer.switch_to_ris');
+    Route::post('/switch_to_ics', [SwitchTypeController::class, 'switchToIcs'])->name('supply_officer.switch_to_ics');
+    Route::post('/switch_to_par', [SwitchTypeController::class, 'switchToPar'])->name('supply_officer.switch_to_par');
+
+    Route::get('/reissuance', [ReturnController::class, 'reissuance'])->name('supply_officer.reissuance');
+    Route::get('/reissuance/{type}/{id}', [ReturnController::class, 'reissuance_form'])->name('supply_officer.reissuance_form');
+    Route::post('/submit_reissuance', [ReturnController::class, 'submit_reissuance'])->name('supply_officer.submit_reissuance');
+    Route::get('reissued_items', [ReturnController::class, 'reissued_items'])->name('supply_officer.reissued_items');
+    Route::get('/disposal/{type}/{id}', [ReturnController::class, 'disposal_form'])->name('supply_officer.disposal_form');
+    Route::post('/submit_disposal', [ReturnController::class, 'submit_disposal'])->name('supply_officer.submit_disposal');
+    Route::get('/disposed_items', [ReturnController::class, 'disposed_items'])->name('supply_officer.disposed_items');
 });
 // Shared dashboard route
 Route::get('/dashboard', function () {

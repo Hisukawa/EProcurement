@@ -67,7 +67,7 @@ useEffect(() => {
     const year = new Date().getFullYear().toString();
     const ppeCode = ppe.code?.padStart(2, "0") || "00";
     const glCode = gl.code?.padStart(2, "0") || "00";
-    const seriesCode = series?.toString().padStart(4, "0");// keep "0008"
+    const seriesCode = series?.toString().padStart(4, "0")
   
   
   
@@ -198,7 +198,7 @@ useEffect(() => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Property No.</label>
-              <input type="text" value={data.items[0].property_no} onChange={(e) => updateItemField("property_no", e.target.value)} placeholder="Enter property number" className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm"/>
+              <input type="text" value={generatedNumber} onChange={(e) => updateItemField("property_no", e.target.value)} placeholder="Enter property number" className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm"/>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Date Acquired</label>

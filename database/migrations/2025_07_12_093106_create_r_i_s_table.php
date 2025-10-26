@@ -27,10 +27,12 @@ return new class extends Migration
             $table->id();
             $table->foreignId('ris_id')->constrained('tbl_ris')->onDelete('cascade');
             $table->foreignId('inventory_item_id')->constrained('tbl_inventory')->onDelete('cascade');
-            $table->string('recipient')->nullable();
+            $table->enum('switch_type', ['ris', 'ics', 'par'])->nullable();
+            $table->foreignId('switched_by')->nullable()->constrained('users');
             $table->decimal('unit_cost', 12, 2);
             $table->decimal('total_cost', 14, 2);
             $table->integer('quantity');
+            $table->enum('status', ['reissued', 'disposed'])->nullable();
             $table->timestamps();
         });
     }

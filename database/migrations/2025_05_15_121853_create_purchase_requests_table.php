@@ -18,7 +18,7 @@ return new class extends Migration
             $table->text('purpose')->nullable();
             $table->foreignId('division_id')->constrained('tbl_divisions')->restrictOnDelete();
             $table->string('requested_by');
-            $table->enum('status', ['Pending', 'Approved', 'Rejected'])->default('Pending');
+            $table->enum('status', ['Reviewed', 'Rejected', 'Pending'])->default('Pending');
             $table->boolean('is_sent')->default(false);
             $table->text('send_back_reason')->nullable();
             $table->decimal('total_price', 12, 2)->nullable();

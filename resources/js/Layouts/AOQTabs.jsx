@@ -4,11 +4,11 @@ export default function AOQTabs({ pr }) {
   const tabs = [
     {
       label: "AOQ - As Read",
-      routeName: "bac_approver.abstract_of_quotations",
+      routeName: "bac_user.abstract_of_quotations",
     },
     {
       label: "AOQ - As Calculated",
-      routeName: "bac_approver.abstract_of_quotations_calculated",
+      routeName: "bac_user.abstract_of_quotations_calculated",
     },
   ];
 

@@ -19,6 +19,7 @@ use App\Models\PurchaseRequest;
 use App\Models\RFQ;
 use App\Models\RIS;
 use App\Models\Supplier;
+use App\Models\Unit;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Support\Facades\DB;
@@ -223,9 +224,9 @@ public function purchase_orders(Request $request)
                 'unit_price'    => $w->unit_price_edited ?? $w->quoted_price ?? 0,
                 'total_price'   => ($w->unit_price_edited ?? $w->quoted_price ?? 0) * ($w->pr_detail->quantity ?? 0),
                 'price_source'  => $w->unit_price_edited ? 'As Calculated Price' : 'Quoted Price',
-                'item'          => $w->pr_detail->product->item ?? '',
-                'specs'         => $w->pr_detail->product->specs ?? '',
-                'unit'          => $w->pr_detail->product->unit->unit ?? '',
+                'item'          => $w->pr_detail->item ?? '',
+                'specs'         => $w->pr_detail->specs ?? '',
+                'unit'          => $w->pr_detail->unit ?? '',
             ])
             ->values();
 
@@ -296,10 +297,10 @@ public function create_po($prId)
 
             return [
                 'pr_detail_id'   => $winner->pr_details_id,
-                'item'           => $prDetail?->product->name ?? 'N/A',
-                'specs'          => $prDetail?->product->specs ?? '',
+                'item'           => $prDetail?->item ?? 'N/A',
+                'specs'          => $prDetail?->specs ?? '',
                 'quantity'       => $quantity,
-                'unit'           => $prDetail?->product->unit?->unit ?? '',
+                'unit'           => $prDetail?->unit ?? '',
                 'unit_price'     => $unitPrice,
                 'total_price'    => $unitPrice * $quantity,
                 'supplier_id'    => $winner->supplier_id,
@@ -515,12 +516,22 @@ public function store_iar(Request $request)
         $poDetail = $po->details->firstWhere('pr_detail_id', $item['pr_details_id']);
         $prDetail = $poDetail?->prDetail;
 
-        $productName = $prDetail?->product?->name ?? null;
-        $unitId = $prDetail?->product?->unit?->id;
+        // Fetch the unit from the associated Purchase Request (PR)
+        $unitFromPr = $prDetail?->unit;  // Get the unit from the PR Detail
 
-        if (!$unitId || !$productName) {
+        // If the unit is not found in PR, show error message
+        if (!$unitFromPr) {
             return back()->withErrors([
-                'unit' => "Unable to determine unit or product name for item: {$item['specs']}"
+                'unit' => "Unable to determine unit for item: {$item['specs']}. No unit found in Purchase Request."
+            ]);
+        }
+
+        // Retrieve the unit ID from the unit name (string) from PR
+        $unit = Unit::where('unit', $unitFromPr)->first();  // Find the unit by the name in the PR
+
+        if (!$unit) {
+            return back()->withErrors([
+                'unit' => "Unit '{$unitFromPr}' not found in the units table."
             ]);
         }
 
@@ -531,7 +542,7 @@ public function store_iar(Request $request)
             'specs'                   => $item['specs'],
             'quantity_ordered'        => $item['quantity_ordered'],
             'quantity_received'       => $item['quantity_received'],
-            'unit'                    => $unitId,
+            'unit'                    => $unit->id,  // Use the unit name from PR
             'unit_price'              => $item['unit_price'],
             'total_price'             => $item['total_price'],
             'remarks'                 => $item['remarks'] ?? "",
@@ -546,20 +557,20 @@ public function store_iar(Request $request)
             'recorded_by'   => $userId,
             'requested_by'  => $focalPersonId,
             'quantity'      => $item['quantity_received'],
-            'unit_id'       => $unitId,
+            'unit_id'       => $unit->id,   // Use the unit ID from the unit found in the units table
             'unit_cost'     => $item['unit_price'],
             'last_received' => $validated['date_received'],
             'status'        => 'Available',
-            'item_desc'     => trim(($poDetail->prDetail->product->name ?? 'N/A') . ' - ' . ($poDetail->prDetail->product->specs ?? '')),
+            'item_desc'     => trim(($poDetail->prDetail->item ?? 'N/A') . ' - ' . ($poDetail->prDetail->specs ?? '')),
             'total_stock'   => $item['quantity_received'],
         ]);
-
     }
+
     return redirect()
         ->route('supply_officer.iar_table')
         ->with('success', 'Inventory updated successfully.');
-
 }
+
 
 
 public function replaceMember(Request $request, $id)

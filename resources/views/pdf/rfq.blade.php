@@ -119,7 +119,7 @@
     {{-- ✅ Loop items --}}
     @foreach($details as $item)
     <tr>
-      <td colspan="5" class="font-bold text-center">{{ $item['item'] ?? ''. " ". $item['specs'] ?? ' '}}</td>
+      <td colspan="5" class="font-bold text-center">{{ $item['item']. " ". $item['specs'] ?? ' '}}</td>
       <td class="font-bold">{{ $item['quantity'] ?? '' }}</td>
       <td class="font-bold">{{ $item['unit'] ?? '' }}</td>
       <td class="font-bold">{{ number_format($item['unit_price'], 2) ?? '' }}</td>

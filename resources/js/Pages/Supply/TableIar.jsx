@@ -93,8 +93,8 @@ console.log(iarData);
       // collect product specs from related PR details
       if (iar.purchase_order?.details?.length) {
         iar.purchase_order.details.forEach((d) => {
-          if (d.pr_detail?.product?.specs) {
-            acc[key].specs.push(d.pr_detail.product.specs);
+          if (d.pr_detail?.specs) {
+            acc[key].specs.push(d.pr_detail.specs);
           }
         });
       }
