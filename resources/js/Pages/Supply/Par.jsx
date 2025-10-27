@@ -1,8 +1,8 @@
 import IssuanceTabs from '@/Layouts/IssuanceTabs';
 import SupplyOfficerLayout from '@/Layouts/SupplyOfficerLayout';
 import { Head, Link, router } from '@inertiajs/react';
-import { PrinterCheck } from 'lucide-react';
-import { useState } from 'react';
+import { FileText, MinusCircle, PlusCircle, PrinterCheck } from 'lucide-react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,11 +19,22 @@ export default function Par({ purchaseOrders, inventoryItems, par, user }) {
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
 const [expandedRows, setExpandedRows] = useState([]);
 
-  const filteredPar = par?.data?.filter(record => {
-    const matchesSearch =
-      search === '' ||
-      record.par_number?.toLowerCase().includes(search.toLowerCase()) ||
-      record.inventory_item?.item_desc?.toLowerCase().includes(search.toLowerCase());
+const filteredPar = par?.data?.filter(record => {
+  const focalPersonName = record.po?.rfq?.purchase_request?.focal_person
+    ? `${record.po.rfq.purchase_request.focal_person.firstname ?? ''} ${record.po.rfq.purchase_request.focal_person.lastname ?? ''}`
+    : '';
+
+  const requestedByName = record.requested_by
+    ? `${record.requested_by.firstname ?? ''} ${record.requested_by.lastname ?? ''}`
+    : '';
+
+  const matchesSearch =
+    search === '' ||
+    record.par_number?.toLowerCase().includes(search.toLowerCase()) ||
+    record.inventory_item?.item_desc?.toLowerCase().includes(search.toLowerCase()) ||
+    requestedByName.toLowerCase().includes(search.toLowerCase()) ||
+    focalPersonName.toLowerCase().includes(search.toLowerCase());
+
 
     const recordDate = new Date(record.created_at);
     const matchesMonth = filterMonth === '' || recordDate.getMonth() + 1 === Number(filterMonth);
@@ -86,6 +97,7 @@ const [switchRecord, setSwitchRecord] = useState(null);
                   {
                     month: filterMonth,
                     year: filterYear,
+                    search: search
                   }
                 ))
               }
@@ -137,165 +149,183 @@ const [switchRecord, setSwitchRecord] = useState(null);
         
 
         {/* Table */}
-        <div className="overflow-x-auto mt-4">
+        <div className="overflow-x-auto mt-6 rounded-lg shadow-sm border border-gray-200">
           <table className="min-w-full divide-y divide-gray-200 text-sm text-left text-gray-700">
             <thead className="bg-gray-100 text-xs font-semibold uppercase tracking-wider text-gray-600">
               <tr>
-                <th className="px-4 py-2">#</th>
-                <th className="px-4 py-2">PAR No.</th>
-                <th className="px-4 py-2">Inventory Item No.</th>
-                <th className="px-4 py-2">Division</th>
-                <th className="px-4 py-2">Requested By</th>
-                <th className="px-4 py-2">Item Description</th>
-                <th className="px-4 py-2">Quantity</th>
-                <th className="px-4 py-2">Unit Cost</th>
-                <th className="px-4 py-2">Total Cost</th>
-                <th className="px-4 py-2">Date</th>
-                <th className="px-4 py-2 text-center">Actions</th>
+                <th className="px-4 py-3">#</th>
+                <th className="px-4 py-3">PAR No.</th>
+                <th className="px-4 py-3">Division</th>
+                <th className="px-4 py-3">Requested By</th>
+                <th className="px-4 py-3">Item Description</th>
+                <th className="px-4 py-3 text-center">Quantity</th>
+                <th className="px-4 py-3 text-right">Unit Cost</th>
+                <th className="px-4 py-3 text-right">Total Cost</th>
+                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-3 text-center">Actions</th>
               </tr>
             </thead>
-            <tbody>
+
+            <tbody className="divide-y divide-gray-100">
               {filteredPar && filteredPar.length > 0 ? (
                 filteredPar.map((record, index) => {
-                  const hasMoreThanTwoItems = record.items.length > 2;
+                  const itemsWithDetails =
+                    record.items?.map((item) => ({
+                      description: item.inventory_item?.item_desc ?? "N/A",
+                      quantity: item.quantity,
+                      unitCost: Number(item.unit_cost ?? 0),
+                      totalCost: Number(item.unit_cost ?? 0) * item.quantity,
+                      date: new Date(item.created_at).toLocaleDateString("en-PH", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      }),
+                    })) || [];
+
                   const isExpanded = expandedRows.includes(record.id);
+                  const visibleItems = isExpanded
+                    ? itemsWithDetails
+                    : itemsWithDetails.slice(0, 1);
 
                   return (
-                    <tr key={record.id}>
-                      <td className="px-4 py-2">{index + 1}</td>
-                      <td className="px-4 py-2">{record.par_number}</td>
-                      <td className="px-4 py-2">
-                        {record.items.slice(0, 2).map((item, idx) => (
-                          <div key={idx}>{item.inventory_item_number}</div>
-                        ))}
-                        {isExpanded &&
-                          record.items.slice(2).map((item, idx) => (
-                            <div key={idx + 2}>{item.inventory_item_number}</div>
-                          ))}
-                      </td>
-                      <td className="px-4 py-2">
-                        {record.po?.rfq?.purchase_request?.division?.division ?? "N/A"}
-                      </td>
-                      <td className="px-4 py-2">
-                        {record.requested_by?.firstname} {record.requested_by?.lastname}
-                      </td>
-
-                      {/* Item Description */}
-                      <td className="px-4 py-2">
-                        {record.items.slice(0, 2).map((item, idx) => (
-                          <div key={idx}>{item.inventory_item?.item_desc}</div>
-                        ))}
-                        {hasMoreThanTwoItems && !isExpanded && (
-                          <button
-                            onClick={() => toggleRow(record.id)}
-                            className="text-blue-600 hover:underline text-sm mt-1"
-                          >
-                            +{record.items.length - 2} more
-                          </button>
-                        )}
-                        {isExpanded &&
-                          record.items.slice(2).map((item, idx) => (
-                            <div key={idx + 2}>{item.inventory_item?.item_desc}</div>
-                          ))}
-                      </td>
-
-                      {/* Quantity */}
-                      <td className="px-4 py-2">
-                        {record.items.slice(0, 2).map((item, idx) => (
-                          <div key={idx}>{item.quantity}</div>
-                        ))}
-                        {isExpanded &&
-                          record.items.slice(2).map((item, idx) => (
-                            <div key={idx + 2}>{item.quantity}</div>
-                          ))}
-                      </td>
-
-                      {/* Unit Cost */}
-                      <td className="px-4 py-2">
-                        {record.items.slice(0, 2).map((item, idx) => (
-                          <div key={idx}>₱{Number(item.unit_cost).toFixed(2)}</div>
-                        ))}
-                        {isExpanded &&
-                          record.items.slice(2).map((item, idx) => (
-                            <div key={idx + 2}>₱{Number(item.unit_cost).toFixed(2)}</div>
-                          ))}
-                      </td>
-
-                      {/* Total Cost */}
-                      <td className="px-4 py-2">
-                        {record.items.slice(0, 2).map((item, idx) => (
-                          <div key={idx}>₱{Number(item.total_cost).toFixed(2)}</div>
-                        ))}
-                        {isExpanded &&
-                          record.items.slice(2).map((item, idx) => (
-                            <div key={idx + 2}>₱{Number(item.total_cost).toFixed(2)}</div>
-                          ))}
-                      </td>
-
-                      {/* Date */}
-                      <td className="px-4 py-2">
-                        {record.items.slice(0, 2).map((item, idx) => (
-                          <div key={idx}>
-                            {new Date(item.inventory_item?.last_received || item.created_at).toLocaleDateString("en-PH", {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            })}
-                          </div>
-                        ))}
-                        {isExpanded &&
-                          record.items.slice(2).map((item, idx) => (
-                            <div key={idx + 2}>
-                              {new Date(item.inventory_item?.last_received || item.created_at).toLocaleDateString("en-PH", {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric",
-                              })}
-                            </div>
-                          ))}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="flex items-center justify-center px-4 py-2 text-center space-x-2">
-                        <a
-                          href={route("supply_officer.print_par", record.id)}
-                          className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-1"
-                          target="_blank"
+                    <React.Fragment key={record.id}>
+                      {visibleItems.map((item, itemIdx) => (
+                        <tr
+                          key={`${record.id}-${itemIdx}`}
+                          className={`transition-all duration-150 ${
+                            itemIdx % 2 === 0 ? "bg-white" : "bg-gray-50"
+                          } hover:bg-blue-50 hover:shadow-sm`}
                         >
-                          <PrinterCheck size={16} /> Print
-                        </a>
+                          {itemIdx === 0 && (
+                            <>
+                              <td
+                                rowSpan={visibleItems.length}
+                                className="px-4 py-3 font-semibold text-gray-800 align-top"
+                              >
+                                {index + 1}
+                              </td>
 
-                        <Button
-                          type="button"
-                          className="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700"
-                          onClick={() => {
-                            setSwitchRecord(record);
-                            setSwitchItems([]);
-                            setShowSwitchModal(true);
-                          }}
-                        >
-                          Switch Type
-                        </Button>
-                          <Button
-                            type="button"
-                            onClick={(e) => handleActionSelect(e, record)}
-                            value="return"
-                          >
-                            Return
-                          </Button>
-                      </td>
-                    </tr>
+                              <td
+                                rowSpan={visibleItems.length}
+                                className="px-4 py-3 text-blue-600 font-medium align-top"
+                              >
+                                P-{record.par_number}
+                              </td>
+
+                              <td
+                                rowSpan={visibleItems.length}
+                                className="px-4 py-3 align-top"
+                              >
+                                {record.po?.rfq?.purchase_request?.division?.division ??
+                                  "N/A"}
+                              </td>
+
+                              <td
+                                rowSpan={visibleItems.length}
+                                className="px-4 py-3 align-top"
+                              >
+                                {record.requested_by?.firstname}{" "}
+                                {record.requested_by?.lastname}
+                              </td>
+                            </>
+                          )}
+
+                          <td className="px-4 py-3">
+                            <span className="font-medium">{item.description}</span>
+                          </td>
+
+                          <td className="px-4 py-3 text-center text-gray-800">
+                            {item.quantity}
+                          </td>
+
+                          <td className="px-4 py-3 text-right">
+                            ₱{item.unitCost.toFixed(2)}
+                          </td>
+
+                          <td className="px-4 py-3 text-right">
+                            ₱{item.totalCost.toFixed(2)}
+                          </td>
+
+                          <td className="px-4 py-3">{item.date}</td>
+
+                          {itemIdx === visibleItems.length - 1 && (
+                            <td
+                              rowSpan={visibleItems.length}
+                              className="px-4 py-3 text-center align-top"
+                            >
+                              <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                                <a
+                                  href={route("supply_officer.print_par", record.id)}
+                                  target="_blank"
+                                  className="inline-flex items-center justify-center gap-1 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg shadow-sm text-xs font-medium"
+                                >
+                                  <PrinterCheck size={14} />
+                                  Print
+                                </a>
+
+                                <Button
+                                  type="button"
+                                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
+                                  onClick={() => {
+                                    setSwitchRecord(record);
+                                    setSwitchItems([]);
+                                    setShowSwitchModal(true);
+                                  }}
+                                >
+                                  Switch Type
+                                </Button>
+
+                                <Button
+                                  type="button"
+                                  onClick={(e) => handleActionSelect(e, record)}
+                                  value="return"
+                                  className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
+                                >
+                                  Return
+                                </Button>
+                              </div>
+
+                              {/* Expand / Collapse toggle */}
+                              {itemsWithDetails.length > 2 && (
+                                <button
+                                  onClick={() => toggleRow(record.id)}
+                                  className="mt-2 text-blue-600 hover:underline text-xs flex items-center justify-center gap-1"
+                                >
+                                  {isExpanded ? (
+                                    <>
+                                      <MinusCircle size={14} /> Show Less
+                                    </>
+                                  ) : (
+                                    <>
+                                      <PlusCircle size={14} /> Show More
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </React.Fragment>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan="10" className="text-center">No PAR records found</td>
+                  <td
+                    colSpan="10"
+                    className="text-center py-10 text-gray-500 bg-gray-50 italic"
+                  >
+                    <div className="flex flex-col items-center justify-center">
+                      <FileText className="w-10 h-10 mb-2 text-gray-400" />
+                      <span>No ICS records found</span>
+                    </div>
+                  </td>
                 </tr>
               )}
             </tbody>
-
           </table>
         </div>
+
 
         {/* Pagination */}
         {par?.links?.length > 0 && (

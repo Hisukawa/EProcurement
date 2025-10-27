@@ -2,8 +2,8 @@ import { useToast } from '@/hooks/use-toast';
 import IssuanceTabs from '@/Layouts/IssuanceTabs';
 import SupplyOfficerLayout from '@/Layouts/SupplyOfficerLayout';
 import { Head, Link } from '@inertiajs/react';
-import { PrinterCheck } from 'lucide-react';
-import { useState } from 'react';
+import { FileText, MinusCircle, PlusCircle, PrinterCheck } from 'lucide-react';
+import React, { useState } from 'react';
 import { router } from "@inertiajs/react";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { all } from 'axios';
+import { PlusCircleIcon } from '@heroicons/react/16/solid';
 
 // A small helper function to safely get nested data.
 const getSafe = (fn, defaultValue = "N/A") => {
@@ -98,6 +99,12 @@ const [showSwitchModal, setShowSwitchModal] = useState(false);
 const [switchItems, setSwitchItems] = useState([]);
 const [switchRecord, setSwitchRecord] = useState(null);
 
+const toggleRowExpansion = (id) => {
+  setExpandedRows((prev) =>
+    prev.includes(id) ? prev.filter((rowId) => rowId !== id) : [...prev, id]
+  );
+};
+
 
   return (
     <SupplyOfficerLayout header="Schools Divisions Office - Ilagan | Inventory Custodian Slip (ICS) - LOW">
@@ -118,6 +125,7 @@ const [switchRecord, setSwitchRecord] = useState(null);
                   {
                     month: filterMonth,
                     year: filterYear,
+                    search: search,
                     type: 'low',
                   }
                 ))
@@ -177,135 +185,189 @@ const [switchRecord, setSwitchRecord] = useState(null);
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto mt-4">
-          <table className="min-w-full divide-y divide-gray-200 text-sm text-left text-gray-700">
-            <thead className="bg-gray-100 text-xs font-semibold uppercase tracking-wider text-gray-600">
-              <tr>
-                <th className="px-4 py-3">#</th>
-                <th className="px-4 py-3">ICS No.</th>
-                <th className="px-4 py-3">Division</th>
-                <th className="px-4 py-3">Requested By</th>
-                <th className="px-4 py-3">Item Description</th>
-                <th className="px-4 py-3 text-center">Quantity</th>
-                <th className="px-4 py-3 text-right">Unit Cost</th>
-                <th className="px-4 py-3 text-right">Total Cost</th>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredIcs && filteredIcs.length > 0 ? (
-                filteredIcs.map((record, index) => {
-                  console.log("Record Items:", record); // Debugging line
-                  const itemsWithDetails =
-                    record.items
-                      ?.filter((item) => item.type === 'low')
-                      .map((item) => ({
-                        description:
-                          item.inventoryItem?.product?.name ?? item.inventory_item?.item_desc ?? 'N/A',
-                        specs: item.inventoryItem?.product?.specs ?? '',
-                        quantity: item.quantity,
-                        unitCost: Number(item.unit_cost ?? 0),
-                        totalCost: Number(item.total_cost ?? 0),
-                        date: new Date(item.created_at).toLocaleDateString('en-PH', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        }),
-                      })) || [];
+<div className="mt-6 rounded-xl border border-gray-200 shadow-sm bg-white overflow-hidden">
+  <div className="overflow-x-auto">
+    <table className="min-w-full text-sm text-left text-gray-700">
+      <thead className="bg-gradient-to-r from-gray-100 to-gray-50 sticky top-0 z-10 border-b border-gray-200">
+        <tr>
+          <th className="px-4 py-3 font-semibold">#</th>
+          <th className="px-4 py-3 font-semibold">ICS No.</th>
+          <th className="px-4 py-3 font-semibold">Division</th>
+          <th className="px-4 py-3 font-semibold">Requested By</th>
+          <th className="px-4 py-3 font-semibold">Item Description</th>
+          <th className="px-4 py-3 text-center font-semibold">Qty</th>
+          <th className="px-4 py-3 text-right font-semibold">Unit Cost</th>
+          <th className="px-4 py-3 text-right font-semibold">Total Cost</th>
+          <th className="px-4 py-3 font-semibold">Date</th>
+          <th className="px-4 py-3 text-center font-semibold">Actions</th>
+        </tr>
+      </thead>
 
-                  const isExpanded = expandedRows.includes(record.id);
+<tbody className="divide-y divide-gray-100">
+  {filteredIcs && filteredIcs.length > 0 ? (
+    filteredIcs.map((record, index) => {
+      const itemsWithDetails =
+        record.items
+          ?.filter((item) => item.type === "low")
+          .map((item) => ({
+            description:
+              item.inventoryItem?.product?.name ??
+              item.inventory_item?.item_desc ??
+              "N/A",
+            specs: item.inventoryItem?.product?.specs ?? "",
+            quantity: item.quantity,
+            unitCost: Number(item.unit_cost ?? 0),
+            totalCost: Number(item.total_cost ?? 0),
+            date: new Date(item.created_at).toLocaleDateString("en-PH", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            }),
+          })) || [];
 
-                  return (
-                    <>
-                      {itemsWithDetails.map((item, itemIdx) => {
-                        
+      const isExpanded = expandedRows.includes(record.id);
+      const visibleItems = isExpanded
+        ? itemsWithDetails
+        : itemsWithDetails.slice(0, 1);
 
-                        return (
-                          <tr key={record.id}>
-                            {itemIdx === 0 && (
-                              <>
-                                <td rowSpan={itemsWithDetails.length} className="px-4 py-2">
-                                  {index + 1}
-                                </td>
-                                <td rowSpan={itemsWithDetails.length} className="px-4 py-2">
-                                  L-{record.ics_number}
-                                </td>
-                                <td rowSpan={itemsWithDetails.length} className="px-4 py-2">
-                                  {record.po?.rfq?.purchase_request?.division?.division ?? 'N/A'}
-                                </td>
-                                <td rowSpan={itemsWithDetails.length} className="px-4 py-2">
-                                  {record.requested_by?.firstname} {record.requested_by?.lastname}
-                                </td>
-                              </>
-                            )}
-                            <td className="px-4 py-2">
-                              {item.description}
-                              {item.specs && ` - ${item.specs}`}
-                            </td>
-                            <td className="px-4 py-2 text-center">{item.quantity}</td>
-                            <td className="px-4 py-2 text-right">₱{item.unitCost.toFixed(2)}</td>
-                            <td className="px-4 py-2 text-right">₱{item.totalCost.toFixed(2)}</td>
-                            <td className="px-4 py-2">{item.date}</td>
-
-                            {/* Actions for all items */}
-                            {itemIdx === itemsWithDetails.length - 1 && (
-                              <td rowSpan={itemsWithDetails.length} className="flex px-4 py-2 text-center space-x-2">
-                                {/* <a
-                                  href={route('supply_officer.print_ics', { id: record.id, type: 'low' })}
-                                  className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-1"
-                                  target="_blank"
-                                >
-                                  <PrinterCheck size={16} /> Print
-                                </a> */}
-                                <a
-                                  href={route('supply_officer.print_ics_all', record.id)}
-                                  className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-1"
-                                  target="_blank"
-                                >
-                                  <PrinterCheck size={16} /> Print
-                                </a>
-                                
-                              <Button
-                                type="button"
-                                className="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700"
-                                onClick={() => {
-                                  setSwitchRecord(record);
-                                  setSwitchItems([]);
-                                  setShowSwitchModal(true);
-                                }}
-                              >
-                                Switch Type
-                              </Button>
-
-                              <Button
-                                type="button"
-                                onClick={(e) => handleActionSelect(e, record)}
-                                value="return"
-                              >
-                                Return
-                              </Button>
-
-
-                              </td>
-                            )}
-                          </tr>
-                        );
-                      })}
-                    </>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan="10" className="text-center">
-                    No ICS records found
+      return (
+        <React.Fragment key={record.id}>
+          {visibleItems.map((item, itemIdx) => (
+            <tr
+              key={`${record.id}-${itemIdx}`}
+              className={`transition-all duration-150 ${
+                itemIdx % 2 === 0 ? "bg-white" : "bg-gray-50"
+              } hover:bg-blue-50 hover:shadow-sm`}
+            >
+              {itemIdx === 0 && (
+                <>
+                  <td
+                    rowSpan={visibleItems.length}
+                    className="px-4 py-3 font-semibold text-gray-800 align-top"
+                  >
+                    {index + 1}
                   </td>
-                </tr>
+                  <td
+                    rowSpan={visibleItems.length}
+                    className="px-4 py-3 text-blue-600 font-medium align-top"
+                  >
+                    L-{record.ics_number}
+                  </td>
+                  <td
+                    rowSpan={visibleItems.length}
+                    className="px-4 py-3 align-top"
+                  >
+                    {record.po?.rfq?.purchase_request?.division?.division ??
+                      "N/A"}
+                  </td>
+                  <td
+                    rowSpan={visibleItems.length}
+                    className="px-4 py-3 align-top"
+                  >
+                    {record.requested_by?.firstname}{" "}
+                    {record.requested_by?.lastname}
+                  </td>
+                </>
               )}
-            </tbody>
+              <td className="px-4 py-3">
+                <span className="font-medium">{item.description}</span>
+                {item.specs && (
+                  <span className="block text-xs text-gray-500">
+                    {item.specs}
+                  </span>
+                )}
+              </td>
+              <td className="px-4 py-3 text-center text-gray-800">
+                {item.quantity}
+              </td>
+              <td className="px-4 py-3 text-right">
+                ₱{item.unitCost.toFixed(2)}
+              </td>
+              <td className="px-4 py-3 text-right">
+                ₱{item.totalCost.toFixed(2)}
+              </td>
+              <td className="px-4 py-3">{item.date}</td>
 
-          </table>
+              {itemIdx === visibleItems.length - 1 && (
+                <td
+                  rowSpan={visibleItems.length}
+                  className="px-4 py-3 text-center align-top"
+                >
+                  <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                    <a
+                      href={route("supply_officer.print_ics_all", record.id)}
+                      target="_blank"
+                      className="inline-flex items-center justify-center gap-1 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg shadow-sm text-xs font-medium"
+                    >
+                      <PrinterCheck size={14} />
+                      Print
+                    </a>
+
+                    <Button
+                      type="button"
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
+                      onClick={() => {
+                        setSwitchRecord(record);
+                        setSwitchItems([]);
+                        setShowSwitchModal(true);
+                      }}
+                    >
+                      Switch Type
+                    </Button>
+
+                    <Button
+                      type="button"
+                      onClick={(e) => handleActionSelect(e, record)}
+                      value="return"
+                      className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
+                    >
+                      Return
+                    </Button>
+                  </div>
+
+                  {/* Expand/Collapse toggle */}
+                  {itemsWithDetails.length > 2 && (
+                    <button
+                      onClick={() => toggleRowExpansion(record.id)}
+                      className="mt-2 text-blue-600 hover:underline text-xs flex items-center justify-center gap-1"
+                    >
+                      {isExpanded ? (
+                        <>
+                          <MinusCircle size={14} /> Show Less
+                        </>
+                      ) : (
+                        <>
+                          <PlusCircle size={14} /> Show More
+                        </>
+                      )}
+                    </button>
+                  )}
+                </td>
+              )}
+            </tr>
+          ))}
+        </React.Fragment>
+      );
+    })
+  ) : (
+    <tr>
+      <td
+        colSpan="10"
+        className="text-center py-10 text-gray-500 bg-gray-50 italic"
+      >
+        <div className="flex flex-col items-center justify-center">
+          <FileText className="w-10 h-10 mb-2 text-gray-400" />
+          <span>No ICS records found</span>
         </div>
+      </td>
+    </tr>
+  )}
+</tbody>
+
+    </table>
+  </div>
+</div>
+
 
         {/* Pagination */}
         {ics?.links?.length > 3 && (

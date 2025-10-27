@@ -141,9 +141,6 @@ public function switchToRis(Request $request)
         return back()->withErrors(['error' => 'Failed to switch to RIS. ' . $e->getMessage()]);
     }
 }
-
-
-
 public function switchToIcs(Request $request)
 {
     $validated = $request->validate([
@@ -179,7 +176,7 @@ try {
 
     // ✅ Create or update ICS record ONCE, not per item
     $ics = ICS::updateOrCreate(
-        ['ics_number' => $validated['ics_number']], // condition
+        ['ics_number' => $validated['ics_number']],
         [
             'po_id' => $po->id,
             'requested_by' => $validated['requested_by'],
@@ -313,9 +310,6 @@ public function switchToPar(Request $request)
         return back()->withErrors(['error' => 'Failed to switch to PAR. ' . $e->getMessage()]);
     }
 }
-
-
-
 
 
 }

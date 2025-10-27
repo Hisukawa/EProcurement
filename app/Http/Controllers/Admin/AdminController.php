@@ -250,6 +250,20 @@ public function dashboard()
                         + ICS::whereDate('created_at', now()->subDays($daysAgo))->count()
                         + PAR::whereDate('created_at', now()->subDays($daysAgo))->count(),
     ]);
+    $prStatusChart = collect(range(6,0,-1))->map(fn($daysAgo) => [
+        'date' => now()->subDays($daysAgo)->format('M d'),
+        'Pending' => PurchaseRequest::whereDate('created_at', now()->subDays($daysAgo))
+                        ->where('status', 'Pending')->count(),
+        'Reviewed' => PurchaseRequest::whereDate('created_at', now()->subDays($daysAgo))
+                        ->where('status', 'Reviewed')->count(),
+        'Rejected' => PurchaseRequest::whereDate('created_at', now()->subDays($daysAgo))
+                        ->where('status', 'Rejected')->count(),
+    ]);
+
+
+    // // ---- Issued Items per Division ----
+    // $issuedPerDivision = Division::withCount(['issuedItems as issued' => fn($q) => $q->sum('quantity')])->get()
+    //     ->map(fn($d) => ['division' => $d->name, 'issued' => $d->issued]);
 
     // ---- Users per Role Chart ----
 
@@ -261,6 +275,7 @@ public function dashboard()
         'chartData' => $chartData,
         'activityTrend' => $activityTrend,
         'usersPerRoleChart' => $usersPerRoleChart,
+        'prStatusChart' => $prStatusChart,
     ]);
 }
 
@@ -356,6 +371,7 @@ public function activity_logs() {
             'issued_to' => $item->assignedTo?->firstname . ' ' . $item->assignedTo?->lastname ?? 'Unknown',
             'date' => $item->created_at->format('M d, Y H:i'),
         ]));
+        
 
     // --- Combine all activities ---
     $activities = $prActivities

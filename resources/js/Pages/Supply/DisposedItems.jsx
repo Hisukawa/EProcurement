@@ -1,5 +1,5 @@
-import { Head, Link, useForm } from "@inertiajs/react";
-import { FileText } from "lucide-react";
+import { Head, Link, router, useForm } from "@inertiajs/react";
+import { FileText, PrinterCheck } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import SupplyOfficerLayout from "@/Layouts/SupplyOfficerLayout";
+import { PrinterIcon } from "@heroicons/react/16/solid";
 
 export default function DisposedItems({ filters, records, user }) {
   const { data, setData } = useForm({
@@ -32,6 +33,15 @@ export default function DisposedItems({ filters, records, user }) {
     setConfirmDialogOpen(false);
   };
 
+  const handleSearch = (value) => {
+    setData("search", value);
+    router.get(
+      route("supply_officer.disposed_items"), // or .disposed_items
+      { search: value },
+      { preserveState: true, replace: true }
+    );
+  };
+
   return (
     <SupplyOfficerLayout header="Disposed Items">
       <Head title="Disposed Items" />
@@ -44,9 +54,12 @@ export default function DisposedItems({ filters, records, user }) {
             <input
               type="text"
               placeholder="Search End User or Focal Person"
-              className="w-64 border border-gray-300 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+              className="w-64 border border-gray-300 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={data.search}
-              onChange={(e) => setData("search", e.target.value)}
+              onChange={(e) => {
+                setData("search", e.target.value);
+                handleSearch(e.target.value);
+              }}
             />
           </div>
         </div>
@@ -144,13 +157,13 @@ export default function DisposedItems({ filters, records, user }) {
 
                         {/* Actions */}
                         <td className="px-6 py-4">
-                          <Button
-                            size="sm"
-                            className="bg-red-600 hover:bg-red-700 text-white"
+                          <a
+                            href={route('supply_officer.print_disposed_items', record.id)}
+                            className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-1"
+                            target="_blank"
                           >
-                            <FileText size={16} className="mr-1" />
-                            View
-                          </Button>
+                            <PrinterCheck size={16} /> Print
+                          </a>
                         </td>
                       </tr>
                     );
@@ -162,7 +175,6 @@ export default function DisposedItems({ filters, records, user }) {
             </tbody>
           </table>
         </div>
-
         {/* Pagination */}
         {records?.links?.length > 3 && (
           <nav className="mt-4 flex justify-center items-center space-x-2">

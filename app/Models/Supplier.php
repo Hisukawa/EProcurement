@@ -11,7 +11,7 @@ class Supplier extends Model
     use HasFactory;
 
     protected $table = 'tbl_suppliers';
-    protected $fillable = ["company_name","address", "tin_num", "representative_name", "category_id"];
+    protected $fillable = ["company_name","address", "tin_num", "representative_name", "contact_number", "email", "status"];
     public function category()
     {
         return $this->belongsTo(SupplyCategory::class, 'category_id');

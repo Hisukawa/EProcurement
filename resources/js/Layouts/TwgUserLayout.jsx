@@ -168,7 +168,7 @@ const markAsRead = async (notification) => {
               className="flex items-center gap-2 px-4 py-2 hover:bg-indigo-600 rounded-lg"
             >
               <ClipboardCheckIcon className="w-5 h-5 text-gray-300" />
-              <span className="text-white font-medium">For Review</span>
+              <span className="text-white font-medium">Purchase Requests</span>
             </NavLink>
 
 

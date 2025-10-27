@@ -9,6 +9,7 @@ use App\Models\PAR;
 use App\Models\PPESubMajorAccount;
 use App\Models\Reissued;
 use App\Models\RIS;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -49,20 +50,57 @@ public function generateRrspNumber()
 }
 
 
-    public function reissued_items(){
-        $record = Reissued::with('items.inventoryItem', 'items.returnedBy', 'items.reissuedBy')->latest()->paginate(10);
-        return Inertia::render('Supply/ReissuedItems', [
-            'records' => $record,
-            'user' => Auth::user(),
-        ]);
+public function reissued_items(Request $request)
+{
+    $query = Reissued::with(['items.inventoryItem', 'items.returnedBy', 'items.reissuedBy'])
+        ->latest();
+
+    if ($request->filled('search')) {
+        $search = $request->search;
+        $query->whereHas('items.returnedBy', function ($q) use ($search) {
+            $q->where('firstname', 'like', "%{$search}%")
+              ->orWhere('lastname', 'like', "%{$search}%");
+        })
+        ->orWhereHas('items.reissuedBy', function ($q) use ($search) {
+            $q->where('firstname', 'like', "%{$search}%")
+              ->orWhere('lastname', 'like', "%{$search}%");
+        });
     }
-    public function disposed_items(){
-        $record = Disposed::with('items.inventoryItem', 'items.returnedBy')->latest()->paginate(10);
-        return Inertia::render('Supply/DisposedItems', [
-            'user' => Auth::user(),
-            'records' => $record,
-        ]);
+
+    $record = $query->paginate(10)->appends($request->only('search'));
+
+    return Inertia::render('Supply/ReissuedItems', [
+        'records' => $record,
+        'user' => Auth::user(),
+        'filters' => $request->only('search'),
+    ]);
+}
+
+public function disposed_items(Request $request)
+{
+    $query = Disposed::with(['items.inventoryItem', 'items.returnedBy'])
+        ->latest();
+
+    if ($request->filled('search')) {
+        $search = $request->search;
+        $query->whereHas('items.returnedBy', function ($q) use ($search) {
+            $q->where('firstname', 'like', "%{$search}%")
+              ->orWhere('lastname', 'like', "%{$search}%");
+        })
+        ->orWhereHas('items.inventoryItem', function ($q) use ($search) {
+            $q->where('item_desc', 'like', "%{$search}%");
+        });
     }
+
+    $record = $query->paginate(10)->appends($request->only('search'));
+
+    return Inertia::render('Supply/DisposedItems', [
+        'records' => $record,
+        'user' => Auth::user(),
+        'filters' => $request->only('search'),
+    ]);
+}
+
 public function reissuance_form($type, $id)
 {
     $selectedItems = array_filter(explode(',', request('items', '')));
@@ -315,6 +353,28 @@ private function updateItemStatus($inventoryItemId, $status)
             $item->save();
         }
     }
+}
+
+public function print_disposed_items($id)
+{
+    $record = Disposed::with('items.inventoryItem', 'items.returnedBy')->findOrFail($id);
+    $pdf = Pdf::loadView('pdf.print_disposed', ['diposedItemData' => $record])
+            ->setPaper('A4', 'portrait'); 
+    
+
+    return $pdf->stream('DISPOSED-ITEMS-'.$record->rrsp_number.'.pdf');
+
+}
+
+public function print_reissued_items($id)
+{
+    $record = Reissued::with('items.inventoryItem', 'items.returnedBy')->findOrFail($id);
+
+    $pdf = Pdf::loadView('pdf.print_reissued', ['reissuedItemData' => $record])
+            ->setPaper('A4', 'portrait'); 
+            
+    return $pdf->stream('REISSUED-ITEMS-'.$record->rrsp_number.'.pdf');
+
 }
 
 }

@@ -261,7 +261,7 @@ public function store_details(Request $request, $pr_id)
 
     public function add_details($pr_id)
     {
-        $purchaseRequest = PurchaseRequest::with('details')->select('id', 'pr_number', 'purpose', 'send_back_reason')->findOrFail($pr_id);
+        $purchaseRequest = PurchaseRequest::with('details')->select('id', 'pr_number', 'purpose', 'send_back_reason', 'rejection_reason')->findOrFail($pr_id);
         
         // Load details along with their related products and units for easier access
         $purchaseRequest->load(['details.product.unit']);
@@ -279,6 +279,7 @@ public function store_details(Request $request, $pr_id)
             'products' => $products,
             'purpose' => $purchaseRequest->purpose,
             'sendBackReason' => $purchaseRequest->send_back_reason,
+            'rejectionReason' => $purchaseRequest->rejection_reason,
             'prDetails' => $purchaseRequest->details->map(function($detail) {
                 return [
                     'id' => $detail->id,

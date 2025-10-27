@@ -117,6 +117,7 @@ Route::middleware(['auth','role:twg_user'])->prefix('twg_user')->group(function 
     Route::post('/review/{pr}', [TwgController::class, 'review'])->name('twg_user.review');
     Route::post('/requests/{id}/send_back', [TwgController::class, 'send_back'])->name('twg_user.send_back');
     Route::post('/submit_review/{pr}', [TwgController::class, 'submit_review'])->name('twg_user.submit_review');
+    Route::post(('reject/{id}'), [TwgController::class, 'reject'])->name('twg_user.reject');
 });
 
 // Approver routes
@@ -196,6 +197,15 @@ Route::middleware(['auth', 'role:supply_officer'])->prefix('supply_officer')->gr
     Route::get('/disposal/{type}/{id}', [ReturnController::class, 'disposal_form'])->name('supply_officer.disposal_form');
     Route::post('/submit_disposal', [ReturnController::class, 'submit_disposal'])->name('supply_officer.submit_disposal');
     Route::get('/disposed_items', [ReturnController::class, 'disposed_items'])->name('supply_officer.disposed_items');
+
+    Route::get('/print_disposed_items/{id}', [ReturnController::class, 'print_disposed_items'])->name('supply_officer.print_disposed_items');
+    Route::get('/print_reissued_items/{id}', [ReturnController::class, 'print_reissued_items'])->name('supply_officer.print_reissued_items');
+
+    Route::get('/suppliers', [SupplyController::class, 'suppliers'])->name('supply_officer.suppliers');
+    Route::post('/suppliers/add', [SupplyController::class, 'add_supplier'])->name('supply_officer.add_supplier');
+    Route::put('/update_supplier/{id}', [SupplyController::class, 'update_supplier'])->name('supply_officer.update_supplier');
+    Route::put('/delete_supplier/{id}', [SupplyController::class, 'delete_supplier'])->name('supply_officer.delete_supplier');
+    Route::put('/activate_supplier/{id}', [SupplyController::class, 'activate_supplier'])->name('supply_officer.activate_supplier');
 });
 // Shared dashboard route
 Route::get('/dashboard', function () {

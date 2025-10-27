@@ -110,6 +110,45 @@ const handleSendBack = () => {
     );
     };
 
+const [rejectOpen, setRejectOpen] = useState(false);
+const [rejectReason, setRejectReason] = useState("");
+const [isRejecting, setIsRejecting] = useState(false);
+const [rejectError, setRejectError] = useState("");
+
+const handleReject = () => {
+  if (!rejectReason.trim()) {
+    setRejectError("You must provide a rejection reason.");
+    return;
+  }
+
+  setIsRejecting(true);
+  router.post(
+    route("twg_user.reject", pr.id),
+    { reason: rejectReason },
+    {
+      preserveScroll: true,
+      preserveState: true,
+      onSuccess: () => {
+        setIsRejecting(false);
+        setRejectOpen(false);
+        setRejectReason("");
+        toast({
+          title: "Rejected!",
+          description: "The purchase request has been rejected.",
+          className: "bg-red-500 text-white",
+        });
+      },
+      onError: () => {
+        setIsRejecting(false);
+        toast({
+          title: "Error",
+          description: "Failed to reject PR. Please try again.",
+          className: "bg-red-500 text-white",
+        });
+      },
+    }
+  );
+};
 
 
   return (
@@ -260,12 +299,21 @@ const handleSendBack = () => {
           {pr.status.toLowerCase() !== "reviewed" && (
             <Button
             
-              className="bg-red-500 hover:bg-red-600 text-white"
+              className="bg-yellow-500 hover:bg-yellow-600 text-white"
               onClick={() => setSendBackOpen(true)}
             >
               Send Back
             </Button>
           )}
+          {pr.status.toLowerCase() === "pending" && (
+            <Button
+              className="bg-red-500 hover:bg-red-600 text-white"
+              onClick={() => setRejectOpen(true)}
+            >
+              Reject
+            </Button>
+          )}
+
         </div>
       </div>
 
@@ -341,6 +389,42 @@ const handleSendBack = () => {
             </DialogFooter>
             </DialogContent>
         </Dialog>
+        {/* Reject Dialog */}
+<Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Reject Purchase Request</DialogTitle>
+      <DialogDescription>
+        Provide a reason for rejecting this purchase request.
+      </DialogDescription>
+    </DialogHeader>
+
+    <Textarea
+      placeholder="Enter rejection reason..."
+      aria-label="Enter rejection reason"
+      value={rejectReason}
+      onChange={(e) => {
+        setRejectReason(e.target.value);
+        if (rejectError) setRejectError("");
+      }}
+    />
+    {rejectError && <p className="text-sm text-red-500 mt-2">{rejectError}</p>}
+
+    <DialogFooter>
+      <Button variant="outline" onClick={() => setRejectOpen(false)}>
+        Cancel
+      </Button>
+      <Button
+        className="bg-red-600 hover:bg-red-700 text-white"
+        onClick={handleReject}
+        disabled={isRejecting}
+      >
+        {isRejecting ? "Rejecting..." : "Reject"}
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
     </TwgUserLayout>
   )
 }

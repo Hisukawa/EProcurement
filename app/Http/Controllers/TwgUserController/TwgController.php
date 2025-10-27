@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PurchaseRequest;
 use App\Models\User;
 use App\Notifications\PurchaseRequestApproved;
+use App\Notifications\PurchaseRequestRejected;
 use App\Notifications\PurchaseRequestSentBack;
 use Exception;
 use Illuminate\Http\Request;
@@ -17,20 +18,70 @@ class TwgController extends Controller
 /*************  ✨ Windsurf Command ⭐  *************/
 /**
  * Function to render the dashboard page for twg user
- */public function dashboard(){
+ */
+public function dashboard()
+{
     $user = FacadesAuth::user();
 
-        return Inertia::render('TwgUser/Dashboard',[
-            'user' => $user,
+    // --- Stats summary ---
+    $totalPRs = PurchaseRequest::count();
+    $reviewedCount = PurchaseRequest::where('status', 'Reviewed')->count();
+    $pendingCount = PurchaseRequest::where('status', 'Pending')->count();
+    $sentBackCount = PurchaseRequest::whereNotNull('send_back_reason')->count();
+
+    // --- Monthly trend (past 6 months) ---
+    $monthlyStats = PurchaseRequest::selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month, COUNT(*) as total')
+        ->groupBy('month')
+        ->orderBy('month', 'desc')
+        ->take(6)
+        ->get()
+        ->reverse()
+        ->values();
+
+    // --- Top 5 divisions by PR count ---
+    $topDivisions = PurchaseRequest::selectRaw('division_id, COUNT(*) as total')
+        ->with('division:id,division')
+        ->groupBy('division_id')
+        ->orderByDesc('total')
+        ->take(5)
+        ->get()
+        ->map(fn($d) => [
+            'division' => $d->division->division ?? 'N/A',
+            'count' => $d->total,
         ]);
 
-        
-    }
+    // --- Recent PRs ---
+    $recentPRs = PurchaseRequest::with(['division', 'focal_person'])
+        ->latest()
+        ->take(5)
+        ->get(['id', 'pr_number', 'status', 'division_id', 'focal_person_user', 'created_at'])
+        ->map(fn($pr) => [
+            'id' => $pr->id,
+            'pr_number' => $pr->pr_number,
+            'status' => $pr->status,
+            'division' => $pr->division->division ?? 'N/A',
+            'focal_person' => $pr->focal_person->firstname . ' ' . $pr->focal_person->lastname,
+            'created_at' => $pr->created_at->format('M d, Y'),
+        ]);
+
+    return Inertia::render('TwgUser/Dashboard', [
+        'user' => $user,
+        'stats' => [
+            'total' => $totalPRs,
+            'reviewed' => $reviewedCount,
+            'pending' => $pendingCount,
+            'sent_back' => $sentBackCount,
+        ],
+        'monthlyStats' => $monthlyStats,
+        'topDivisions' => $topDivisions,
+        'recentPRs' => $recentPRs,
+    ]);
+}
+
     public function for_review(Request $request)
     {
         $query = PurchaseRequest::with(['details', 'division', 'focal_person'])
-            ->where('is_sent', 1)
-            ->where('status', 'pending');
+            ->where('is_sent', 1);
 
         if ($request->filled('prNumber')) {
             $query->where('pr_number', 'like', '%' . $request->input('prNumber') . '%');
@@ -121,6 +172,27 @@ public function send_back(Request $request, $id)
         }
 
         return back()->with('success', 'PR sent back with reason.');
+    }
+
+        public function reject(Request $request, $id)
+    {
+        $request->validate([
+            'reason' => 'required|string|max:1000',
+        ]);
+
+        $pr = PurchaseRequest::findOrFail($id);
+
+        // Update PR status
+        $pr->update([
+            'status' => 'Rejected',
+            'rejection_reason' => $request->reason,
+        ]);
+
+        // Notify the requester
+        $requester = User::findOrFail($pr->focal_person_user);
+        $requester->notify(new PurchaseRequestRejected($pr, $request->reject_reason));
+
+        return back()->with('success', 'PR rejected successfully.');
     }
 
 

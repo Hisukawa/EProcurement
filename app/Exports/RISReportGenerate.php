@@ -20,54 +20,82 @@ class RISReportGenerate implements FromCollection, WithHeadings, WithMapping, Wi
     protected $year;
     protected $lastRisNo = null;
 
-    public function __construct($month = null, $year = null)
+    protected $search;
+
+    public function __construct($month = null, $year = null, $search = null)
     {
         $this->month = $month;
         $this->year  = $year;
+        $this->search = $search;
     }
 
 public function collection()
-    {
-        $query = RIS::with([
-            'items.inventoryItem.product.unit',
-            'po.details.prDetail.purchaseRequest.division'
-        ]);
+{
+    $query = RIS::with([
+        'items.inventoryItem.product.unit',
+        'po.details.prDetail.purchaseRequest.division',
+        'po.details.prDetail.purchaseRequest.focal_person'
+    ]);
 
-        if ($this->month) {
-            $query->whereMonth('created_at', $this->month);
-        }
-        if ($this->year) {
-            $query->whereYear('created_at', $this->year);
-        }
-        
+    // 🔹 Filter by month and year
+    if ($this->month) {
+        $query->whereMonth('created_at', $this->month);
+    }
+    if ($this->year) {
+        $query->whereYear('created_at', $this->year);
+    }
 
-        $risList = $query->orderBy('created_at')->get();
-        $rows = collect();
+    // 🔹 Apply search if provided
+    if ($this->search) {
+        $search = $this->search;
 
-        foreach ($risList as $ris) {
-            // determine division once per RIS (fallbacks handled in map)
-            $division = optional($ris->po->details->first()?->prDetail?->purchaseRequest?->division)->division ?? '';
+        $query->where(function ($q) use ($search) {
+            $q->where('ris_number', 'like', "%{$search}%")
+                // ✅ Search PO Number
+                ->orWhereHas('po', function ($poQuery) use ($search) {
+                    $poQuery->where('po_number', 'like', "%{$search}%");
+                })
+                // ✅ Search by Item Description or Product Name
+                ->orWhereHas('items.inventoryItem', function ($itemQuery) use ($search) {
+                    $itemQuery->where('item_desc', 'like', "%{$search}%");
+                })
+                // ✅ Search by Focal Person
+                ->orWhereHas('po.details.prDetail.purchaseRequest.focal_person', function ($focalQuery) use ($search) {
+                    $focalQuery->where('firstname', 'like', "%{$search}%")
+                        ->orWhere('middlename', 'like', "%{$search}%")
+                        ->orWhere('lastname', 'like', "%{$search}%");
+                })
+                // ✅ Search by Division
+                ->orWhereHas('po.details.prDetail.purchaseRequest.division', function ($divQuery) use ($search) {
+                    $divQuery->where('division', 'like', "%{$search}%");
+                });
+        });
+    }
 
-            if ($ris->items->isEmpty()) {
-                // If RIS has no items, still output a placeholder row (optional)
+    // 🔹 Order by created date and get all records
+    $risList = $query->orderBy('created_at')->get();
+
+    // 🔹 Flatten results (RIS + items)
+    $rows = collect();
+    foreach ($risList as $ris) {
+        if ($ris->items->isEmpty()) {
+            $rows->push((object)[
+                'ris' => $ris,
+                'item' => null,
+            ]);
+        } else {
+            foreach ($ris->items as $itm) {
                 $rows->push((object)[
                     'ris' => $ris,
-                    'item' => null,
-                    // 'division' => $division,
+                    'item' => $itm,
                 ]);
-            } else {
-                foreach ($ris->items as $itm) {
-                    $rows->push((object)[
-                        'ris' => $ris,
-                        'item' => $itm,
-                        // 'division' => $division,
-                    ]);
-                }
             }
         }
-
-        return $rows;
     }
+
+    return $rows;
+}
+
 
     public function headings(): array
     {
