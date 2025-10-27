@@ -39,11 +39,12 @@ class ExcelReportsController extends Controller
     {
         $month = $request->query('month');
         $year  = $request->query('year');
+        $search = $request->query('search');
 
-        $fileName = 'RIS_Report_Generated_' . date("F", mktime(0, 0, 0, $month, 10)) . '_' . $year . '.xlsx';
+        $fileName = 'RIS_Report_Generated_' . date("F", mktime(0, 0, 0, $month, 10)) . '_' . $year . '_' . $search . '.xlsx';
 
         return Excel::download(
-            new RISReportGenerate($month, $year),
+            new RISReportGenerate($month, $year, $search),
             $fileName
         );
     }
@@ -52,38 +53,41 @@ class ExcelReportsController extends Controller
     {
         $month = $request->input('month');
         $year = $request->input('year');
+        $search = $request->input('search');
         $type = $request->input('type', 'low'); // default low if not passed
 
         // Convert type to Title Case (e.g., "low" -> "Low", "high" -> "High")
         $typeTitle = ucfirst(strtolower($type));
 
         return Excel::download(
-            new ICSReportExport($month, $year, $type),
-            "ICS_{$typeTitle}_Report_{$year}.xlsx"
+            new ICSReportExport($month, $year, $type, $search),
+            "ICS_{$typeTitle}_Report_{$year}_{$search}.xlsx"
         );
     }
     public function generateIcsReportHigh(Request $request)
     {
         $month = $request->input('month');
         $year = $request->input('year');
-        $type = $request->input('type', 'high'); // default low if not passed
+        $search = $request->input('search');
+        $type = $request->input('type', 'high');
 
         // Convert type to Title Case (e.g., "low" -> "Low", "high" -> "High")
         $typeTitle = ucfirst(strtolower($type));
 
         return Excel::download(
-            new ICSReportExportHigh($month, $year, $type),
-            "ICS_{$typeTitle}_Report_{$year}.xlsx"
+            new ICSReportExportHigh($month, $year, $type, $search),
+            "ICS_{$typeTitle}_Report_{$year}_{$search}.xlsx"
         );
     }
     public function generateParReport(Request $request)
     {
         $month = $request->input('month');
         $year = $request->input('year');
+        $search = $request->input('search');
 
         return Excel::download(
-            new ParReportExport($month, $year),
-            "PAR_Report_{$year}.xlsx"
+            new ParReportExport($month, $year, $search),
+            "PAR_Report_{$year}_{$search}.xlsx"
         );
     }
 

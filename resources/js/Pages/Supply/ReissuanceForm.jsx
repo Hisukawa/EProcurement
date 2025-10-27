@@ -221,6 +221,7 @@ export default function ReissuanceForm({
                               handleItemChange(index, "recipient", e.target.value)
                             }
                             className="w-full border-gray-300 rounded-md text-sm p-1"
+                            placeholder="Leave Blank if none"
                           />
                         </td>
                         <td className="p-2 border">

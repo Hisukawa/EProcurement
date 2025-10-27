@@ -120,19 +120,38 @@ const markAsRead = async (id, notification) => {
     // Mark the notification as read
     await axios.post(`/notifications/${id}/read`);
 
-    // Check if this is a 'send back' notification
+    const type = notification?.data?.type || '';
+
     const isSendBack =
-      notification?.type === 'App\\Notifications\\PurchaseRequestSentBack' ||
-      notification?.data?.type === 'send_back' ||
-      notification?.data?.action === 'send_back';
+      type === 'send_back' ||
+      notification?.type === 'App\\Notifications\\PurchaseRequestSentBack';
 
-    const prId = notification?.data?.pr_id || notification?.data?.prID || notification?.data?.pr_id_fk;
+    const isRejected =
+      type === 'rejected' ||
+      notification?.type === 'App\\Notifications\\PurchaseRequestRejected';
 
-    // If it's a SEND BACK notification, jump straight to the PR's Add Details page
+    const prId =
+      notification?.data?.pr_id ||
+      notification?.data?.prID ||
+      notification?.data?.pr_id_fk;
+
     if (isSendBack && prId) {
       Inertia.visit(route('requester.add_details', prId), { preserveScroll: true });
       return;
     }
+
+    if(isRejected && prId) {
+      Inertia.visit(route('requester.add_details', prId), { preserveScroll: true });
+      return;
+    }
+
+    // ✅ New behavior: Show modal for rejection reason
+    if (isRejected) {
+      setSelectedReason(notification.data?.reason || 'No reason provided.');
+      setShowReasonModal(true);
+      return;
+    }
+
   } catch (error) {
     console.error('Failed to mark notification as read:', error);
   }

@@ -179,6 +179,8 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
       },
     });
   };
+    const handlePrintAOQ = (rfqId, detailId) =>
+  window.open(route("bac_user.print_aoq", { id: rfqId, pr_detail_id: detailId }), "_blank");
 
   return (
     <ApproverLayout>

@@ -21,6 +21,7 @@ return new class extends Migration
             $table->enum('status', ['Reviewed', 'Rejected', 'Pending'])->default('Pending');
             $table->boolean('is_sent')->default(false);
             $table->text('send_back_reason')->nullable();
+            $table->text('rejection_reason')->nullable();
             $table->decimal('total_price', 12, 2)->nullable();
             $table->string('approval_image', 255)->nullable();
             $table->timestamps();

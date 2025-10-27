@@ -8,7 +8,8 @@ import { Head } from "@inertiajs/react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"; // Shadcn Dialog import
 import { Button } from "@/components/ui/button"; // Shadcn Button import
 
-export default function AddDetails({ prId, products, pr_number, prDetails, purpose, sendBackReason, units }) {
+export default function AddDetails({ prId, products, pr_number, prDetails, purpose, sendBackReason, units, rejectionReason }) {
+    console.log(rejectionReason);
 const { data, setData, post, put, processing, errors, reset } = useForm({
         id: null,
         pr_number: pr_number,
@@ -197,10 +198,10 @@ const { data, setData, post, put, processing, errors, reset } = useForm({
                 </div>
 
                 {/* Highlight send back reason if available */}
-                {sendBackReason && sendBackReason !== null && (
-                    <div className="mb-4 p-4 bg-yellow-200 border-l-4 border-yellow-500 text-yellow-800">
-                        <strong>Sent Back Reason: </strong>
-                        {sendBackReason}
+                {rejectionReason && rejectionReason !== null && (
+                    <div className="mb-4 p-4 bg-red-200 border-l-4 border-red-600 text-red-800">
+                        <strong>Rejection Reason: </strong>
+                        {rejectionReason}
                     </div>
                 )}
 
@@ -288,7 +289,7 @@ const { data, setData, post, put, processing, errors, reset } = useForm({
                 </Dialog>
 
                 {/* Modal for Item Editing */}
-<Dialog open={modalIsOpen} onOpenChange={setModalIsOpen}>
+                <Dialog open={modalIsOpen} onOpenChange={setModalIsOpen}>
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Edit Item</DialogTitle>

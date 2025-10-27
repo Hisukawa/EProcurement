@@ -687,4 +687,122 @@ public function inventory(Request $request)
     ]);
 }
 
+public function suppliers(Request $request)
+{
+    $search = $request->input('search');
+
+    $suppliers = Supplier::when($search, function ($query, $search) {
+        $query->where('company_name', 'like', "%$search%")
+              ->orWhere('representative_name', 'like', "%$search%");
+    })
+    ->orderBy('company_name')
+    ->paginate(10)
+    ->withQueryString();
+
+    return Inertia::render('Supply/Suppliers', [
+        'records' => $suppliers,
+        'filters' => [
+            'search' => $search,
+        ],
+    ]);
+}
+
+    public function update_supplier(Request $request, $id)
+    {
+        // Validate the incoming data
+        $validatedData = $request->validate([
+            'company_name' => 'required|string|max:255',
+            'address' => 'required|string|max:255',
+            'tin_num' => 'required|string|max:50',
+            'representative_name' => 'required|string|max:255',
+            'contact_number' => 'nullable|string|max:15',
+            'email' => 'nullable|email|max:255',
+        ]);
+
+        // Find the supplier by ID
+        $supplier = Supplier::find($id);
+
+        if (!$supplier) {
+            return redirect()->back()->with('error', 'Supplier not found.');
+        }
+
+        // Update supplier data
+        $supplier->company_name = $validatedData['company_name'];
+        $supplier->address = $validatedData['address'];
+        $supplier->tin_num = $validatedData['tin_num'];
+        $supplier->representative_name = $validatedData['representative_name'];
+        $supplier->contact_number = $validatedData['contact_number'] ?? $supplier->contact_number;
+        $supplier->email = $validatedData['email'] ?? $supplier->email;
+
+        // Save the changes
+        $supplier->save();
+
+        // Return success response
+        return redirect()->route('supply_officer.suppliers')->with('success', 'Supplier updated successfully!');
+    }
+        public function delete_supplier($id)
+    {
+        // Find the supplier by ID
+        $supplier = Supplier::find($id);
+
+        if (!$supplier) {
+            return redirect()->back()->with('error', 'Supplier not found.');
+        }
+
+        // Mark supplier as inactive
+        $supplier->status = 'inactive';  // Assuming you have a 'status' field in your suppliers table
+        $supplier->save();
+
+        // Return success response
+        return redirect()->route('supply_officer.suppliers')->with('success', 'Supplier marked as inactive.');
+    }
+
+    public function activate_supplier($id)
+    {
+        // Find the supplier by ID
+        $supplier = Supplier::find($id);
+
+        if (!$supplier) {
+            return redirect()->back()->with('error', 'Supplier not found.');
+        }
+
+        // Mark supplier as inactive
+        $supplier->status = 'active';  // Assuming you have a 'status' field in your suppliers table
+        $supplier->save();
+
+        // Return success response
+        return redirect()->route('supply_officer.suppliers')->with('success', 'Supplier marked as active.');
+    }
+
+    public function add_supplier(Request $request)
+    {
+        // ✅ Validate inputs
+        $validated = $request->validate([
+            'company_name' => 'required|string|max:255',
+            'address' => 'required|string|max:255',
+            'tin_num' => 'required|string|max:50|unique:tbl_suppliers,tin_num',
+            'representative_name' => 'required|string|max:255',
+            'contact_number' => 'nullable|string|max:15',
+            'email' => 'nullable|email|max:255|unique:tbl_suppliers,email',
+        ]);
+
+        // ✅ Use Eloquent create() method (mass assignment)
+        $supplier = Supplier::create([
+            'company_name' => $validated['company_name'],
+            'address' => $validated['address'],
+            'tin_num' => $validated['tin_num'],
+            'representative_name' => $validated['representative_name'],
+            'contact_number' => $validated['contact_number'] ?? null,
+            'email' => $validated['email'] ?? null,
+            'status' => 'active', // default active
+        ]);
+
+        // ✅ Redirect with message
+        return redirect()
+            ->route('supply_officer.suppliers')
+            ->with('success', "{$supplier->company_name} has been successfully added.");
+    }
+
+
+
 }

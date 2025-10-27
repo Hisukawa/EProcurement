@@ -15,10 +15,12 @@ class ParReportExport implements FromCollection, WithHeadings, WithMapping, With
 {
     protected $month;
     protected $year;
-    public function __construct($month = null, $year = null)
+    protected $search;
+    public function __construct($month = null, $year = null, $search = null)
     {
         $this->month = $month;
         $this->year  = $year;
+        $this->search = $search;
     }
 
     public function collection()
@@ -26,7 +28,7 @@ class ParReportExport implements FromCollection, WithHeadings, WithMapping, With
         $query = PAR::with([
             'items.inventoryItem.unit',
             'po.rfq.purchaseRequest.division',
-            'po.rfq.purchaseRequest.focal_person',
+            'po.details.prDetail.purchaseRequest.focal_person'
         ]);
 
         if ($this->month) {
@@ -35,6 +37,31 @@ class ParReportExport implements FromCollection, WithHeadings, WithMapping, With
         if ($this->year) {
             $query->whereYear('created_at', $this->year);
         }
+            if ($this->search) {
+        $search = $this->search;
+
+        $query->where(function ($q) use ($search) {
+            $q->where('par_number', 'like', "%{$search}%")
+                // ✅ Search PO Number
+                ->orWhereHas('po', function ($poQuery) use ($search) {
+                    $poQuery->where('po_number', 'like', "%{$search}%");
+                })
+                // ✅ Search by Item Description or Product Name
+                ->orWhereHas('items.inventoryItem', function ($itemQuery) use ($search) {
+                    $itemQuery->where('item_desc', 'like', "%{$search}%");
+                })
+                // ✅ Search by Focal Person
+                ->orWhereHas('po.details.prDetail.purchaseRequest.focal_person', function ($focalQuery) use ($search) {
+                    $focalQuery->where('firstname', 'like', "%{$search}%")
+                        ->orWhere('middlename', 'like', "%{$search}%")
+                        ->orWhere('lastname', 'like', "%{$search}%");
+                })
+                // ✅ Search by Division
+                ->orWhereHas('po.details.prDetail.purchaseRequest.division', function ($divQuery) use ($search) {
+                    $divQuery->where('division', 'like', "%{$search}%");
+                });
+        });
+    }
 
         // Flatten: one row per item
         return $query->get()->flatMap(function ($par) {

@@ -66,8 +66,6 @@ export default function SwitchToIcsForm({ ics, user, ppeOptions, type }) {
 
     try {
       let baseSeries = 1;
-
-      // ✅ Fetch latest series only once (ICS + PAR combined)
       if (!window.__globalSeriesCache) {
         const res = await fetch(`/api/ics-next-series`);
         const response = await res.json();
