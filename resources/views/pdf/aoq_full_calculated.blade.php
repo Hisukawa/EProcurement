@@ -33,9 +33,9 @@
     </div>
 
     <div style="font-size:12px; margin:15px 0;">
-        <p><strong>Project No.:</strong> _____________</p>
-        <p><strong>Date of Opening:</strong> _____________</p>
-        <p><strong>Venue:</strong> _____________</p>
+        <p><strong>Project No.:</strong> {{ $rfq['project_no'] }}</p>
+        <p><strong>Date of Opening:</strong> {{ $rfq['date_of_opening'] }}</p>
+        <p><strong>Venue:</strong> {{ $rfq['venue'] }}</p>
     </div>
 
     <table>

@@ -418,12 +418,15 @@ const handlePriceChange = (supplierId, detailId, value) => {
                   </p>
                 )}
               </div>
-              <button
-                onClick={() => handlePrintAOQ(rfq.id)}
-                className="text-sm text-white bg-green-600 hover:bg-green-700 px-3 py-2 rounded-md h-fit"
-              >
-                🖨️ Print Abstract as Calculated
-              </button>
+                {hasWholePrWinner && (
+                  <button
+                    onClick={() => handlePrintAOQ(rfq.id)}
+                    className="text-sm text-white bg-green-600 hover:bg-green-700 px-3 py-2 rounded-md h-fit"
+                  >
+                    🖨️ Print Abstract as Calculated
+                  </button>
+                )}
+
             </div>
 
             <table className="w-full text-sm border border-gray-300 rounded-lg overflow-hidden shadow">

@@ -194,10 +194,18 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
 
   // 🔹 NEW — separate form for project info submission
   const projectInfoForm = useForm({
-    project_no: "",
-    date_of_opening: "",
-    venue: "",
+    project_no:rfq.project_no || "",
+    date_of_opening: rfq.date_of_opening || "",
+    venue: rfq.venue || "",
   });
+  useEffect(() => {
+  projectInfoForm.setData({
+    project_no: rfq.project_no || "",
+    date_of_opening: rfq.date_of_opening || "",
+    venue: rfq.venue || "",
+  });
+}, [rfq]);
+
 
   const handleProjectInfoSubmit = (e) => {
     e.preventDefault();
