@@ -6,6 +6,7 @@ use App\Exports\RISExport;
 use App\Exports\RISExportMonthly;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogs;
+use App\Models\Disposed;
 use App\Models\Division;
 use App\Models\IAR;
 use App\Models\ICS;
@@ -16,6 +17,7 @@ use App\Models\PAR;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderDetail;
 use App\Models\PurchaseRequest;
+use App\Models\Reissued;
 use App\Models\RFQ;
 use App\Models\RIS;
 use App\Models\Supplier;
@@ -31,152 +33,213 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class SupplyController extends Controller
 {
-    public function dashboard() 
-    {
-$totalStock = Inventory::sum('total_stock');
-$pendingDeliveries = PurchaseOrder::where("status", "Not yet Delivered")->count();
-$totalIcs = ICS::count();
-$totalRis = RIS::count();
-$totalIcsHigh = ICS::whereHas('items', function($query) {
-    $query->where('type', 'high');
-})->count();
+public function dashboard()
+{
+    $totalStock = Inventory::sum('total_stock');
+    $pendingDeliveries = PurchaseOrder::where("status", "Not yet Delivered")->count();
+    $totalIcs = ICS::count();
+    $totalRis = RIS::count();
+    $totalIcsHigh = ICS::whereHas('items', fn($q) => $q->where('type', 'high'))->count();
+    $totalIcsLow = ICS::whereHas('items', fn($q) => $q->where('type', 'low'))->count();
+    $totalPar = PAR::count();
+    $totalIssued = $totalIcs + $totalRis + $totalPar;
+    $totalPo = PurchaseOrder::count();
+    $user = Auth::user();
 
-$totalIcsLow = ICS::whereHas('items', function($query) {
-    $query->where('type', 'low');
-})->count();
+    // --------------------------
+    // Recent Activity
+    // --------------------------
+    $risActivity = RIS::with(['requestedBy', 'issuedBy', 'items.inventoryItem'])
+        ->latest('created_at')->take(10)->get()
+        ->flatMap(fn($r) => $r->items->map(fn($item) => [
+            'id' => $r->ris_number,
+            'action' => "Issued {$item->quantity} {$item->inventoryItem->item_desc}",
+            'status' => 'Processed',
+            'date' => $item->created_at->format('M d, Y'),
+        ]));
 
-$totalPar = PAR::count();
+    $icsActivity = ICS::with('items.inventoryItem')
+        ->latest('created_at')->take(10)->get()
+        ->flatMap(fn($i) => $i->items->map(fn($item) => [
+            'id' => $i->ics_number,
+            'action' => "Received {$item->quantity} {$item->inventoryItem->item_desc}",
+            'status' => 'Processed',
+            'date' => $item->created_at->format('M d, Y'),
+        ]));
 
-$totalIssued = $totalIcs + $totalRis + $totalPar;
-$totalPo = PurchaseOrder::count();
-
-$user = Auth::user();
-
-// ---- FIXED: RIS Activity ----
-$risActivity = RIS::with(['requestedBy', 'issuedBy', 'items.inventoryItem'])
-    ->latest('created_at')
-    ->take(10) // take more in case multiple items per RIS
-    ->get()
-    ->flatMap(function($r) {
-        return $r->items->map(function($item) use ($r) {
-            return [
-                'id' => $r->ris_number,
-                'action' => "Issued {$item->quantity} {$item->inventoryItem->item_desc}",
-                'status' => 'Processed',
-                'date' => $item->created_at->format('M d, Y'),
-            ];
-        });
-    });
-
-// ---- FIXED: ICS Activity ----
-$icsActivity = ICS::with('items.inventoryItem')
-    ->latest('created_at')
-    ->take(10)
-    ->get()
-    ->flatMap(function($i) {
-        return $i->items->map(function($item) use ($i) {
-            return [
-                'id' => $i->ics_number,
-                'action' => "Received {$item->quantity} {$item->inventoryItem->item_desc}",
-                'status' => 'Processed',
-                'date' => $item->created_at->format('M d, Y'),
-            ];
-        });
-    });
-
-// ---- FIXED: PAR Activity ----
-$parActivity = PAR::with('items.inventoryItem')
-    ->latest('created_at')
-    ->take(10)
-    ->get()
-    ->flatMap(function($p) {
-        return $p->items->map(function($item) use ($p) {
-            return [
-                'id' => $p->par_number,
-                'action' => "Issued {$item->quantity} {$item->inventoryItem->item_desc}",
-                'status' => 'Processed',
-                'date' => $item->created_at->format('M d, Y'),
-            ];
-        });
-    });
-
-// ---- Combine all recent activity ----
-$recentActivity = $risActivity->concat($icsActivity)->concat($parActivity)
-    ->sortByDesc(fn($a) => strtotime($a['date']))
-    ->take(5)
-    ->values();
-
-
-
-        return Inertia::render('Supply/Dashboard', [
-            'stats' => [
-                [
-                    'label' => 'Total Stock Items',
-                    'value' => $totalStock,
-                    'icon' => 'Boxes',
-                    'color' => 'bg-blue-100 text-blue-600'
-                ],
-                [
-                    'label' => 'Pending Deliveries',
-                    'value' => $pendingDeliveries,
-                    'icon' => 'Truck',
-                    'color' => 'bg-yellow-100 text-yellow-600'
-                ],
-                [
-                    'label' => 'Total Issued Items',
-                    'value' => $totalIssued,
-                    'icon' => 'PackageCheck',
-                    'color' => 'bg-green-100 text-green-600'
-                ],
-            ],
-            'documents' => [
-                [
-                    'label'=> "RIS (Requisition)", 
-                    'value'=> $totalRis, 
-                    'icon'=> 'ClipboardList', 
-                    'link'=> "supply_officer.ris_issuance", 
-                    'color'=> "bg-purple-100 text-purple-600" 
-                ],
-                [
-                    'label'=> "ICS (High)", 
-                    'value'=> $totalIcsHigh, 
-                    'icon'=> 'FileSpreadsheet', 
-                    'link'=> "supply_officer.ics_issuance_high", 
-                    'color'=> "bg-pink-100 text-pink-600" 
-                ],
-                [
-                    'label'=> "ICS (Low)", 
-                    'value'=> $totalIcsLow, 
-                    'icon'=> 'FileSpreadsheet', 
-                    'link'=> "supply_officer.ics_issuance_low", 
-                    'color'=> "bg-indigo-100 text-indigo-600" 
-                ],
-                [
-                    'label'=> "PAR", 
-                    'value'=> $totalPar, 
-                    'icon'=> 'FileCheck', 
-                    'link'=> "supply_officer.par_issuance", 
-                    'color'=> "bg-orange-100 text-orange-600" 
-                ],
-                [
-                    'label'=> "Purchase Orders", 
-                    'value'=> $totalPo, 
-                    'icon'=> 'FileText', 
-                    'link'=> "supply_officer.purchase_orders", 
-                    'color'=> "bg-teal-100 text-teal-600" 
-                ],
-                [
-                    'label'=> "Issuance Logs", 
-                    'value'=> $totalIssued, 
-                    'icon'=> 'Layers', 
-                    'link'=> "supply_officer.ris_issuance", 
-                    'color'=> "bg-sky-100 text-sky-600" 
-                ],
-            ],
-            'recentActivity' => $recentActivity,
-            'user' => $user
+    $parActivity = PAR::with('items.inventoryItem')
+        ->latest('created_at')->take(10)->get()
+        ->flatMap(fn($p) => $p->items->map(fn($item) => [
+            'id' => $p->par_number,
+            'action' => "Issued {$item->quantity} {$item->inventoryItem->item_desc}",
+            'status' => 'Processed',
+            'date' => $item->created_at->format('M d, Y'),
+        ]));
+    $risIssued = DB::table('tbl_ris as ris')
+        ->join('tbl_purchase_orders as po', 'po.id', '=', 'ris.po_id')
+        ->join('tbl_rfqs as rfq', 'rfq.id', '=', 'po.rfq_id')
+        ->join('tbl_purchase_requests as pr', 'pr.id', '=', 'rfq.pr_id')
+        ->join('tbl_divisions as d', 'd.id', '=', 'pr.division_id')
+        ->select('d.division as division', DB::raw('COUNT(ris.id) as total'))
+        ->groupBy('d.division')
+        ->get()
+        ->map(fn($r) => [
+            'division' => $r->division ?? 'Unassigned',
+            'total' => $r->total,
+            'type' => 'RIS',
         ]);
-    }
+
+    // 🟩 ICS-issued per division
+    $icsIssued = DB::table('tbl_ics as ics')
+        ->join('tbl_purchase_orders as po', 'po.id', '=', 'ics.po_id')
+        ->join('tbl_rfqs as rfq', 'rfq.id', '=', 'po.rfq_id')
+        ->join('tbl_purchase_requests as pr', 'pr.id', '=', 'rfq.pr_id')
+        ->join('tbl_divisions as d', 'd.id', '=', 'pr.division_id')
+        ->select('d.division as division', DB::raw('COUNT(ics.id) as total'))
+        ->groupBy('d.division')
+        ->get()
+        ->map(fn($i) => [
+            'division' => $i->division ?? 'Unassigned',
+            'total' => $i->total,
+            'type' => 'ICS',
+        ]);
+
+    // 🟨 PAR-issued per division
+    $parIssued = DB::table('tbl_par as par')
+        ->join('tbl_purchase_orders as po', 'po.id', '=', 'par.po_id')
+        ->join('tbl_rfqs as rfq', 'rfq.id', '=', 'po.rfq_id')
+        ->join('tbl_purchase_requests as pr', 'pr.id', '=', 'rfq.pr_id')
+        ->join('tbl_divisions as d', 'd.id', '=', 'pr.division_id')
+        ->select('d.division as division', DB::raw('COUNT(par.id) as total'))
+        ->groupBy('d.division')
+        ->get()
+        ->map(fn($p) => [
+            'division' => $p->division ?? 'Unassigned',
+            'total' => $p->total,
+            'type' => 'PAR',
+        ]);
+
+    // 🧩 Combine all 3
+    $issuedPerDivision = collect()
+        ->merge($risIssued)
+        ->merge($icsIssued)
+        ->merge($parIssued)
+        ->groupBy('division')
+        ->map(fn($group) => [
+            'division' => $group->first()['division'],
+            'total' => $group->sum('total'),
+            'breakdown' => [
+                'RIS' => $group->where('type', 'RIS')->sum('total'),
+                'ICS' => $group->where('type', 'ICS')->sum('total'),
+                'PAR' => $group->where('type', 'PAR')->sum('total'),
+            ],
+        ])
+        ->values();
+
+    $recentActivity = $risActivity->concat($icsActivity)->concat($parActivity)
+        ->sortByDesc(fn($a) => strtotime($a['date']))
+        ->take(5)
+        ->values();
+
+    // --------------------------
+    // Disposed / Reissued Stats
+    // --------------------------
+    $disposedCount = Disposed::withCount('items')->get()->sum('items_count');
+    $reissuedCount = Reissued::withCount('items')->get()->sum('items_count');
+
+    $disposedTotalCost = Disposed::with('items')->get()
+        ->sum(fn($d) => $d->items->sum('total_cost'));
+
+    $reissuedTotalCost = Reissued::with('items')->get()
+        ->sum(fn($r) => $r->items->sum('total_cost'));
+
+    // --------------------------
+    // Dashboard Render
+    // --------------------------
+    return Inertia::render('Supply/Dashboard', [
+        'stats' => [
+            [
+                'label' => 'Total Stock Items',
+                'value' => $totalStock,
+                'icon' => 'Boxes',
+                'color' => 'bg-blue-100 text-blue-600'
+            ],
+            [
+                'label' => 'Pending Deliveries',
+                'value' => $pendingDeliveries,
+                'icon' => 'Truck',
+                'color' => 'bg-yellow-100 text-yellow-600'
+            ],
+            [
+                'label' => 'Total Issued Items',
+                'value' => $totalIssued,
+                'icon' => 'PackageCheck',
+                'color' => 'bg-green-100 text-green-600'
+            ],
+            [
+                'label' => 'Disposed Items',
+                'value' => $disposedCount,
+                'icon' => 'Trash2',
+                'color' => 'bg-red-100 text-red-600'
+            ],
+            [
+                'label' => 'Reissued Items',
+                'value' => $reissuedCount,
+                'icon' => 'RefreshCcw',
+                'color' => 'bg-teal-100 text-teal-600'
+            ],
+        ],
+
+        'documents' => [
+            [
+                'label' => "RIS (Requisition)",
+                'value' => $totalRis,
+                'icon' => 'ClipboardList',
+                'link' => "supply_officer.ris_issuance",
+                'color' => "bg-purple-100 text-purple-600"
+            ],
+            [
+                'label' => "ICS (High)",
+                'value' => $totalIcsHigh,
+                'icon' => 'FileSpreadsheet',
+                'link' => "supply_officer.ics_issuance_high",
+                'color' => "bg-pink-100 text-pink-600"
+            ],
+            [
+                'label' => "ICS (Low)",
+                'value' => $totalIcsLow,
+                'icon' => 'FileSpreadsheet',
+                'link' => "supply_officer.ics_issuance_low",
+                'color' => "bg-indigo-100 text-indigo-600"
+            ],
+            [
+                'label' => "PAR",
+                'value' => $totalPar,
+                'icon' => 'FileCheck',
+                'link' => "supply_officer.par_issuance",
+                'color' => "bg-orange-100 text-orange-600"
+            ],
+            [
+                'label' => "Purchase Orders",
+                'value' => $totalPo,
+                'icon' => 'FileText',
+                'link' => "supply_officer.purchase_orders",
+                'color' => "bg-teal-100 text-teal-600"
+            ],
+            [
+                'label' => "Issuance Logs",
+                'value' => $totalIssued,
+                'icon' => 'Layers',
+                'link' => "supply_officer.ris_issuance",
+                'color' => "bg-sky-100 text-sky-600"
+            ],
+        ],
+        'issuedPerDivision' => $issuedPerDivision,
+        'recentActivity' => $recentActivity,
+        'user' => $user
+    ]);
+}
+
 
 public function purchase_orders(Request $request)
 {
