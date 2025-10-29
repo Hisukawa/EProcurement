@@ -16,6 +16,9 @@ return new class extends Migration
             $table->enum('award_mode', ['whole-pr', 'per-item'])->nullable();
             $table->decimal('total_price_calculated', 12, 2)->nullable();
             $table->enum('mode', ['as-read', 'as-calculated'])->default('as-read');
+            $table->text('project_no')->nullable();
+            $table->date('date_of_opening')->nullable();
+            $table->string('venue')->nullable();
             $table->timestamps();
         });
 

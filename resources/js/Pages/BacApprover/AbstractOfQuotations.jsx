@@ -1,5 +1,5 @@
 import ApproverLayout from "@/Layouts/ApproverLayout";
-import { Head, router } from "@inertiajs/react";
+import { Head, router, useForm } from "@inertiajs/react";
 import { useEffect, useState } from "react";
 import {
   Dialog,
@@ -14,6 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import AOQTabs from "@/Layouts/AOQTabs";
 import { Undo2 } from "lucide-react";
+import { Label } from "@/Components/ui/label";
+import { Input } from "@/Components/ui/input";
 
 export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committee }) {
   const pr = rfq.purchase_request;
@@ -182,6 +184,26 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
     const handlePrintAOQ = (rfqId, detailId) =>
   window.open(route("bac_user.print_aoq", { id: rfqId, pr_detail_id: detailId }), "_blank");
 
+
+  // Your existing forms...
+  const mainForm = useForm({
+    project_no: "",
+    date_of_opening: "",
+    venue: "",
+  });
+
+  // 🔹 NEW — separate form for project info submission
+  const projectInfoForm = useForm({
+    project_no: "",
+    date_of_opening: "",
+    venue: "",
+  });
+
+  const handleProjectInfoSubmit = (e) => {
+    e.preventDefault();
+    projectInfoForm.post(route("bac_user.submit_project_info", rfq.id));
+  };
+
   return (
     <ApproverLayout>
       <Head title={`Abstract for ${pr.pr_number}`} />
@@ -216,6 +238,92 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
             ⚠️ No supplier quoted for all items. You can only declare winners per item.
           </p>
         )}
+<form
+  onSubmit={handleProjectInfoSubmit}
+  className="mt-6 mb-4 border-t pt-6"
+>
+  <div className="bg-white shadow-md rounded-lg p-6 space-y-5">
+    <h3 className="text-lg font-semibold text-gray-800 border-b pb-3">
+      Project Information
+    </h3>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Left Column - Project Number */}
+      <div className="flex flex-col">
+        <Label
+          htmlFor="project_number"
+          className="text-sm font-medium text-gray-700 mb-1"
+        >
+          Project Number
+        </Label>
+        <Textarea
+          id="project_number"
+          rows={6}
+          className="resize-none bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          value={projectInfoForm.data.project_no}
+          onChange={(e) =>
+            projectInfoForm.setData("project_no", e.target.value)
+          }
+          placeholder="Enter project number..."
+        />
+      </div>
+
+      {/* Right Column - Date + Venue */}
+      <div className="flex flex-col justify-between h-full space-y-4">
+        <div>
+          <Label
+            htmlFor="date_opening"
+            className="text-sm font-medium text-gray-700 mb-1"
+          >
+            Date of Opening
+          </Label>
+          <Input
+            id="date_opening"
+            type="date"
+            className="w-full bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            value={projectInfoForm.data.date_of_opening}
+            onChange={(e) =>
+              projectInfoForm.setData("date_of_opening", e.target.value)
+            }
+          />
+        </div>
+
+        <div>
+          <Label
+            htmlFor="venue"
+            className="text-sm font-medium text-gray-700 mb-1"
+          >
+            Venue
+          </Label>
+          <Input
+            id="venue"
+            type="text"
+            className="w-full bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            value={projectInfoForm.data.venue}
+            onChange={(e) =>
+              projectInfoForm.setData("venue", e.target.value)
+            }
+            placeholder="Enter venue..."
+          />
+        </div>
+      </div>
+    </div>
+
+    <div className="pt-4 border-t mt-6 flex justify-end">
+      <Button
+        type="submit"
+        disabled={projectInfoForm.processing}
+        className="px-6"
+      >
+        {projectInfoForm.processing
+          ? "Submitting..."
+          : "Submit Project Info"}
+      </Button>
+    </div>
+  </div>
+</form>
+
+
 
         {/* WHOLE PR MODE */}
         {awardMode === "whole-pr" && (

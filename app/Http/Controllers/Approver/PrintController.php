@@ -102,7 +102,7 @@ public function print_rfq_selected(Request $request, $prId)
 
     return $pdf->stream("PR-{$pr->id}-RFQ-Selected.pdf");
 }
-    public function printAOQ($id, $pr_detail_id = null)
+public function printAOQ($id)
 {
     $rfq = RFQ::with([
         'purchaseRequest.details',
@@ -114,89 +114,44 @@ public function print_rfq_selected(Request $request, $prId)
         ->first();
 
     // ----------------------
-    // PER-ITEM AOQ MODE
+    // ALWAYS USE FULL AOQ MODE
+    // (Disregard award_mode and is_winner_as_read)
     // ----------------------
-    if (!empty($pr_detail_id)) {
-        $prDetail = $rfq->purchaseRequest
-            ->details
-            ->firstWhere('id', $pr_detail_id);
 
-        if (!$prDetail) {
-            abort(404, 'PR Detail not found.');
-        }
+    $prItemCount = $rfq->purchaseRequest->details->count();
 
-        // Always use quoted_price, quantity from PR detail
-        $quotes = $rfq->details
-            ->where('pr_details_id', $pr_detail_id)
-            ->sortBy('quoted_price')
-            ->map(function ($q) use ($prDetail) {
-                $q->used_price = $q->quoted_price ?? 0;
-                $q->used_quantity = $prDetail->quantity ?? 0;
-                $q->subtotal = $q->used_price * $q->used_quantity;
-                return $q;
-            })
-            ->values();
+    $supplierTotals = $rfq->details
+        ->groupBy('supplier_id')
+        ->filter(function ($quotes) use ($prItemCount) {
+            // Only include suppliers who quoted ALL items
+            return $quotes->pluck('pr_details_id')->unique()->count() === $prItemCount;
+        })
+        ->map(function ($quotes) use ($rfq) {
+            $total = $quotes->sum(function ($q) use ($rfq) {
+                $prDetail = $rfq->purchaseRequest->details->firstWhere('id', $q->pr_details_id);
+                $qty = $prDetail->quantity ?? 0;
+                return ($q->quoted_price ?? 0) * $qty;
+            });
 
-        // Place winner on top if exists
-        $winner = $quotes->firstWhere('is_winner_as_read', 1);
-        if ($winner) {
-            $quotes = collect([$winner])
-                ->merge($quotes->where('id', '!=', $winner->id))
-                ->values();
-        }
+            return [
+                'supplier'     => $quotes->first()->supplier,
+                'total_amount' => $total,
+                'remarks_as_read' => $quotes->pluck('remarks_as_read')->filter()->unique()->implode(', '),
+            ];
+        })
+        ->sortBy('total_amount')
+        ->values();
 
-        $pdf = Pdf::loadView('pdf.aoq_item', [
-            'rfq'       => $rfq,
-            'prDetail'  => $prDetail,
-            'quotes'    => $quotes,
-            'committee' => $committee,
-            'winner'    => $winner
-        ]);
+    $pdf = Pdf::loadView('pdf.aoq_full', [
+        'rfq'       => $rfq,
+        'suppliers' => $supplierTotals,
+        'committee' => $committee,
+    ]);
 
-        return $pdf->stream("AOQ_item_{$pr_detail_id}.pdf");
-    }
-
-    // ----------------------
-    // FULL-PR AOQ MODE
-    // ----------------------
-    if ($rfq->award_mode === 'whole-pr') {
-        $prItemCount = $rfq->purchaseRequest->details->count();
-
-        $supplierTotals = $rfq->details
-            ->groupBy('supplier_id')
-            ->filter(function ($quotes) use ($prItemCount) {
-                // Only keep suppliers who quoted ALL items
-                return $quotes->pluck('pr_details_id')->unique()->count() === $prItemCount;
-            })
-            ->map(function ($quotes) use ($rfq) {
-                $total = $quotes->sum(function ($q) use ($rfq) {
-                    $prDetail = $rfq->purchaseRequest->details->firstWhere('id', $q->pr_details_id);
-                    $qty = $prDetail->quantity ?? 0;
-                    return ($q->quoted_price ?? 0) * $qty;
-                });
-
-                return [
-                    'supplier'     => $quotes->first()->supplier,
-                    'total_amount' => $total,
-                    'is_winner'    => $quotes->contains('is_winner_as_read', 1),
-                    'remarks_as_read'      => $quotes->pluck('remarks_as_read')->filter()->unique()->implode(', '),
-                ];
-            })
-            ->sortBy('total_amount')
-            ->values();
-
-        $pdf = Pdf::loadView('pdf.aoq_full', [
-            'rfq'       => $rfq,
-            'suppliers' => $supplierTotals,
-            'committee' => $committee
-        ]);
-
-        return $pdf->stream("AOQ_full_{$id}.pdf");
-    }
-
-    // If not per-item or whole-pr mode
-    abort(400, 'Invalid AOQ mode.');
+    return $pdf->stream("AOQ_full_{$id}.pdf");
 }
+
+
 
 public function printAOQCalculated($id, $pr_detail_id = null)
 {

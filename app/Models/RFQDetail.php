@@ -20,7 +20,10 @@ class RFQDetail extends Model
         'is_winner_as_read',
         'is_winner_as_calculated',
         'remarks_as_read',
-        'remarks_as_calculated'
+        'remarks_as_calculated',
+        'project_no',
+        'date_of_opening',
+        'venue'
         ];
     public function supplier()
     {

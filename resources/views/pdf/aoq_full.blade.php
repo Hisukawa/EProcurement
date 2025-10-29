@@ -31,12 +31,11 @@
         <h3 class="uppercase bold" style="margin-top:15px; font-size:13px;">ABSTRACT OF QUOTATIONS</h3>
         <p style="font-size:14px;">(AS READ BID PRICE)</p>
     </div>
-
-    <div style="font-size:12px; margin:15px 0;">
-        <p><strong>Project No.:</strong> _____________</p>
-        <p><strong>Date of Opening:</strong> _____________</p>
-        <p><strong>Venue:</strong> _____________</p>
-    </div>
+  <div style="font-size:12px; margin:15px 0;">
+      <p><strong>Project No.:</strong> {{ $rfq['project_no'] }}</p>
+      <p><strong>Date of Opening:</strong> {{ $rfq['date_of_opening'] }}</p>
+      <p><strong>Venue:</strong> {{ $rfq['venue'] }}</p>
+  </div>
 
     <table>
         <thead>
@@ -68,7 +67,7 @@
         <span style="display:inline-block; text-decoration:underline; min-width:150px;">
             {{ strtoupper(optional($secretariat)->name ?? '__________________') }}
         </span><br>
-        <p style="margin-top:20px;">BAC Secretariat - Member</p>
+        <p style="margin-top:20px;">BAC Secretariat</p>
     </div>
 
 <div style="margin-top:20px; font-size:12px;">
