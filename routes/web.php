@@ -147,6 +147,7 @@ Route::middleware(['auth', 'role:bac_user'])->prefix('bac_user')->group(function
     Route::post('/rollback-winner-as-calculated/{id}', [AbstractController::class, 'rollbackWinnerAsCalculated'])->name('bac_user.rollback_winner_as_calculated');
     Route::post('/save-remarks-as-read/{id}/{pr_detail_id?}', [AbstractController::class, 'saveRemarksAsRead'])->name('bac_user.save_remarks_as_read');
     Route::post('/save-remarks-as-calculated/{id}/{pr_detail_id?}', [AbstractController::class, 'saveRemarksAsCalculated'])->name('bac_user.save_remarks_as_calculated');
+    Route::post('/submit-project-info/{id}', [ApproverController::class, 'submit_project_info'])->name('bac_user.submit_project_info');
 });
 
 // Supply Routes

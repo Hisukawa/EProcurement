@@ -187,6 +187,29 @@ public function store_supplier(Request $request)
         return back()->with('success', 'BAC Committee updated successfully!');
     }
 
+public function submit_project_info(Request $request, $id)
+{
+    $validated = $request->validate([
+        'project_no'      => 'nullable|string|max:1000',
+        'date_of_opening' => 'nullable|date',
+        'venue'           => 'nullable|string|max:255',
+    ]);
+
+    $rfq = RFQ::findOrFail($id);
+
+    if ($rfq) {
+        // ✅ Update the first detail record (or choose a specific one if needed)
+        $rfq->first()->update($validated);
+    } else {
+        // ✅ Create a new details record if none exists
+        $rfq->create($validated);
+    }
+
+    return back()->with('success', 'Project information updated successfully!');
+}
+ 
+
+
 
 
 }

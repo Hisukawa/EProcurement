@@ -161,7 +161,7 @@ export default function Dashboard({auth, stats, deptData, approvalData, recentAp
                                     <span
                                         className={`px-2 py-1 rounded-full text-xs font-medium
                                             ${
-                                                req.status === "Approved"
+                                                req.status === "Reviewed"
                                                     ? "bg-green-100 text-green-600"
                                                     : req.status === "Pending"
                                                     ? "bg-yellow-100 text-yellow-600"
