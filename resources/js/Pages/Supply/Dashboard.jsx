@@ -2,16 +2,19 @@ import SupplyOfficerLayout from "@/Layouts/SupplyOfficerLayout";
 import { Head, Link } from "@inertiajs/react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-    Boxes,
-    ClipboardList,
-    Truck,
-    PackageCheck,
-    AlertTriangle,
-    FileSpreadsheet,
-    FileCheck,
-    FileText,
-    Layers,
+  Boxes,
+  ClipboardList,
+  Truck,
+  PackageCheck,
+  AlertTriangle,
+  FileSpreadsheet,
+  FileCheck,
+  FileText,
+  Layers,
+  Trash2,
+  RefreshCcw,
 } from "lucide-react";
+
 import {
     ResponsiveContainer,
     BarChart,
@@ -24,20 +27,24 @@ import {
     Pie,
     Cell,
     LabelList,
+    Legend,
 } from "recharts";
 
-export default function Dashboard({stats, documents, stockData, recentActivity, user}) {
+export default function Dashboard({stats, documents, stockData, recentActivity, issuedPerDivision, user}) {
     
-    const iconMap = {
-        Boxes: Boxes,
-        Truck: Truck,
-        PackageCheck: PackageCheck,
-        ClipboardList: ClipboardList,
-        FileSpreadsheet: FileSpreadsheet,
-        FileCheck: FileCheck,
-        FileText: FileText,
-        Layers: Layers
-    };
+const iconMap = {
+  Boxes,
+  Truck,
+  PackageCheck,
+  ClipboardList,
+  FileSpreadsheet,
+  FileCheck,
+  FileText,
+  Layers,
+  Trash2,
+  RefreshCcw
+};
+
 
 
     // Pie chart: Requests Status handled by Supply Officer
@@ -101,42 +108,26 @@ export default function Dashboard({stats, documents, stockData, recentActivity, 
                 })}
             </div>
 
-            {/* Data Visualizations */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="col-span-2 bg-white rounded-2xl shadow p-6 mb-5">
+                <h3 className="text-lg font-semibold mb-4">Issued Items per Division (by Type)</h3>
+                {issuedPerDivision && issuedPerDivision.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={350}>
+                    <BarChart data={issuedPerDivision}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="division" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="breakdown.RIS" stackId="a" fill="#60a5fa" name="RIS" />
+                        <Bar dataKey="breakdown.ICS" stackId="a" fill="#34d399" name="ICS" />
+                        <Bar dataKey="breakdown.PAR" stackId="a" fill="#fbbf24" name="PAR" />
+                    </BarChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <p className="text-sm text-gray-500">No data available</p>
+                )}
+                </div>
 
-                {/* Pie Chart - Request Handling */}
-                <Card className="rounded-2xl shadow">
-                    <CardContent className="p-4">
-                        <h2 className="text-lg font-semibold text-gray-800 mb-4">Requests Status</h2>
-                        <ResponsiveContainer width="100%" height={250}>
-                            <PieChart>
-                                <Pie
-                                    data={requestStatusData || []}
-                                    dataKey="value"
-                                    nameKey="name"
-                                    cx="50%"
-                                    cy="50%"
-                                    outerRadius={80}
-                                    label={({ name, value }) => `${name}: ${value}`}
-                                >
-                                    {requestStatusData.map((entry, idx) => (
-                                        <Cell key={`cell-${idx}`} fill={entry.color} />
-                                    ))}
-                                </Pie>
-                                <Tooltip />
-                            </PieChart>
-                        </ResponsiveContainer>
-                        <div className="flex justify-center gap-6 mt-4">
-                            {requestStatusData.map((s, idx) => (
-                                <div key={idx} className="flex items-center gap-2">
-                                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: s.color }}></span>
-                                    <span className="text-sm text-gray-600">{s.name}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
 
             {/* Recent Activity */}
             <div className="bg-white rounded-2xl shadow p-6">
