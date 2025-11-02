@@ -38,7 +38,7 @@ const iconMap = {
   UserCog
 };
 
-export default function Dashboard({ stats, documents, recentActivity, user, chartData, activityTrend, usersPerRoleChart, prStatusChart }) {
+export default function Dashboard({ stats, documents, recentActivity, user, chartData, activityTrend, usersPerRoleChart, prStatusChart, requestPerDivision, issuedPerDivision }) {
   return (
     <AdminLayout header="Schools Division Office - Ilagan | Dashboard">
       <Head title="Dashboard" />
@@ -154,6 +154,28 @@ export default function Dashboard({ stats, documents, recentActivity, user, char
           </ResponsiveContainer>
         </div>
 */}
+    <div className="p-4 rounded-2xl shadow bg-white">
+      <h2 className="text-lg font-semibold mb-3">Requests per Division (Last 30 Days)</h2>
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart data={requestPerDivision}>
+          <XAxis dataKey="division" />
+          <YAxis />
+          <Tooltip />
+          <Bar dataKey="total_requests" fill="#2563eb" radius={[6, 6, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+    <div className="p-4 rounded-2xl shadow bg-white">
+      <h2 className="text-lg font-semibold mb-3">Issued per Division (Last 30 Days)</h2>
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart data={issuedPerDivision}>
+          <XAxis dataKey="division" />
+          <YAxis />
+          <Tooltip />
+          <Bar dataKey="total_issued" fill="#2563eb" radius={[6, 6, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
         <div className="bg-white p-6 rounded-2xl shadow-lg">
           <h3 className="text-lg font-semibold mb-4 text-gray-800">Users per Role</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -166,7 +188,6 @@ export default function Dashboard({ stats, documents, recentActivity, user, char
             </BarChart>
           </ResponsiveContainer>
         </div>
-        
       </div>
 
       {/* ---- Recent Activity ---- */}

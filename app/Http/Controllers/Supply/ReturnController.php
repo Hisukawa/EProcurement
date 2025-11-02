@@ -8,6 +8,7 @@ use App\Models\ICS;
 use App\Models\PAR;
 use App\Models\PPESubMajorAccount;
 use App\Models\Reissued;
+use App\Models\ReissuedItems;
 use App\Models\RIS;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -375,6 +376,19 @@ public function print_reissued_items($id)
             
     return $pdf->stream('REISSUED-ITEMS-'.$record->rrsp_number.'.pdf');
 
+}
+
+public function updateReissuedItem(Request $request, $id)
+{
+    $validated = $request->validate([
+        'recipient' => 'nullable|string|max:255',
+        'remarks' => 'nullable|string|max:1000',
+    ]);
+
+    $item = ReissuedItems::findOrFail($id);
+    $item->update($validated);
+
+    return back()->with('success', 'Reissued item updated successfully.');
 }
 
 }

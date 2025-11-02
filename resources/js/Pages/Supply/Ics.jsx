@@ -294,14 +294,15 @@ const toggleRowExpansion = (id) => {
                   className="px-4 py-3 text-center align-top"
                 >
                   <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                    <a
-                      href={route("supply_officer.print_ics_all", record.id)}
-                      target="_blank"
-                      className="inline-flex items-center justify-center gap-1 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg shadow-sm text-xs font-medium"
-                    >
-                      <PrinterCheck size={14} />
-                      Print
-                    </a>
+<a
+  href={route("supply_officer.print_ics", [record.id, "low"])}
+  target="_blank"
+  className="inline-flex items-center justify-center gap-1 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg shadow-sm text-xs font-medium"
+>
+  <PrinterCheck size={14} />
+  Print
+</a>
+
 
                     <Button
                       type="button"

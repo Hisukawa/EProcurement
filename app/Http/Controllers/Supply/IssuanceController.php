@@ -225,6 +225,7 @@ public function store_ics(Request $request)
 
         'items' => 'required|array|min:1',
         'items.*.inventory_item_id' => 'required|integer|exists:tbl_inventory,id',
+        'items.*.estimated_useful_life' => 'nullable|numeric|min:0.01',
         'items.*.inventory_item_number' => 'nullable|string|max:50',
         'items.*.ppe_sub_major_account' => 'nullable|string|max:100',
         'items.*.general_ledger_account' => 'nullable|string|max:100',
@@ -236,7 +237,6 @@ public function store_ics(Request $request)
         'items.*.unit_cost' => 'required|numeric|min:0.01',
         'items.*.total_cost' => 'required|numeric|min:0.01',
     ]);
-
     DB::beginTransaction();
     try {
         $po = PurchaseOrder::with(['details.prDetail.product'])->findOrFail($validated['po_id']);
@@ -265,6 +265,7 @@ public function store_ics(Request $request)
             // Save ICS item with extended fields
             $ics->items()->create([
                 'inventory_item_id' => $inventory->id,
+                'estimated_useful_life' => $item['estimated_useful_life'] ?? null,
                 'inventory_item_number' => $item['inventory_item_number'] ?? null,
                 'ppe_sub_major_account' => $item['ppe_sub_major_account'] ?? null,
                 'general_ledger_account' => $item['general_ledger_account'] ?? null,
@@ -480,6 +481,7 @@ public function store_par(Request $request)
 
         'items'      => 'required|array|min:1',
         'items.*.inventory_item_id' => 'required|integer|exists:tbl_inventory,id',
+        'items.*.estimated_useful_life' => 'numeric|min:0.01',
         'items.*.inventory_item_number' => 'nullable|string|max:50',
         'items.*.ppe_sub_major_account' => 'nullable|string|max:100',
         'items.*.general_ledger_account' => 'nullable|string|max:100',
@@ -520,6 +522,7 @@ public function store_par(Request $request)
             $parItem = $par->items()->updateOrCreate(
                 ['inventory_item_id' => $inventory->id],
                 [
+                    'estimated_useful_life' => $item['estimated_useful_life'] ?? null,
                     'inventory_item_number' => $item['inventory_item_number'] ?? null,
                     'ppe_sub_major_account' => $item['ppe_sub_major_account'] ?? null,
                     'general_ledger_account' => $item['general_ledger_account'] ?? null,

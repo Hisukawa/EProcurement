@@ -295,52 +295,55 @@ public function store_details(Request $request, $pr_id)
     }
 public function update_details(Request $request, $detailId)
 {
-    // Validate the incoming data
+    // Validate input
     $validated = $request->validate([
         'item' => 'required|string|max:255',
         'specs' => 'required|string|max:1000',
         'quantity' => 'required|numeric|min:1',
-        'unit_id' => 'nullable|exists:tbl_units,id', // Validate if the unit_id exists
-        'custom_unit' => 'nullable|string|max:255', // For custom unit input
+        'unit_id' => 'nullable|exists:tbl_units,id',
+        'custom_unit' => 'nullable|string|max:255',
     ]);
 
-    // Find the detail by its ID
+    // Find the PR detail
     $detail = PurchaseRequestDetail::findOrFail($detailId);
 
-    // Handle the unit logic
-    if (!empty($request->custom_unit)) {
-        // If a custom unit is provided, check if it already exists
-        $existingUnit = Unit::where('unit', $request->custom_unit)->first();
+    $unitModel = null;
+    $unitName = $detail->unit; // default to existing unit (in case none provided)
 
-        if ($existingUnit) {
-            // If the unit exists, use the existing unit's name (string)
-            $unit = $existingUnit->unit;
-        } else {
-            // If the unit doesn't exist, create a new unit with the name
-            $newUnit = Unit::create([
-                'unit' => $request->custom_unit,
-            ]);
-            $unit = $newUnit->unit; // Get the name of the newly created unit
-        }
+    // Handle unit updates only if changed
+    if (!empty($request->custom_unit)) {
+        $unitModel = Unit::firstOrCreate(['unit' => $request->custom_unit]);
+        $unitName = $unitModel->unit;
     } elseif ($request->unit_id) {
-        // If unit_id is provided (existing unit selected), use that unit's name (string)
-        $unit = Unit::find($request->unit_id)->unit;
-    } else {
-        // If no unit or custom unit is provided, return an error
-        return redirect()->back()->with('error', 'Please select or provide a unit.');
+        $unitModel = Unit::find($request->unit_id);
+        $unitName = $unitModel->unit;
     }
 
-    // Update the detail fields, including the unit as a string (not unit_id)
+    // Update PR detail
     $detail->update([
-        'item' => $validated['item'],        // Update the item name
-        'specs' => $validated['specs'],      // Update the specifications
-        'quantity' => $validated['quantity'],// Update the quantity
-        'unit' => $unit,                     // Update the unit (now saved as string)
+        'item'     => $validated['item'],
+        'specs'    => $validated['specs'],
+        'quantity' => $validated['quantity'],
+        'unit'     => $unitName,
     ]);
 
-    // After updating, redirect back with success message
+    // Update linked product if exists
+    if ($detail->product_id) {
+        $product = Products::find($detail->product_id);
+        if ($product) {
+            $product->update([
+                'name'    => $validated['item'],
+                'specs'   => $validated['specs'],
+                // update unit_id only if changed
+                'unit_id' => $unitModel ? $unitModel->id : $product->unit_id,
+            ]);
+        }
+    }
+
     return redirect()->back()->with('success', 'Item updated successfully.');
 }
+
+
 
 
 

@@ -260,6 +260,47 @@ public function dashboard()
                         ->where('status', 'Rejected')->count(),
     ]);
 
+   // Requests per Division
+$requestPerDivision = Division::withCount([
+    'purchaseRequests as total_requests' => function ($q) {
+        $q->where('created_at', '>=', now()->subDays(30));
+    }
+])
+->get()
+->map(fn($d) => [
+    'division' => $d->division ?? 'Unassigned',
+    'total_requests' => $d->total_requests,
+]);
+
+ $issuedPerDivision = Division::select('tbl_divisions.id', 'tbl_divisions.division')
+        ->leftJoin('tbl_purchase_requests', 'tbl_purchase_requests.division_id', '=', 'tbl_divisions.id')
+        ->leftJoin('tbl_rfqs', 'tbl_rfqs.pr_id', '=', 'tbl_purchase_requests.id')
+        ->leftJoin('tbl_purchase_orders', 'tbl_purchase_orders.rfq_id', '=', 'tbl_rfqs.id')
+        ->leftJoin('tbl_ris', 'tbl_ris.po_id', '=', 'tbl_purchase_orders.id')
+        ->leftJoin('tbl_ris_items', 'tbl_ris_items.ris_id', '=', 'tbl_ris.id')
+        ->leftJoin('tbl_ics', 'tbl_ics.po_id', '=', 'tbl_purchase_orders.id')
+        ->leftJoin('tbl_ics_items', 'tbl_ics_items.ics_id', '=', 'tbl_ics.id')
+        ->leftJoin('tbl_par', 'tbl_par.po_id', '=', 'tbl_purchase_orders.id')
+        ->leftJoin('tbl_par_items', 'tbl_par_items.par_id', '=', 'tbl_par.id')
+        ->where(function ($q) {
+            $q->where('tbl_ris.created_at', '>=', now()->subDays(30))
+              ->orWhere('tbl_ics.created_at', '>=', now()->subDays(30))
+              ->orWhere('tbl_par.created_at', '>=', now()->subDays(30));
+        })
+        ->selectRaw('
+            tbl_divisions.division,
+            COUNT(DISTINCT tbl_ris_items.id) +
+            COUNT(DISTINCT tbl_ics_items.id) +
+            COUNT(DISTINCT tbl_par_items.id) as total_issued
+        ')
+        ->groupBy('tbl_divisions.id', 'tbl_divisions.division')
+        ->get()
+        ->map(fn($d) => [
+            'division' => $d->division,
+            'total_issued' => $d->total_issued,
+        ]);
+
+
 
     // // ---- Issued Items per Division ----
     // $issuedPerDivision = Division::withCount(['issuedItems as issued' => fn($q) => $q->sum('quantity')])->get()
@@ -276,6 +317,8 @@ public function dashboard()
         'activityTrend' => $activityTrend,
         'usersPerRoleChart' => $usersPerRoleChart,
         'prStatusChart' => $prStatusChart,
+        'requestPerDivision' => $requestPerDivision,
+        'issuedPerDivision' => $issuedPerDivision,
     ]);
 }
 
@@ -567,5 +610,54 @@ public function updateBac(Request $request, $id)
 
         // If the password doesn't match, return an error response
         return response()->json(['success' => false], 401);
+    }
+
+    public function add_division(Request $request)
+    {
+        $validated = $request->validate([
+            'division' => 'required|string|max:255|unique:tbl_divisions,division',
+            'meaning' => 'nullable|string|max:255',
+        ]);
+
+        $division = Division::create($validated);
+
+        return back()->with('success', 'Division added successfully.');
+    }
+
+    /**
+     * Update division details (name, meaning, or active officer).
+     */
+    public function update_division(Request $request, $id)
+    {
+        $division = Division::findOrFail($id);
+
+        $validated = $request->validate([
+            'division' => 'required|string|max:255|unique:tbl_divisions,division,' . $division->id,
+            'meaning' => 'nullable|string|max:255',
+            'name' => 'nullable|string|max:255', // officer name
+        ]);
+
+        // Update division fields
+        $division->update([
+            'division' => $validated['division'],
+            'meaning' => $validated['meaning'] ?? null,
+        ]);
+
+        // If officer name is provided, update or create active officer
+        if (!empty($validated['name'])) {
+            // Deactivate previous active officer (if any)
+            RequestedBy::where('division_id', $division->id)
+                ->where('status', 'active')
+                ->update(['status' => 'inactive']);
+
+            // Create new active officer
+            RequestedBy::create([
+                'division_id' => $division->id,
+                'name' => $validated['name'],
+                'status' => 'active',
+            ]);
+        }
+
+        return back()->with('success', 'Division updated successfully.');
     }
 }

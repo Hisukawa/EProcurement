@@ -146,6 +146,8 @@ const handleConfirmRollback = () => {
     window.open(route("bac_user.print_aoq_calculated", { id: rfqId }), "_blank");
   const handlePrintItemAOQ = (rfqId, detailId) =>
   window.open(route("bac_user.print_aoq", { id: rfqId, pr_detail_id: detailId }), "_blank");
+  const handlePrintPerItemGrouped = (rfqId) =>
+    window.open(route("bac_user.print_aoq_per_item_grouped", { id: rfqId }), "_blank");
 
 
   const handleOpenWinnerDialog = (rfqId, supplierId, detailId = null) => {
@@ -378,13 +380,13 @@ const handlePriceChange = (supplierId, detailId, value) => {
           >
             Winner for Entire PR
           </Button>
-          {/* <Button
+          <Button
             variant={awardMode === "per-item" ? "default" : "outline"}
             onClick={() => setAwardMode("per-item")}
             disabled={!!rfq.award_mode}
           >
             Winner per Item
-          </Button> */}
+          </Button>
         </div>
 
         {!hasFullBidSuppliers && awardMode === "whole-pr" && (
@@ -647,21 +649,25 @@ const handlePriceChange = (supplierId, detailId, value) => {
         {/* PER ITEM MODE */}
         {awardMode === "per-item" && (
           <div className="space-y-8 mb-10 border p-4 rounded-lg bg-white shadow-sm">
+            <div className="flex justify-end mb-2">
+              <Button
+                size="sm"
+                className="bg-green-600 text-white"
+                onClick={() => handlePrintPerItemGrouped(rfq.id)}
+                disabled={!hasPerItemWinners}
+              >
+                🖨️ Print AOQ (Grouped by Winners)
+              </Button>
+            </div>
             {pr.details.map((detail) => {
               const quotes = groupedDetails[detail.id] || [];
               const itemHasWinner = quotes.some((q) => q.is_winner_as_calculated);
 
               return (
                 <div key={detail.id} className="border p-4 bg-white rounded-lg shadow-sm">
-                  {/* Header with Print Button */}
                   <div className="flex justify-between items-center mb-2">
                     <h4 className="font-semibold">{detail.item}</h4>
-                    <button
-                      onClick={() => handlePrintItemAOQ(rfq.id, detail.id)}
-                      className="text-sm text-white bg-green-600 hover:bg-green-700 px-3 py-2 rounded-md"
-                    >
-                      🖨️ Print AOQ
-                    </button>
+                    {/* Individual per-item printing removed in favor of top-level grouped print */}
                   </div>
 
                   <p className="text-sm text-gray-600 mb-2">
@@ -682,62 +688,62 @@ const handlePriceChange = (supplierId, detailId, value) => {
                     </thead>
                     <tbody>
                       {/* Supplier Quotes Row */}
-<tr>
-  <td className="border px-4 py-3 font-medium">{detail.item}</td>
-  {quotes.map((q) => {
-    const effectivePrice = parseFloat(q.unit_price_edited ?? q.quoted_price);
-    return (
-      <td key={q.supplier.id} className="border px-4 py-2 text-center align-top w-56">
-        <div className="flex flex-col gap-1 items-center">
-          <input
-            type="number"
-            step="0.01"
-            className="w-28 px-2 py-1 border rounded text-right font-semibold"
-            value={editedPrices[`${q.supplier.id}-${detail.id}`] ?? effectivePrice}
-            onChange={(e) =>
-              handlePriceChange(q.supplier.id, detail.id, parseFloat(e.target.value) || 0)
-            }
-          />
-          {q.unit_price_edited && q.unit_price_edited !== q.quoted_price && (
-            <span className="text-xs text-gray-500 italic">
-              Original: ₱{parseFloat(q.quoted_price).toLocaleString()}
-            </span>
-          )}
-          <Button
-            size="xs"
-            variant="outline"
-            className="px-2 py-1 bg-green-500 text-white"
-            onClick={() => handleSavePrice(q.supplier.id, detail.id)}
-            disabled={savingPrices[`${q.supplier.id}-${detail.id}`]}
-          >
-            {savingPrices[`${q.supplier.id}-${detail.id}`] ? "Saving..." : "Save"}
-          </Button>
-        </div>
+                    <tr>
+                      <td className="border px-4 py-3 font-medium">{detail.item}</td>
+                      {quotes.map((q) => {
+                        const effectivePrice = parseFloat(q.unit_price_edited ?? q.quoted_price);
+                        return (
+                          <td key={q.supplier.id} className="border px-4 py-2 text-center align-top w-56">
+                            <div className="flex flex-col gap-1 items-center">
+                              <input
+                                type="number"
+                                step="0.01"
+                                className="w-28 px-2 py-1 border rounded text-right font-semibold"
+                                value={editedPrices[`${q.supplier.id}-${detail.id}`] ?? effectivePrice}
+                                onChange={(e) =>
+                                  handlePriceChange(q.supplier.id, detail.id, parseFloat(e.target.value) || 0)
+                                }
+                              />
+                              {q.unit_price_edited && q.unit_price_edited !== q.quoted_price && (
+                                <span className="text-xs text-gray-500 italic">
+                                  Original: ₱{parseFloat(q.quoted_price).toLocaleString()}
+                                </span>
+                              )}
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                className="px-2 py-1 bg-green-500 text-white"
+                                onClick={() => handleSavePrice(q.supplier.id, detail.id)}
+                                disabled={savingPrices[`${q.supplier.id}-${detail.id}`]}
+                              >
+                                {savingPrices[`${q.supplier.id}-${detail.id}`] ? "Saving..." : "Save"}
+                              </Button>
+                            </div>
 
-        <div className="text-xs text-gray-600 italic">
-          {q.remarks_as_calculated || "No remarks"}
-          <Button
-            size="xs"
-            variant="outline"
-            className="ml-2 px-2 py-1 bg-blue-500 text-white"
-            onClick={() => {
-              setRemarksTarget({
-                rfqId: rfq.id,
-                supplierId: q.supplier.id,
-                detailId: detail.id,
-                currentRemarks: q.remarks_as_calculated || "",
-              });
-              setRemarksInput(q.remarks_as_calculated || "");
-              setRemarksDialogOpen(true);
-            }}
-          >
-            Edit
-          </Button>
-        </div>
-      </td>
-    );
-  })}
-</tr>
+                            {/* <div className="text-xs text-gray-600 italic">
+                              {q.remarks_as_calculated || "No remarks"}
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                className="ml-2 px-2 py-1 bg-blue-500 text-white"
+                                onClick={() => {
+                                  setRemarksTarget({
+                                    rfqId: rfq.id,
+                                    supplierId: q.supplier.id,
+                                    detailId: detail.id,
+                                    currentRemarks: q.remarks_as_calculated || "",
+                                  });
+                                  setRemarksInput(q.remarks_as_calculated || "");
+                                  setRemarksDialogOpen(true);
+                                }}
+                              >
+                                Edit
+                              </Button>
+                            </div> */}
+                          </td>
+                        );
+                      })}
+                    </tr>
 
 {/* Totals Row */}
 <tr className="bg-gray-200 font-semibold">
@@ -751,18 +757,25 @@ const handlePriceChange = (supplierId, detailId, value) => {
     const quantity = detail.quantity ?? 1;
     const calculatedPrice = effectivePrice * quantity;
 
-    return (
-      <td key={q.supplier.id} className="border px-4 py-3 text-right text-green-700">
-        <div className="flex flex-col items-end gap-1">
-          <span className="text-xs text-gray-500 italic">
-            (Quoted Price: ₱{parseFloat(q.quoted_price || 0).toLocaleString()})
-          </span>
-          <span className="text-xs text-blue-600 font-semibold">
-            Calculated: ₱{calculatedPrice.toLocaleString()}
-          </span>
-        </div>
-      </td>
-    );
+      // Show quantity explicitly so it's clear the calculated value is unit × quantity
+      const numericQty = Number(quantity) || 0;
+      const numericCalculated = Number(calculatedPrice) || 0;
+
+      return (
+        <td key={q.supplier.id} className="border px-4 py-3 text-right text-green-700">
+          <div className="flex flex-col items-end gap-1">
+            <span className="text-xs text-gray-500 italic">
+              (Quoted Price: ₱{parseFloat(q.quoted_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+            </span>
+            <span className="text-xs text-gray-500 italic">
+              Qty: {numericQty.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+            <span className="text-xs text-blue-600 font-semibold">
+              Calculated (Unit × Qty): ₱{numericCalculated.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+        </td>
+      );
   })}
 </tr>
 

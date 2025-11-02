@@ -9,6 +9,7 @@ class Division extends Model
     protected $table = 'tbl_divisions';
     protected $fillable = [
         'division',
+        'meaning',
     ];
     public function requestedBy()
     {

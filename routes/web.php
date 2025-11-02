@@ -85,6 +85,8 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     Route::post('/update-inspection/{id}', [AdminController::class, 'updateInspection'])->name('admin.update_inspection');
     Route::post('/update-bac/{id}', [AdminController::class, 'updateBac'])->name('admin.update_bac');
     Route::put('/admin/users/{user}/deactivate', [AdminController::class, 'deactivate'])->name('admin.deactivate_user');
+    Route::post('/add_division', [AdminController::class, 'add_division'])->name('admin.add_division');
+    Route::put('/update_division/{id}', [AdminController::class, 'update_division'])->name('admin.update_division');
 });
 
 // Requester routes
@@ -140,6 +142,7 @@ Route::middleware(['auth', 'role:bac_user'])->prefix('bac_user')->group(function
     Route::post('/mark-winner-as-calculated/{id}/{pr_detail_id?}', [AbstractController::class, 'markWinnerAsCalculated'])->name('bac_user.mark_winner_as_calculated');
     Route::get('/approver/print_aoq/{id}/{pr_detail_id?}', [PrintController::class, 'printAOQ'])->name('bac_user.print_aoq');
     Route::get('/approver/print_aoq_calculated/{id}/{pr_detail_id?}', [PrintController::class, 'printAOQCalculated'])->name('bac_user.print_aoq_calculated');
+    Route::get('/approver/print_aoq_per_item_grouped/{id}', [PrintController::class, 'printAoqPerItemGrouped'])->name('bac_user.print_aoq_per_item_grouped');
     Route::post('/store_supplier', [ApproverController::class, 'store_supplier'])->name('bac_user.store_supplier');
     Route::delete('/delete_quoted', [QuotationController::class, 'delete_quoted'])->name('bac_user.delete_quoted');
     Route::post('/bac-committee/save', [ApproverController::class, 'save_committee'])->name('bac.committee.save');
@@ -148,6 +151,11 @@ Route::middleware(['auth', 'role:bac_user'])->prefix('bac_user')->group(function
     Route::post('/save-remarks-as-read/{id}/{pr_detail_id?}', [AbstractController::class, 'saveRemarksAsRead'])->name('bac_user.save_remarks_as_read');
     Route::post('/save-remarks-as-calculated/{id}/{pr_detail_id?}', [AbstractController::class, 'saveRemarksAsCalculated'])->name('bac_user.save_remarks_as_calculated');
     Route::post('/submit-project-info/{id}', [ApproverController::class, 'submit_project_info'])->name('bac_user.submit_project_info');
+    // routes/web.php
+Route::get('/bac/rfqs/{id}/print-aoq-per-item-grouped-read',
+  [PrintController::class, 'printAoqPerItemGroupedRead']
+)->name('bac_user.print_aoq_per_item_grouped_read');
+
 });
 
 // Supply Routes
@@ -179,7 +187,7 @@ Route::middleware(['auth', 'role:supply_officer'])->prefix('supply_officer')->gr
     Route::get('/ris/{ris}/item/{item}/print', [IssuanceController::class, 'printRisItem'])
         ->name('supply_officer.print_ris_item');
 
-    Route::get('/print_ics/{id}/{type?}', [IssuanceController::class, 'print_ics'])->name('supply_officer.print_ics');
+    Route::get('/print_ics/{id}/{types?}', [IssuanceController::class, 'print_ics'])->name('supply_officer.print_ics');
     Route::get('/print_ics_all/{id}', [IssuanceController::class, 'print_ics_all'])->name('supply_officer.print_ics_all');
     Route::get('/print_par/{id}', [IssuanceController::class, 'print_par'])->name('supply_officer.print_par');
     Route::get('/supply-officer/generate-ics-report', [ExcelReportsController::class, 'generateIcsReport'])->name('supply_officer.generate_ics_report');
@@ -207,6 +215,9 @@ Route::middleware(['auth', 'role:supply_officer'])->prefix('supply_officer')->gr
     Route::put('/update_supplier/{id}', [SupplyController::class, 'update_supplier'])->name('supply_officer.update_supplier');
     Route::put('/delete_supplier/{id}', [SupplyController::class, 'delete_supplier'])->name('supply_officer.delete_supplier');
     Route::put('/activate_supplier/{id}', [SupplyController::class, 'activate_supplier'])->name('supply_officer.activate_supplier');
+
+    Route::post('/supply_officer/reissued-items/update/{id}', [ReturnController::class, 'updateReissuedItem'])->name('supply_officer.update_reissued_item');
+
 });
 // Shared dashboard route
 Route::get('/dashboard', function () {

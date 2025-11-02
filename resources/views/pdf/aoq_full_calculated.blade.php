@@ -38,6 +38,38 @@
         <p><strong>Venue:</strong> {{ $rfq['venue'] }}</p>
     </div>
 
+@php
+    // Sort all suppliers ascending by total_amount
+    $suppliers = collect($suppliers ?? [])->sortBy('total_amount')->values();
+
+    // Identify the lowest bid (first after sorting)
+    $lowest = $suppliers->first();
+
+    // Identify the winner supplier
+    $winner = $suppliers->firstWhere('is_winner', 1)
+        ?? $suppliers->firstWhere('supplier.id', $rfq['winner_supplier_id'] ?? null);
+
+    // Arrange order: Winner first, then lowest bid (if different), then others
+    $orderedSuppliers = collect();
+
+    if ($winner) {
+        $orderedSuppliers->push($winner);
+    }
+
+    if ($lowest && (!$winner || $lowest['supplier']->id !== $winner['supplier']->id)) {
+        $orderedSuppliers->push($lowest);
+    }
+
+    // Add remaining suppliers excluding winner & lowest
+    $remaining = $suppliers->reject(function ($s) use ($winner, $lowest) {
+        return ($winner && $s['supplier']->id === $winner['supplier']->id)
+            || ($lowest && $s['supplier']->id === $lowest['supplier']->id);
+    });
+
+    $suppliers = $orderedSuppliers->merge($remaining)->values();
+@endphp
+
+
     <table>
         <thead>
             <tr>
@@ -50,18 +82,14 @@
         <tbody>
             @foreach($suppliers as $idx => $detail)
                 <tr>
-                    <td>{{ $idx+1 }}</td>
-                    <td>{{ $detail['supplier']->company_name }}</td>
-                    <td>{{ number_format($detail['total_amount'], 2) }}</td>
-                    <td>{{ $detail['remarks_as_calculated'] ?? '' }}</td>
+                    <td>{{ $idx + 1 }}</td>
+                    <td class="left">{{ $detail['supplier']->company_name }}</td>
+                    <td class="right">{{ number_format($detail['total_amount'], 2) }}</td>
+                    <td class="left">{{ $detail['remarks_as_calculated'] ?? '' }}</td>
                 </tr>
             @endforeach
         </tbody>
     </table>
-
-        @php
-        $awarded = collect($suppliers)->firstWhere('is_winner', 1);
-    @endphp
 
     <p>
         Awarded to

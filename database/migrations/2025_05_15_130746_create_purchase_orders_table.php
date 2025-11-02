@@ -19,6 +19,10 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->restrictOnDelete();
             $table->foreignId('recorded_by')->constrained('users')->restrictOnDelete();
             $table->enum('status', ['Inspected and Delivered', 'Not yet Delivered'])->default('Not yet Delivered');
+            $table->string('mode_of_procurement')->nullable();
+            $table->string('delivery_term')->nullable();
+            $table->string('payment_term')->nullable();
+            $table->string('mode_of_procurement')->nullable();
             $table->timestamps();
         });
     }
