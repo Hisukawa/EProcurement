@@ -22,7 +22,6 @@ return new class extends Migration
             $table->string('mode_of_procurement')->nullable();
             $table->string('delivery_term')->nullable();
             $table->string('payment_term')->nullable();
-            $table->string('mode_of_procurement')->nullable();
             $table->timestamps();
         });
     }
