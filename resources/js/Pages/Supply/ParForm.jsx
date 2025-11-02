@@ -33,6 +33,7 @@ const item = product ? `${product.name} (${product.specs})` : "N/A";
     items: [
       {
         inventory_item_id: inventoryItem?.id ?? null,
+        estimated_useful_life: null,
         inventory_item_number: "",
         ppe_sub_major_account: "",
         general_ledger_account: "",
@@ -282,7 +283,18 @@ useEffect(() => {
                   className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100"
                 />
               </div>
-    
+              {/* Estimated Life*/}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Estimated Useful Life</label>
+                <input
+                  type="number"
+                  value={data.items[0].estimated_useful_life ?? ""}
+                  onChange={(e) => setData("items.0.estimated_useful_life", e.target.value)}
+                  placeholder="Enter Estimated Useful Life in years (optional)"
+                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
+                  onWheel={(e) => e.currentTarget.blur()}
+                />
+              </div>
               {/* Remarks */}
               <div>
                 <label className="block text-sm font-medium text-gray-700">Remarks</label>

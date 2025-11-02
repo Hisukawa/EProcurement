@@ -28,6 +28,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('par_id')->constrained('tbl_par')->onDelete('cascade');
             $table->foreignId('inventory_item_id')->constrained('tbl_inventory')->onDelete('cascade');
+            $table->decimal('estimated_useful_life', 12, 2);
             $table->string('inventory_item_number')->nullable();
             $table->string('ppe_sub_major_account')->nullable();
             $table->string('general_ledger_account')->nullable();

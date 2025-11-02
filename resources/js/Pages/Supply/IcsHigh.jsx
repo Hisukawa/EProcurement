@@ -241,7 +241,7 @@ const [switchRecord, setSwitchRecord] = useState(null);
                                 <td className="px-4 py-3 text-center">
                                   <div className="flex flex-col sm:flex-row gap-2 justify-center">
                                     <a
-                                      href={route("supply_officer.print_ics_all", record.id)}
+                                      href={route("supply_officer.print_ics", [record.id, "high"])}
                                       target="_blank"
                                       className="inline-flex items-center justify-center gap-1 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg shadow-sm text-xs font-medium"
                                     >
@@ -331,7 +331,7 @@ const [switchRecord, setSwitchRecord] = useState(null);
                                 >
                                   <div className="flex flex-col sm:flex-row gap-2 justify-center">
                                     <a
-                                      href={route("supply_officer.print_ics_all", record.id)}
+                                      href={route("supply_officer.print_ics", [record.id, "high"])}
                                       target="_blank"
                                       className="inline-flex items-center justify-center gap-1 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg shadow-sm text-xs font-medium"
                                     >

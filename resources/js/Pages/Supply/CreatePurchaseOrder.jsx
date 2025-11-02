@@ -28,24 +28,38 @@ export default function CreatePurchaseOrder({ pr, rfq, suppliers, winners }) {
   const [reason, setReason] = useState("");
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
 
-  const getItemsForSupplier = (supplierId) => {
-    const supplierItems = winners.filter((w) => w.supplier_id === supplierId);
+const getItemsForSupplier = (supplierId) => {
+  const supplierItems = winners.filter((w) => w.supplier_id === supplierId);
 
-    return supplierItems.map((w) => ({
+  // detect if winners are from multiple suppliers
+  const hasDifferentWinners =
+    new Set(winners.map((w) => w.supplier_id)).size > 1;
+
+  return supplierItems.map((w) => {
+    // use edited price if there are different winners and value exists
+    const useEditedPrice = hasDifferentWinners && w.unit_price_edited != null;
+
+    const unitPrice = Number(
+      useEditedPrice ? w.unit_price_edited : w.unit_price
+    );
+
+    return {
       pr_detail_id: w.pr_detail_id,
       item: w.item,
       specs: w.specs,
       unit: w.unit,
       quantity: w.quantity,
-      unit_price: Number(w.unit_price ?? 0),
-      total_price: Number(w.total_price ?? 0), // per-item calculation
-      priceSource: w.unit_price_edited ? "As Calculated Price" : "Quoted Price",
+      unit_price: unitPrice,
+      total_price: Number(w.quantity) * unitPrice,
+      priceSource: useEditedPrice ? "As Calculated Price" : "Quoted Price",
       supplier_id: supplierId,
-      supplier_total: w.supplier_total ?? null, // pass backend total for fallback
-    }));
-  };
+      supplier_total: w.supplier_total ?? null,
+    };
+  });
+};
 
-  const { data, setData, post, processing } = useForm({
+
+  const { data, setData, post, processing, errors } = useForm({
     rfq_id: rfq.id,
     items: [],
   });
@@ -117,130 +131,176 @@ export default function CreatePurchaseOrder({ pr, rfq, suppliers, winners }) {
   return (
     <SupplyOfficerLayout header="Schools Divisions Office - Ilagan | Create Purchase Order">
       <Head title={`Create PO for PR #${pr.pr_number}`} />
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-6 rounded shadow mx-auto max-w-6xl"
-      >
-        <h2 className="text-2xl font-bold mb-6">
-          Create PO for PR #{pr.pr_number}
-        </h2>
+    <form
+      onSubmit={handleSubmit}
+      className="bg-white p-6 rounded shadow mx-auto max-w-6xl"
+    >
+      <h2 className="text-2xl font-bold mb-6">
+        Create PO for PR #{pr.pr_number}
+      </h2>
 
-        {winningSuppliers.map((supplier) => {
-          const supplierItems = data.items.filter(
-            (i) => i.supplier_id === supplier.id
-          );
+      {/* 🌟 Mode of Procurement Field */}
+    <div className="mb-6">
+      <label htmlFor="mode_of_procurement" className="block font-semibold mb-2">
+        Mode of Procurement <span className="text-red-500">*</span>
+      </label>
+      <input
+        type="text"
+        id="mode_of_procurement"
+        name="mode_of_procurement"
+        value={data.mode_of_procurement || ""}
+        onChange={(e) => setData("mode_of_procurement", e.target.value)}
+        className="border rounded px-3 py-2 w-full"
+        placeholder="Enter mode of procurement..."
+        required
+      />
+      {errors.mode_of_procurement && (
+        <p className="text-red-500 text-sm mt-1">{errors.mode_of_procurement}</p>
+      )}
+    </div>
+    <div className="mb-6">
+      <label htmlFor="delivery_term" className="block font-semibold mb-2">
+        Delivery Term <span className="text-red-500">*</span>
+      </label>
+      <input
+        type="text"
+        id="delivery_term"
+        name="delivery_term"
+        value={data.delivery_term || ""}
+        onChange={(e) => setData("delivery_term", e.target.value)}
+        className="border rounded px-3 py-2 w-full"
+        placeholder="Enter Delivery Term..."
+        required
+      />
+      {errors.delivery_term && (
+        <p className="text-red-500 text-sm mt-1">{errors.delivery_term}</p>
+      )}
+    </div>
+    <div className="mb-6">
+      <label htmlFor="payment_term" className="block font-semibold mb-2">
+        Payment Term <span className="text-red-500">*</span>
+      </label>
+      <input
+        type="text"
+        id="payment_term"
+        name="payment_term"
+        value={data.payment_term || ""}
+        onChange={(e) => setData("payment_term", e.target.value)}
+        className="border rounded px-3 py-2 w-full"
+        placeholder="Enter Payment Term..."
+        required
+      />
+      {errors.payment_term && (
+        <p className="text-red-500 text-sm mt-1">{errors.payment_term}</p>
+      )}
+    </div>
 
-          // prefer backend supplier_total (same for all winner items of supplier)
-          const backendTotal = supplierItems.find(
-            (i) => i.supplier_total !== null
-          )?.supplier_total;
 
-          const supplierTotal =
-  winners.find((w) => w.supplier_id === supplier.id)?.supplier_total ||
-  supplierItems.reduce((sum, i) => sum + Number(i.total_price), 0);
+      {winningSuppliers.map((supplier) => {
+        const supplierItems = data.items.filter(
+          (i) => i.supplier_id === supplier.id
+        );
 
-          console.log({ supplier, supplierItems, supplierTotal });
-          return (
-            <div
-              key={supplier.id}
-              className="mb-8 border rounded-lg shadow-sm overflow-hidden"
-            >
-              <div className="bg-gray-100 px-4 py-3 font-semibold text-lg">
-                Supplier: {supplier.company_name}
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full table-auto border-separate border-spacing-0 text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="border-y border-l px-4 py-2 text-left">
-                        Item
-                      </th>
-                      <th className="border-y px-4 py-2 text-left">Specs</th>
-                      <th className="border-y px-4 py-2 text-center">Unit</th>
-                      <th className="border-y px-4 py-2 text-right">
-                        Quantity
-                      </th>
-                      <th className="border-y px-4 py-2 text-right">
-                        Unit Price
-                      </th>
-                      <th className="border-y px-4 py-2 text-right">
-                        Total Price
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {supplierItems.map((item) => (
-                      <tr
-                        key={`${supplier.id}-${item.pr_detail_id}`}
-                        className="hover:bg-gray-50"
-                      >
-                        <td className="border-b border-l px-4 py-2">
-                          {item.item}
-                        </td>
-                        <td className="border-b px-4 py-2 text-gray-600">
-                          {item.specs}
-                        </td>
-                        <td className="border-b px-4 py-2 text-center">
-                          {item.unit}
-                        </td>
-                        <td className="border-b px-4 py-2 text-right">
-                          {item.quantity}
-                        </td>
-                        <td className="border-b px-4 py-2 text-right">
-                          ₱
-                          {Number(item.unit_price).toLocaleString("en-US", {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
-                          <div
-                            className={`text-xs ${
-                              item.priceSource === "Quoted Price"
-                                ? "text-green-600"
-                                : "text-gray-500"
-                            }`}
-                          >
-                            {item.priceSource}
-                          </div>
-                        </td>
-                        <td className="border-b px-4 py-2 text-right">
-                          ₱
-                          {(item.unit_price * item.quantity).toLocaleString(
-                            "en-US",
-                            {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            }
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                    <tr className="bg-gray-100 font-semibold">
-                      <td colSpan="5" className="border-t px-4 py-2 text-right">
-                        Supplier Total:
+        const backendTotal = supplierItems.find(
+          (i) => i.supplier_total !== null
+        )?.supplier_total;
+
+        const supplierTotal =
+          winners.find((w) => w.supplier_id === supplier.id)?.supplier_total ||
+          supplierItems.reduce((sum, i) => sum + Number(i.total_price), 0);
+
+        return (
+          <div
+            key={supplier.id}
+            className="mb-8 border rounded-lg shadow-sm overflow-hidden"
+          >
+            <div className="bg-gray-100 px-4 py-3 font-semibold text-lg">
+              Supplier: {supplier.company_name}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full table-auto border-separate border-spacing-0 text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="border-y border-l px-4 py-2 text-left">Item</th>
+                    <th className="border-y px-4 py-2 text-left">Specs</th>
+                    <th className="border-y px-4 py-2 text-center">Unit</th>
+                    <th className="border-y px-4 py-2 text-right">Quantity</th>
+                    <th className="border-y px-4 py-2 text-right">Unit Price</th>
+                    <th className="border-y px-4 py-2 text-right">Total Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {supplierItems.map((item) => (
+                    <tr
+                      key={`${supplier.id}-${item.pr_detail_id}`}
+                      className="hover:bg-gray-50"
+                    >
+                      <td className="border-b border-l px-4 py-2">{item.item}</td>
+                      <td className="border-b px-4 py-2 text-gray-600">
+                        {item.specs}
                       </td>
-                      <td className="border-t border-r px-4 py-2 text-right">
+                      <td className="border-b px-4 py-2 text-center">
+                        {item.unit}
+                      </td>
+                      <td className="border-b px-4 py-2 text-right">
+                        {item.quantity}
+                      </td>
+                      <td className="border-b px-4 py-2 text-right">
                         ₱
-                        {supplierTotal.toLocaleString("en-US", {
+                        {Number(item.unit_price).toLocaleString("en-US", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
+                        <div
+                          className={`text-xs ${
+                            item.priceSource === "Quoted Price"
+                              ? "text-green-600"
+                              : "text-gray-500"
+                          }`}
+                        >
+                          {item.priceSource}
+                        </div>
+                      </td>
+                      <td className="border-b px-4 py-2 text-right">
+                        ₱
+                        {(item.unit_price * item.quantity).toLocaleString(
+                          "en-US",
+                          {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          }
+                        )}
                       </td>
                     </tr>
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                  <tr className="bg-gray-100 font-semibold">
+                    <td colSpan="5" className="border-t px-4 py-2 text-right">
+                      Supplier Total:
+                    </td>
+                    <td className="border-t border-r px-4 py-2 text-right">
+                      ₱
+                      {supplierTotal.toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-          );
-        })}
+          </div>
+        );
+      })}
 
-        <Button
-          type="submit"
-          disabled={processing || data.items.length === 0}
-          className="mt-6"
-        >
-          {processing ? "Submitting..." : "Submit Purchase Order"}
-        </Button>
-      </form>
+      <Button
+        type="submit"
+        disabled={processing || data.items.length === 0}
+        className="mt-6"
+      >
+        {processing ? "Submitting..." : "Submit Purchase Order"}
+      </Button>
+    </form>
+
 
       {/* Confirmation Dialog */}
       <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>

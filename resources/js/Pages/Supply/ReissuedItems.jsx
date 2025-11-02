@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm } from "@inertiajs/react";
-import { PrinterCheck } from "lucide-react";
+import { PrinterCheck, Edit3 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -20,7 +20,14 @@ export default function ReissuedItems({ filters, records, user }) {
   });
 
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
   const { toast } = useToast();
+
+  const { data: editData, setData: setEditData, post, processing } = useForm({
+    recipient: "",
+    remarks: "",
+  });
 
   const handleConfirmSave = () => {
     toast({
@@ -32,15 +39,45 @@ export default function ReissuedItems({ filters, records, user }) {
     setConfirmDialogOpen(false);
   };
 
-const handleSearch = (value) => {
-  setData("search", value);
-  router.get(
-    route("supply_officer.reissued_items"), // or .disposed_items
-    { search: value },
-    { preserveState: true, replace: true }
-  );
-};
+  const handleSearch = (value) => {
+    setData("search", value);
+    router.get(route("supply_officer.reissued_items"), { search: value }, { preserveState: true, replace: true });
+  };
 
+  const handleEditClick = (item) => {
+    setSelectedItem(item);
+    setEditData({
+      recipient: item?.recipient || "",
+      remarks: item?.remarks || "",
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleEditSubmit = (e) => {
+    e.preventDefault();
+    post(route("supply_officer.update_reissued_item", selectedItem.id), {
+      preserveScroll: true,
+      onSuccess: () => {
+        toast({
+          title: "Updated Successfully",
+          description: "The reissued item details were updated.",
+          duration: 3000,
+          className: "bg-green-600 text-white",
+        });
+        setEditDialogOpen(false);
+        // Auto-refresh the table to reflect the new data
+        router.reload({ only: ["records"] });
+      },
+      onError: (errors) => {
+        toast({
+          title: "Update Failed",
+          description: "Please check your input fields.",
+          duration: 3000,
+          className: "bg-red-600 text-white",
+        });
+      },
+    });
+  };
 
   return (
     <SupplyOfficerLayout header="Reissued Items">
@@ -60,7 +97,6 @@ const handleSearch = (value) => {
                 handleSearch(e.target.value);
               }}
             />
-
           </div>
         </div>
 
@@ -90,78 +126,46 @@ const handleSearch = (value) => {
             <tbody className="divide-y divide-gray-100 text-center">
               {records.data.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan="7"
-                    className="py-12 text-gray-500 text-lg font-medium text-center"
-                  >
+                  <td colSpan="7" className="py-12 text-gray-500 text-lg font-medium text-center">
                     No Reissued Items Found.
                   </td>
                 </tr>
               ) : (
-                records.data.map((record, i) => {
+                records.data.map((record) => {
                   const items = record.items || [];
-                  const rows = [];
+                  return items.map((it) => (
+                    <tr key={it.id} className="hover:bg-gray-50 transition">
+                      <td className="px-6 py-4 text-gray-700">{record.rrsp_number}</td>
+                      <td className="px-6 py-4 text-gray-700">{record.ics_number}</td>
+                      <td className="px-6 py-4 text-gray-700">
+                        {it?.returned_by?.firstname} {it?.returned_by?.lastname}
+                      </td>
+                      <td className="px-6 py-4 text-gray-700 text-left">{it?.inventory_item?.item_desc}</td>
+                      <td className="px-6 py-4 text-gray-700">{it?.quantity}</td>
+                      <td className="px-6 py-4 text-gray-700">{it?.recipient || "—"}</td>
+                      <td className="px-6 py-4 flex justify-center gap-2">
+                        <a
+                          href={route("supply_officer.print_reissued_items", record.id)}
+                          className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition flex items-center gap-1"
+                          target="_blank"
+                        >
+                          <PrinterCheck size={16} /> Print
+                        </a>
 
-                  // Group items 2 per row
-                  for (let j = 0; j < items.length; j += 2) {
-                    const pair = items.slice(j, j + 2);
-
-                    rows.push(
-                      <tr
-                        key={`${record.id}-${j}`}
-                        className="hover:bg-gray-50 transition"
-                      >
-                        <td className="px-6 py-4 text-gray-700">{record.rrsp_number}</td>
-                        <td className="px-6 py-4 text-gray-700">{record.ics_number}</td>
-                        <td className="px-6 py-4 text-gray-700">
-                          {pair[0]?.returned_by?.firstname}{" "}
-                          {pair[0]?.returned_by?.lastname}
-                        </td>
-
-                        <td className="px-6 py-4 text-gray-700 text-left">
-                          <div className="space-y-1">
-                            {pair.map((it, k) => (
-                              <div key={k} className="border-b last:border-0 py-1">
-                                {it?.inventory_item?.item_desc}
-                              </div>
-                            ))}
-                          </div>
-                        </td>
-
-                        <td className="px-6 py-4 text-gray-700">
-                          <div className="space-y-1">
-                            {pair.map((it, k) => (
-                              <div key={k} className="border-b last:border-0 py-1">
-                                {it?.quantity}
-                              </div>
-                            ))}
-                          </div>
-                        </td>
-
-                        <td className="px-6 py-4 text-gray-700">
-                          <div className="space-y-1">
-                            {pair.map((it, k) => (
-                              <div key={k} className="border-b last:border-0 py-1">
-                                {it?.recipient}
-                              </div>
-                            ))}
-                          </div>
-                        </td>
-
-                        <td className="px-6 py-4">
-                          <a
-                            href={route('supply_officer.print_reissued_items', record.id)}
-                            className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-1"
-                            target="_blank"
+                        {/* Only show edit if recipient is empty */}
+                        {(!it.recipient || it.recipient.trim() === "") && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-blue-600 text-blue-600 hover:bg-blue-50 flex items-center gap-1"
+                            onClick={() => handleEditClick(it)}
                           >
-                            <PrinterCheck size={16} /> Print
-                          </a>
-                        </td>
-                      </tr>
-                    );
-                  }
-
-                  return rows;
+                            <Edit3 size={16} /> Edit
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ));
                 })
               )}
             </tbody>
@@ -176,9 +180,7 @@ const handleSearch = (value) => {
                 key={index}
                 href={link.url || "#"}
                 className={`px-3 py-1 text-sm rounded-md ${
-                  link.active
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  link.active ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                 } ${!link.url && "opacity-50 cursor-not-allowed"}`}
                 dangerouslySetInnerHTML={{ __html: link.label }}
               />
@@ -192,19 +194,53 @@ const handleSearch = (value) => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Confirm Issuance</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to switch this to RIS issuance?
-            </DialogDescription>
+            <DialogDescription>Are you sure you want to switch this to RIS issuance?</DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4">
-            <Button
-              variant="secondary"
-              onClick={() => setConfirmDialogOpen(false)}
-            >
+            <Button variant="secondary" onClick={() => setConfirmDialogOpen(false)}>
               Cancel
             </Button>
             <Button onClick={handleConfirmSave}>Yes, Record RIS</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Reissued Item</DialogTitle>
+            <DialogDescription>Update the recipient or remarks.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4 mt-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Recipient</label>
+              <input
+                type="text"
+                value={editData.recipient}
+                onChange={(e) => setEditData("recipient", e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Remarks</label>
+              <textarea
+                value={editData.remarks}
+                onChange={(e) => setEditData("remarks", e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2"
+              ></textarea>
+            </div>
+
+            <DialogFooter className="mt-4">
+              <Button variant="secondary" onClick={() => setEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={processing}>
+                {processing ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </SupplyOfficerLayout>

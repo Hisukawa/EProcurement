@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button"; // Shadcn Button import
 
 export default function AddDetails({ prId, products, pr_number, prDetails, purpose, sendBackReason, units, rejectionReason }) {
-    console.log(rejectionReason);
 const { data, setData, post, put, processing, errors, reset } = useForm({
         id: null,
         pr_number: pr_number,
@@ -67,20 +66,27 @@ const { data, setData, post, put, processing, errors, reset } = useForm({
     const handleConfirmAdd = () => {
         const customUnit = data.custom_unit.trim();
 
-        // If custom unit is entered
+        // Preserve existing unit if user didn’t change anything
+        let unitId = data.unit_id;
+
         if (customUnit) {
-            const existingUnit = units.find(u => u.unit.toLowerCase() === customUnit.toLowerCase());
+            const existingUnit = units.find(
+                (u) => u.unit.toLowerCase() === customUnit.toLowerCase()
+            );
             if (existingUnit) {
-                // If the unit exists, use its ID
-                setData("unit_id", existingUnit.id);
-                setData("custom_unit", ""); // Clear the custom unit field
+                unitId = existingUnit.id;
+                setData("custom_unit", "");
             } else {
-                // If the unit doesn't exist, proceed with the entered custom unit
-                setData("unit_id", ""); // Clear the unit_id
+                unitId = ""; // Will trigger backend to create a new custom unit
             }
-        } else if (!data.unit_id) {
-            // If no custom unit is entered and no unit is selected, return
-            return;
+        }
+
+        // ✅ Don't block submission — just continue
+        if (!unitId && !customUnit) {
+            // If both are empty, fallback to existing unit_id in data (if any)
+            if (!data.unit_id) {
+                console.warn("No unit selected or entered.");
+            }
         }
 
         if (!data.quantity) return;
@@ -95,6 +101,7 @@ const { data, setData, post, put, processing, errors, reset } = useForm({
             preserveScroll: true,
             data: {
                 ...data,
+                unit_id: unitId,
                 purpose: data.purpose,
             },
             onSuccess: () => {
@@ -104,7 +111,6 @@ const { data, setData, post, put, processing, errors, reset } = useForm({
         });
     };
 
-    // Open modal to edit an existing item
     const handleEdit = (detail) => {
         setData({
             ...data,
@@ -198,10 +204,10 @@ const { data, setData, post, put, processing, errors, reset } = useForm({
                 </div>
 
                 {/* Highlight send back reason if available */}
-                {rejectionReason && rejectionReason !== null && (
-                    <div className="mb-4 p-4 bg-red-200 border-l-4 border-red-600 text-red-800">
-                        <strong>Rejection Reason: </strong>
-                        {rejectionReason}
+                {sendBackReason && sendBackReason !== null && (
+                    <div className="mb-4 p-4 bg-yellow-200 border-l-4 border-yellow-600 text-yellow-800">
+                        <strong>Send Back Reason/s: </strong>
+                        {sendBackReason}
                     </div>
                 )}
 
@@ -309,11 +315,11 @@ const { data, setData, post, put, processing, errors, reset } = useForm({
 
                         <div className="mt-4">
                             <label className="block text-sm font-semibold text-gray-700">Specifications</label>
-                            <input
+                            <textarea
                                 type="text"
                                 value={data.specs}
                                 onChange={(e) => setData("specs", e.target.value)}
-                                className="w-full border rounded px-3 py-1 mt-2"
+                                className="w-full border rounded px-3 py-1 mt-2 h-32"
                             />
                         </div>
 

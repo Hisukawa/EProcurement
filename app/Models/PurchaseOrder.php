@@ -12,7 +12,7 @@ class PurchaseOrder extends Model
     /** @use HasFactory<\Database\Factories\PurchaseOrderFactory> */
     use HasFactory;
     protected $table = 'tbl_purchase_orders';
-    protected $fillable = ['po_number', 'rfq_id', 'supplier_id', 'user_id', 'recorded_by', 'status'];
+    protected $fillable = ['po_number', 'rfq_id', 'supplier_id', 'user_id', 'recorded_by', 'status', 'mode_of_procurement'];
 
     public function details()
     {

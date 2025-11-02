@@ -247,4 +247,226 @@ public function printAOQCalculated($id, $pr_detail_id = null)
 
     abort(400, 'Invalid AOQ mode.');
 }
+
+/**
+ * Print AOQ for per-item winners grouped by supplier.
+ * Each supplier that won one or more items will get a single page
+ * containing only the lines they won.
+ */
+public function printAoqPerItemGrouped($id)
+{
+    $rfq = RFQ::with([
+        'purchaseRequest.details',
+        'details.supplier'
+    ])->findOrFail($id);
+
+    $committee = BacCommittee::with('members')
+        ->where('committee_status', 'active')
+        ->first();
+
+    // Build groups: supplier_id => ['supplier' => Supplier, 'lines' => []]
+    $groupsMap = [];
+
+    foreach ($rfq->purchaseRequest->details as $prDetail) {
+        // Find the quote for this PR detail that was marked as winner (as calculated)
+        $winningQuote = $rfq->details
+            ->where('pr_details_id', $prDetail->id)
+            ->firstWhere('is_winner_as_calculated', 1);
+
+        if (!$winningQuote) {
+            // Skip items without a per-item winner
+            continue;
+        }
+
+        $sid = $winningQuote->supplier_id;
+
+        if (!isset($groupsMap[$sid])) {
+            $groupsMap[$sid] = [
+                'supplier' => $winningQuote->supplier,
+                'lines' => [],
+                'remarks' => [],
+            ];
+        }
+
+        $unitPrice = $winningQuote->unit_price_edited ?? $winningQuote->quoted_price ?? 0;
+        $quantity = $prDetail->quantity ?? 0;
+        $lineTotal = $unitPrice * $quantity;
+
+        $groupsMap[$sid]['lines'][] = [
+            'pr_detail_id' => $prDetail->id,
+            'item' => $prDetail->item ?? '',
+            'specs' => $prDetail->specs ?? '',
+            'unit' => $prDetail->unit ?? '',
+            'quantity' => $quantity,
+            'unit_price' => $unitPrice,
+            'line_total' => $lineTotal,
+        ];
+
+        if (!empty($winningQuote->remarks_as_calculated)) {
+            $groupsMap[$sid]['remarks'][] = trim($winningQuote->remarks_as_calculated);
+        }
+    }
+
+    // Prepare final groups array for the view
+    // For each winner (group), we will collect ALL suppliers who quoted on the items
+    // that the winner won, compute their totals for those items, and mark the winner.
+    $groups = [];
+    foreach ($groupsMap as $sid => $g) {
+        $prDetailIds = collect($g['lines'])->pluck('pr_detail_id')->filter()->values()->all();
+
+        // Find all quotes for these pr detail ids
+        $quotesForGroup = $rfq->details->filter(function ($q) use ($prDetailIds) {
+            return in_array($q->pr_details_id, $prDetailIds);
+        });
+
+        // Group by supplier and compute totals for these lines
+        $suppliersSummary = $quotesForGroup->groupBy('supplier_id')->map(function ($quotes) use ($rfq) {
+            $supplier = $quotes->first()->supplier;
+            $total = $quotes->sum(function ($q) use ($rfq) {
+                $prDetail = $rfq->purchaseRequest->details->firstWhere('id', $q->pr_details_id);
+                $qty = $prDetail->quantity ?? 0;
+                $unitPrice = $q->unit_price_edited ?? $q->quoted_price ?? 0;
+                return $unitPrice * $qty;
+            });
+
+            $remarks = $quotes->pluck('remarks_as_calculated')->filter()->unique()->implode(', ');
+
+            return [
+                'supplier' => $supplier,
+                'total_amount' => $total,
+                'remarks_as_calculated' => $remarks,
+                'is_winner' => $quotes->contains('is_winner_as_calculated', 1),
+            ];
+        })->values()->all();
+
+        // Build group entry
+        $groups[] = [
+            'winner_supplier_id' => $sid,
+            'suppliers' => $suppliersSummary,
+            // keep lines for potential future use (not printed by current layout)
+            'lines' => $g['lines'],
+        ];
+    }
+
+    // If no groups (no per-item winners), abort or show an empty PDF
+    if (empty($groups)) {
+        abort(400, 'No per-item winners to print.');
+    }
+
+    $pdf = Pdf::loadView('pdf.aoq_per_item_grouped_like_full_pr', [
+        'rfq' => $rfq,
+        'groups' => $groups,
+        'committee' => $committee,
+    ]);
+
+    return $pdf->stream("AOQ_per_item_grouped_{$id}.pdf");
+}
+public function printAoqPerItemGroupedRead($id)
+{
+    $rfq = RFQ::with([
+        'purchaseRequest.details',
+        'details.supplier'
+    ])->findOrFail($id);
+
+    $committee = BacCommittee::with('members')
+        ->where('committee_status', 'active')
+        ->first();
+
+    // Build groups: supplier_id => ['supplier' => Supplier, 'lines' => []]
+    $groupsMap = [];
+
+    foreach ($rfq->purchaseRequest->details as $prDetail) {
+        // Find the quote for this PR detail that was marked as winner (as calculated)
+        $winningQuote = $rfq->details
+            ->where('pr_details_id', $prDetail->id)
+            ->firstWhere('is_winner_as_calculated', 1);
+
+        if (!$winningQuote) {
+            // Skip items without a per-item winner
+            continue;
+        }
+
+        $sid = $winningQuote->supplier_id;
+
+        if (!isset($groupsMap[$sid])) {
+            $groupsMap[$sid] = [
+                'supplier' => $winningQuote->supplier,
+                'lines' => [],
+                'remarks' => [],
+            ];
+        }
+
+        $unitPrice = $winningQuote->unit_price_edited ?? $winningQuote->quoted_price ?? 0;
+        $quantity = $prDetail->quantity ?? 0;
+        $lineTotal = $unitPrice * $quantity;
+
+        $groupsMap[$sid]['lines'][] = [
+            'pr_detail_id' => $prDetail->id,
+            'item' => $prDetail->item ?? '',
+            'specs' => $prDetail->specs ?? '',
+            'unit' => $prDetail->unit ?? '',
+            'quantity' => $quantity,
+            'unit_price' => $unitPrice,
+            'line_total' => $lineTotal,
+        ];
+
+        if (!empty($winningQuote->remarks_as_calculated)) {
+            $groupsMap[$sid]['remarks'][] = trim($winningQuote->remarks_as_calculated);
+        }
+    }
+
+    // Prepare final groups array for the view
+    // For each winner (group), we will collect ALL suppliers who quoted on the items
+    // that the winner won, compute their totals for those items, and mark the winner.
+    $groups = [];
+    foreach ($groupsMap as $sid => $g) {
+        $prDetailIds = collect($g['lines'])->pluck('pr_detail_id')->filter()->values()->all();
+
+        // Find all quotes for these pr detail ids
+        $quotesForGroup = $rfq->details->filter(function ($q) use ($prDetailIds) {
+            return in_array($q->pr_details_id, $prDetailIds);
+        });
+
+        // Group by supplier and compute totals for these lines
+        $suppliersSummary = $quotesForGroup->groupBy('supplier_id')->map(function ($quotes) use ($rfq) {
+            $supplier = $quotes->first()->supplier;
+            $total = $quotes->sum(function ($q) use ($rfq) {
+                $prDetail = $rfq->purchaseRequest->details->firstWhere('id', $q->pr_details_id);
+                $qty = $prDetail->quantity ?? 0;
+                $unitPrice = $q->unit_price_edited ?? $q->quoted_price ?? 0;
+                return $unitPrice * $qty;
+            });
+
+            $remarks = $quotes->pluck('remarks_as_read')->filter()->unique()->implode(', ');
+
+            return [
+                'supplier' => $supplier,
+                'total_amount' => $total,
+                'remarks_as_read' => $remarks,
+                'is_winner' => $quotes->contains('remarks_as_read', 1),
+            ];
+        })->values()->all();
+
+        // Build group entry
+        $groups[] = [
+            'winner_supplier_id' => $sid,
+            'suppliers' => $suppliersSummary,
+            // keep lines for potential future use (not printed by current layout)
+            'lines' => $g['lines'],
+        ];
+    }
+
+    // If no groups (no per-item winners), abort or show an empty PDF
+    if (empty($groups)) {
+        abort(400, 'No per-item winners to print.');
+    }
+
+    $pdf = Pdf::loadView('pdf.aoq_per_item_grouped_like_full_pr_read', [
+        'rfq' => $rfq,
+        'groups' => $groups,
+        'committee' => $committee,
+    ]);
+
+    return $pdf->stream("AOQ_per_item_grouped_{$id}.pdf");
+}
 }

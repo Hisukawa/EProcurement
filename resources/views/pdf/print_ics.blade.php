@@ -102,7 +102,15 @@
                     {{ $product->name ?? '' }} {{ $product->specs ?? '' }}
                 </td>
                 <td>{{ $issued->inventory_item_number ?? '' }}</td>
-                <td>{{ $issued->inventoryItem->estimated_useful_life ?? '' }}</td>
+                <td>
+                    {{ $issued->estimated_useful_life 
+                        ? (fmod($issued->estimated_useful_life, 1) == 0 
+                            ? intval($issued->estimated_useful_life) 
+                            : number_format($issued->estimated_useful_life, 2)) . ' years' 
+                        : '' 
+                    }}
+                    </td>
+
             </tr>
             @endforeach
 

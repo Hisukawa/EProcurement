@@ -196,18 +196,11 @@ public function submit_project_info(Request $request, $id)
     ]);
 
     $rfq = RFQ::findOrFail($id);
-
-    if ($rfq) {
-        // ✅ Update the first detail record (or choose a specific one if needed)
-        $rfq->first()->update($validated);
-    } else {
-        // ✅ Create a new details record if none exists
-        $rfq->create($validated);
-    }
+    $rfq->update($validated); // <- update RFQ, not details
 
     return back()->with('success', 'Project information updated successfully!');
 }
- 
+
 
 
 

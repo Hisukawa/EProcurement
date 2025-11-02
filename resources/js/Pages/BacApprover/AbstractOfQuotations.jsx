@@ -1,6 +1,6 @@
 import ApproverLayout from "@/Layouts/ApproverLayout";
 import { Head, router, useForm } from "@inertiajs/react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -140,8 +140,10 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
   }, [hasFullBidSuppliers, awardMode]);
 
   const hasAnyWinner = pr.details.some((detail) =>
-    (groupedDetails[detail.id] || []).some((q) => q.is_winner_as_read)
+    (groupedDetails[detail.id] || []).some((q) => q.is_winner_as_calculated)
   );
+
+  
 
   const [remarksDialogOpen, setRemarksDialogOpen] = useState(false);
   const [remarksTarget, setRemarksTarget] = useState(null);
@@ -212,6 +214,9 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
     projectInfoForm.post(route("bac_user.submit_project_info", rfq.id));
   };
 
+    const handlePrintPerItemGroupedAsRead = (rfqId) =>
+    window.open(route("bac_user.print_aoq_per_item_grouped_read", { id: rfqId }), "_blank");
+
   return (
     <ApproverLayout>
       <Head title={`Abstract for ${pr.pr_number}`} />
@@ -230,17 +235,6 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
           </button>
         </div>
 
-        {/* Mode Selector */}
-        <div className="mb-6 flex gap-4">
-          <Button
-            variant={awardMode === "whole-pr" ? "default" : "outline"}
-            onClick={() => setAwardMode("whole-pr")}
-            disabled={!!rfq.award_mode} // disable if mode already chosen
-          >
-            Winner for Entire PR
-          </Button>
-        </div>
-
         {!hasFullBidSuppliers && (
           <p className="text-sm text-red-600 mb-4">
             ⚠️ No supplier quoted for all items. You can only declare winners per item.
@@ -254,6 +248,19 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
     <h3 className="text-lg font-semibold text-gray-800 border-b pb-3">
       Project Information
     </h3>
+
+    <div className="flex justify-end mb-2">
+              <Button
+              type="button"
+                size="sm"
+                className="bg-green-600 text-white"
+                onClick={() => handlePrintPerItemGroupedAsRead(rfq.id)}
+                disabled={!hasAnyWinner}
+              >
+                🖨️ Print AOQ (Grouped by Winners)
+              </Button>
+            </div>
+    
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Left Column - Project Number */}
@@ -333,172 +340,200 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
 
 
 
-        {/* WHOLE PR MODE */}
-        {awardMode === "whole-pr" && (
-          <div className="mb-10 border p-4 rounded-lg bg-white shadow-sm">
-            <div className="flex justify-between items-start p-4">
-              <div>
-                <h3 className="text-lg font-semibold mb-2">
-                  Comparison for Entire Purchase Request
-                </h3>
-                <div className="text-sm text-gray-700">
-                  <p>
-                    <strong>Focal Person:</strong> {pr.focal_person.firstname}{" "}
-                    {pr.focal_person.lastname}
-                  </p>
-                  <p>
-                    <strong>Division:</strong> {pr.division.division}
-                  </p>
-                </div>
+{/* Unified Abstract Table for Printing */}
+<div className="border rounded-lg bg-white shadow-sm p-4 mt-8 mb-8">
+  <h3 className="text-lg font-semibold mb-4 text-gray-800">
+    Abstract of Quotation
+  </h3>
+
+  <table className="w-full text-sm border border-gray-300 rounded-lg overflow-hidden">
+    <thead className="bg-gray-100">
+      <tr>
+        <th className="border px-4 py-3 text-left font-semibold w-64">
+          Item Description
+        </th>
+        {Array.from(
+          new Map(
+            Object.values(groupedDetails)
+              .flat()
+              .map((q) => [q.supplier.id, q.supplier])
+          ).values()
+        ).map((supplier) => (
+          <th
+            key={supplier.id}
+            className="border px-4 py-3 text-center font-semibold"
+          >
+            {supplier.company_name}
+          </th>
+        ))}
+      </tr>
+    </thead>
+
+    <tbody>
+      {pr.details.map((detail, idx) => {
+        const quotes = groupedDetails[detail.id] || [];
+        const suppliers = Array.from(
+          new Map(
+            Object.values(groupedDetails)
+              .flat()
+              .map((q) => [q.supplier.id, q.supplier])
+          ).values()
+        );
+
+        // Find lowest quote for this item
+        const lowestQuote = quotes.reduce((min, q) => {
+          const price = parseFloat(q.quoted_price) || 0;
+          return !min || price < parseFloat(min.quoted_price) ? q : min;
+        }, null);
+
+        return (
+          <tr
+            key={detail.id}
+            className={`${idx % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
+          >
+            <td className="border px-4 py-3">
+              <div className="font-semibold text-gray-800">
+                {detail.item} {detail.specs}
               </div>
-              <button
-                onClick={() => handlePrintAOQ(rfq.id)}
-                className="text-sm text-white bg-green-600 hover:bg-green-700 px-3 py-2 rounded-md h-fit"
-              >
-                🖨️ Print Abstract as Read
-              </button>
-            </div>
+              <div className="text-xs text-gray-500">
+                Qty: {detail.quantity} {detail.unit}
+              </div>
+            </td>
 
-            <table className="w-full text-sm border border-gray-300 rounded-lg overflow-hidden shadow">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="border px-4 py-3 text-left font-semibold">Item</th>
-                  {fullBidSuppliers.map((s) => (
-                    <th
-                      key={s.supplier.id}
-                      className="border px-4 py-3 text-center font-semibold text-xs w-56"
-                    >
-                      {s.supplier.company_name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {pr.details.map((detail, rowIndex) => {
-                  const quotes = groupedDetails[detail.id] || [];
+            {suppliers.map((supplier) => {
+              const quote = quotes.find(
+                (q) => q.supplier.id === supplier.id
+              );
+              const isWinner = quote?.is_winner_as_read;
+              const isLowest =
+                lowestQuote &&
+                quote?.supplier.id === lowestQuote.supplier.id;
 
-                  // Find lowest quote for this item
-                  const lowestQuote = quotes.reduce((min, q) =>
-                    !min || parseFloat(q.quoted_price) < parseFloat(min.quoted_price)
-                      ? q
-                      : min,
-                    null
-                  );
+              if (!quote)
+                return (
+                  <td
+                    key={supplier.id}
+                    className="border text-center text-gray-400 italic py-3"
+                  >
+                    —
+                  </td>
+                );
 
-                  return (
-                    <tr
-                      key={detail.id}
-                      className={rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                    >
-                      {/* Item Name */}
-                      <td className="border px-4 py-2 font-medium">{detail.item} {detail.specs}</td>
+              const total =
+                (parseFloat(quote.quoted_price) || 0) *
+                (parseFloat(detail.quantity) || 0);
 
-                      {/* Supplier Quotes (No item-level remarks here anymore) */}
-                      {fullBidSuppliers.map((s) => {
-                        const quote = quotes.find((q) => q.supplier.id === s.supplier.id);
-                        const isLowest =
-                          quote && lowestQuote && quote.supplier.id === lowestQuote.supplier.id;
+              return (
+                <td
+                  key={supplier.id}
+                  className={`border px-4 py-2 text-center ${
+                    isLowest
+                      ? "bg-green-50 font-semibold text-green-700"
+                      : ""
+                  } ${isWinner ? "border-2 border-green-400" : ""}`}
+                >
+                  <div>₱{parseFloat(quote.quoted_price).toLocaleString()}</div>
+                  <div className="text-xs text-gray-500">
+                    ₱{total.toLocaleString()}
+                  </div>
+                  {isWinner && (
+                    <div className="text-xs text-green-700 font-semibold">
+                      ✅ Winner
+                    </div>
+                  )}
+                </td>
+              );
+            })}
+          </tr>
+        );
+      })}
 
-                        return (
-                          <td
-                            key={s.supplier.id}
-                            className={`border px-4 py-2 text-center align-top ${
-                              isLowest ? "bg-green-50" : ""
-                            }`}
-                          >
-                            {quote ? (
-                              <span
-                                className={`font-semibold ${
-                                  isLowest ? "text-green-700" : "text-gray-800"
-                                }`}
-                              >
-                                <span className="mr-1">
-                                  ₱{Math.round(quote.quoted_price).toLocaleString()}
-                                </span>
-                                <span className="mx-1">x</span>
-                                <span className="mr-1">{detail.quantity}</span>
-                                <span>{detail.unit}</span>
-                              </span>
-                            ) : (
-                              <span className="text-gray-400">—</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
+      {/* REMARKS ROW */}
+      <tr className="bg-gray-50">
+        <td className="border px-4 py-2 text-right font-medium text-gray-700">
+          Remarks:
+        </td>
 
-                {/* Totals Row */}
-                <tr className="bg-gray-200 font-semibold">
-                  <td className="border px-4 py-3 text-right">Total Quoted Price Per Unit</td>
-                  {fullBidSuppliers.map((s) => (
-                    <td
-                      key={s.supplier.id}
-                      className="border px-4 py-3 text-right text-green-700"
-                    >
-                      ₱{parseFloat(s.total).toLocaleString()}
-                    </td>
-                  ))}
-                </tr>
+        {Array.from(
+          new Map(
+            Object.values(groupedDetails)
+              .flat()
+              .map((q) => [q.supplier.id, q.supplier])
+          ).values()
+        ).map((supplier) => {
+          // Gather remarks from all items under this supplier
+          const allRemarks = Object.values(groupedDetails)
+            .flat()
+            .filter((q) => q.supplier.id === supplier.id)
+            .map((q) => q.remarks_as_read)
+            .filter(Boolean);
 
-                {/* New Remarks Row - per supplier, consolidated */}
-                <tr className="bg-gray-50">
-                  <td className="border px-4 py-3 text-right font-semibold">Supplier Remarks</td>
-                  {fullBidSuppliers.map((s) => {
-                    // Collect all remarks for this supplier across all items
-                    const supplierAllRemarks = s.quotes
-                      .filter(q => q.rfq_id === rfq.id) // Ensure quotes belong to current RFQ
-                      .map(q => q.remarks_as_read?.trim() || "");
+          const uniqueRemarks = [...new Set(allRemarks)];
+          const displayRemarks =
+            uniqueRemarks.length > 0
+              ? uniqueRemarks.join("; ")
+              : "No remarks";
 
-                    // Check if all remarks are identical
-                    const allRemarksAreSame = supplierAllRemarks.every(
-                      (val, i, arr) => val === arr[0]
-                    );
-                    const displayedRemarks =
-                      allRemarksAreSame && supplierAllRemarks.length > 0
-                        ? supplierAllRemarks[0] || "No remarks"
-                        : "Varying remarks (edit to unify)";
+          return (
+            <td
+              key={supplier.id}
+              className="border px-4 py-2 text-center text-gray-600"
+            >
+              {uniqueRemarks.length > 0 ? (
+                displayRemarks
+              ) : (
+                <span className="italic text-gray-400">No remarks</span>
+              )}
+            </td>
+          );
+        })}
+      </tr>
 
-                    return (
-                      <td key={`remarks-${s.supplier.id}`} className="border px-4 py-3 text-center">
-                        <div className="flex flex-col items-center gap-1">
-                          <span className="text-xs text-gray-600 italic">
-                            {displayedRemarks}
-                          </span>
-                          <Button
-                            size="xs"
-                            variant="outline"
-                            className="px-2 py-1"
-                            onClick={() => {
-                              setRemarksTarget({
-                                rfqId: rfq.id,
-                                supplierId: s.supplier.id,
-                                detailId: null, // Critical: signal for PR-wide update
-                                currentRemarks:
-                                  displayedRemarks === "No remarks" || displayedRemarks.includes("Varying")
-                                    ? "" // Clear input if no remarks or varying
-                                    : displayedRemarks,
-                              });
-                              setRemarksInput(
-                                displayedRemarks === "No remarks" || displayedRemarks.includes("Varying")
-                                  ? ""
-                                  : displayedRemarks
-                              );
-                              setRemarksDialogOpen(true);
-                            }}
-                          >
-                            Edit Remarks
-                          </Button>
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
+      {/* EDIT REMARKS BUTTONS ROW */}
+      <tr>
+        <td className="border px-4 py-2 text-right font-medium text-gray-700">
+          Actions:
+        </td>
+
+        {Array.from(
+          new Map(
+            Object.values(groupedDetails)
+              .flat()
+              .map((q) => [q.supplier.id, q.supplier])
+          ).values()
+        ).map((supplier) => (
+          <td
+            key={supplier.id}
+            className="border px-4 py-3 text-center"
+          >
+            <Button
+              type="button"
+              size="xs"
+              variant="outline"
+              onClick={() => {
+                setRemarksTarget({
+                  rfqId: rfq.id,
+                  supplierId: supplier.id,
+                  detailId: null,
+                  currentRemarks: "", // optional if you want to prefill
+                });
+                setRemarksInput("");
+                setRemarksDialogOpen(true);
+              }}
+            >
+              Edit Remarks
+            </Button>
+          </td>
+        ))}
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+
+
+
 
                 {/* BAC COMMITTEE */}
         <div className="mb-8 p-4 border rounded-lg bg-gray-50 shadow-sm">

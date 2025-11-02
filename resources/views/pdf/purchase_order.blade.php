@@ -51,7 +51,7 @@
 
         <tr class="with-border">
             <td style="border-top: none !important;" colspan="3">TIN: <span class="underline font-semibold">{{ $po->supplier->tin_num }}</span></td>
-            <td style="border-top: none !important;" colspan="3">Mode of Procurement: ____________________</td>
+            <td style="border-top: none !important;" colspan="3">Mode of Procurement: <span class="underline font-semibold">{{ $po->mode_of_procurement }}</span></td>
         </tr>
         <tr style="margin-top:8px; margin-left: 10px; font-size:11px; border-left:1px solid; border-right:1px solid;height: 2%;">
             <td colspan="6">
@@ -66,13 +66,13 @@
                 Place of Delivery: <span class="underline font-semibold">SDO CITY OF ILAGAN </span>
             </td>
             <td style="border-bottom: none !important;" colspan="3" class="">
-                Delivery Term: <span class="underline font-semibold">F.O.B.Destination</span>
+                Delivery Term: <span class="underline font-semibold">{{ $po->delivery_term }}</span>
             </td>
         </tr>
 
         <tr class="with-border">
             <td colspan="3" style="border-bottom: none !important; border-top: none !important;" >Date of Delivery: <span class="underline font-semibold"></span></td>
-            <td colspan="3" style="border-bottom: none !important; border-top: none !important;">Payment Term: <span class="underline font-semibold">n30</span></td>
+            <td colspan="3" style="border-bottom: none !important; border-top: none !important;">Payment Term: <span class="underline font-semibold">{{ $po->payment_term }}</span></td>
         </tr>
         <tr class="text-center font-bold with-border">
             <td style="width:2%">Stock/Property No.</td>

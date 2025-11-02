@@ -71,7 +71,8 @@ class AbstractController extends Controller
 {
     $request->validate([
         'supplier_id' => 'required|integer|exists:tbl_suppliers,id',
-        'detail_id'   => 'nullable|integer|exists:tbl_rfq_details,id',
+        // detail_id may be either an RFQ detail ID or a PR detail ID; validate as integer only
+        'detail_id'   => 'nullable|integer',
         'remarks_as_read'     => 'nullable|string',
     ]);
 
@@ -85,12 +86,20 @@ class AbstractController extends Controller
     try {
         if ($prDetailId) {
             // --- PER-ITEM WINNER ---
+            // Accept either an RFQDetail id (tbl_rfq_details.id) or a PR detail id (tbl_pr_details.id)
+            $resolvedPrDetailId = $prDetailId;
+            $maybeRfqDetail = RFQDetail::where('id', $prDetailId)->where('rfq_id', $id)->first();
+            if ($maybeRfqDetail) {
+                // caller passed an RFQDetail id; use its pr_details_id
+                $resolvedPrDetailId = $maybeRfqDetail->pr_details_id;
+            }
+
             RFQDetail::where('rfq_id', $id)
-                ->where('pr_details_id', $prDetailId)
+                ->where('pr_details_id', $resolvedPrDetailId)
                 ->update(['is_winner_as_read' => false]);
 
             $quote = RFQDetail::where('rfq_id', $id)
-                ->where('pr_details_id', $prDetailId)
+                ->where('pr_details_id', $resolvedPrDetailId)
                 ->where('supplier_id', $supplierId)
                 ->firstOrFail();
 
@@ -138,7 +147,8 @@ public function markWinnerAsCalculated(Request $request, $id)
 {
     $request->validate([
         'supplier_id'  => 'required|integer|exists:tbl_suppliers,id',
-        'detail_id'    => 'nullable|integer|exists:tbl_rfq_details,id',
+        // detail_id may be either an RFQ detail ID or a PR detail ID; validate as integer only
+        'detail_id'    => 'nullable|integer',
         'remarks_as_calculated' => 'nullable|string',
         'custom_price' => 'nullable|numeric|min:0', // per-item
     ]);
@@ -154,29 +164,46 @@ public function markWinnerAsCalculated(Request $request, $id)
     try {
         if ($prDetailId) {
             // --- PER-ITEM WINNER ---
+            // Accept either an RFQDetail id or a PR detail id
+            $resolvedPrDetailId = $prDetailId;
+            $maybeRfqDetail = RFQDetail::where('pr_details_id', $prDetailId)
+                ->where('rfq_id', $id)
+                ->first();
+
+            if ($maybeRfqDetail) {
+                $resolvedPrDetailId = $maybeRfqDetail->pr_details_id;
+            }
+
             // Reset previous winner for this specific item
             RFQDetail::where('rfq_id', $id)
-                ->where('pr_details_id', $prDetailId)
+                ->where('pr_details_id', $resolvedPrDetailId)
                 ->update(['is_winner_as_calculated' => false]);
 
             // Set new winner for this item
             $quote = RFQDetail::where('rfq_id', $id)
-                ->where('pr_details_id', $prDetailId)
+                ->where('pr_details_id', $resolvedPrDetailId)
                 ->where('supplier_id', $supplierId)
                 ->firstOrFail();
 
             $quote->is_winner_as_calculated = true;
             $quote->remarks_as_calculated   = $remarks;
-            $quote->unit_price_edited       = $customPrice; // store custom per-item price
+            // Only overwrite unit_price_edited when a custom price was explicitly provided.
+            // This prevents accidental clearing of an existing edited price when the
+            // request doesn't include custom_price.
+            if ($customPrice !== null) {
+                $quote->unit_price_edited = $customPrice; // store custom per-item price
+            }
             $quote->save();
 
-            // Recalculate total per supplier for per-item winners
+            // Recalculate total per supplier for per-item winners (price * quantity)
             $total = RFQDetail::where('rfq_id', $id)
                 ->where('supplier_id', $supplierId)
                 ->where('is_winner_as_calculated', true)
                 ->get()
                 ->sum(function ($detail) {
-                    return $detail->unit_price_edited ?? $detail->quoted_price ?? 0;
+                    $price = $detail->unit_price_edited ?? $detail->quoted_price ?? 0;
+                    $qty = $detail->prDetail->quantity ?? 1;
+                    return $price * $qty;
                 });
 
             $rfq->total_price_calculated = $total;
@@ -201,7 +228,9 @@ public function markWinnerAsCalculated(Request $request, $id)
                 ->where('supplier_id', $supplierId)
                 ->get()
                 ->sum(function ($detail) {
-                    return $detail->unit_price_edited ?? $detail->quoted_price ?? 0;
+                    $price = $detail->unit_price_edited ?? $detail->quoted_price ?? 0;
+                    $qty = $detail->prDetail->quantity ?? 1;
+                    return $price * $qty;
                 });
 
             $rfq->total_price_calculated = $total;
@@ -239,6 +268,7 @@ public function saveUnitPrice(Request $request, $rfq)
         // Update the specific RFQ detail's unit_price_edited
         $rfqDetail = RFQDetail::where('pr_details_id', $detailId)
             ->where('supplier_id', $supplierId)
+            ->where('rfq_id', $rfq)
             ->first();
         
         if (!$rfqDetail) {
@@ -451,7 +481,7 @@ public function rollbackWinnerAsCalculated(Request $request, $id)
         'entity_type'  => 'RFQ',
         'entity_id'    => $rfq->id,
         'changes'      => $changes->toJson(),
-        'reason'       => $request->remarks,
+        'reason'       => $request->remarks_as_calculated,
         'user_id'      => $user->id,
     ]);
 

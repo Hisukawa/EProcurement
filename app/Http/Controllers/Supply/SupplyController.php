@@ -388,6 +388,7 @@ public function store_po(Request $request)
 {
     $request->validate([
         'rfq_id' => 'required|exists:tbl_rfqs,id',
+        'mode_of_procurement' => 'required|string|max:255',
         'items' => 'required|array|min:1',
         'items.*.pr_detail_id' => 'required|exists:tbl_pr_details,id',
         'items.*.quantity' => 'required|numeric|min:0',
@@ -425,6 +426,7 @@ public function store_po(Request $request)
             $po = PurchaseOrder::create([
                 'po_number' => $poNumber,
                 'rfq_id' => $request->rfq_id,
+                'mode_of_procurement' => $request->mode_of_procurement,
                 'supplier_id' => $supplierId,
                 'user_id' => $userId,
                 'recorded_by' => Auth::id(),

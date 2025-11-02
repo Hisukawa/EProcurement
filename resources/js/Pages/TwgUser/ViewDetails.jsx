@@ -110,11 +110,6 @@ const handleSendBack = () => {
     );
     };
 
-const [rejectOpen, setRejectOpen] = useState(false);
-const [rejectReason, setRejectReason] = useState("");
-const [isRejecting, setIsRejecting] = useState(false);
-const [rejectError, setRejectError] = useState("");
-
 const handleReject = () => {
   if (!rejectReason.trim()) {
     setRejectError("You must provide a rejection reason.");
@@ -305,14 +300,6 @@ const handleReject = () => {
               Send Back
             </Button>
           )}
-          {pr.status.toLowerCase() === "pending" && (
-            <Button
-              className="bg-red-500 hover:bg-red-600 text-white"
-              onClick={() => setRejectOpen(true)}
-            >
-              Reject
-            </Button>
-          )}
 
         </div>
       </div>
@@ -389,42 +376,6 @@ const handleReject = () => {
             </DialogFooter>
             </DialogContent>
         </Dialog>
-        {/* Reject Dialog */}
-<Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
-  <DialogContent>
-    <DialogHeader>
-      <DialogTitle>Reject Purchase Request</DialogTitle>
-      <DialogDescription>
-        Provide a reason for rejecting this purchase request.
-      </DialogDescription>
-    </DialogHeader>
-
-    <Textarea
-      placeholder="Enter rejection reason..."
-      aria-label="Enter rejection reason"
-      value={rejectReason}
-      onChange={(e) => {
-        setRejectReason(e.target.value);
-        if (rejectError) setRejectError("");
-      }}
-    />
-    {rejectError && <p className="text-sm text-red-500 mt-2">{rejectError}</p>}
-
-    <DialogFooter>
-      <Button variant="outline" onClick={() => setRejectOpen(false)}>
-        Cancel
-      </Button>
-      <Button
-        className="bg-red-600 hover:bg-red-700 text-white"
-        onClick={handleReject}
-        disabled={isRejecting}
-      >
-        {isRejecting ? "Rejecting..." : "Reject"}
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
-
     </TwgUserLayout>
   )
 }
