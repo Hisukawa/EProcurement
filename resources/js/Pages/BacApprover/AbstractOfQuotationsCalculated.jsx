@@ -656,7 +656,7 @@ const handlePriceChange = (supplierId, detailId, value) => {
                 onClick={() => handlePrintPerItemGrouped(rfq.id)}
                 disabled={!hasPerItemWinners}
               >
-                🖨️ Print AOQ (Grouped by Winners)
+                🖨️ Print AOQ As Calculated
               </Button>
             </div>
             {pr.details.map((detail) => {
