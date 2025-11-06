@@ -59,7 +59,11 @@ class ParReportExport implements FromCollection, WithHeadings, WithMapping, With
                 // ✅ Search by Division
                 ->orWhereHas('po.details.prDetail.purchaseRequest.division', function ($divQuery) use ($search) {
                     $divQuery->where('division', 'like', "%{$search}%");
-                });
+                })
+                ->orWhereHas('items', function ($itemQuery) use ($search) {
+                        $itemQuery->where('recipient', 'like', "%{$search}%")
+                            ->orWhere('recipient_division', 'like', "%{$search}%");
+                    });
         });
     }
 
@@ -103,7 +107,15 @@ class ParReportExport implements FromCollection, WithHeadings, WithMapping, With
 
     $inventoryItem = $item->inventoryItem;
     $division      = optional($par->po?->rfq?->purchaseRequest?->division)->division ?? '';
+    $prDivision = optional($par->po?->rfq?->purchaseRequest?->division)->division;
     $focal         = $par->po?->rfq?->purchaseRequest?->focal_person;
+    $recipientName = $item->recipient ?: trim(
+        ($focal?->firstname ?? '') . ' ' .
+        ($focal?->middlename ?? '') . ' ' .
+        ($focal?->lastname ?? '')
+    );
+    $recipientDivision = $item->recipient_division ?: $prDivision;
+    $recipientPosition = $focal?->position ?? '';
 
     // Use item_desc directly
     $productDesc = $inventoryItem?->item_desc ?? '';
@@ -119,10 +131,10 @@ class ParReportExport implements FromCollection, WithHeadings, WithMapping, With
         number_format((float)($item->quantity * $item->unit_cost), 2, '.', ','), // Amount
         $inventoryItem?->unit?->unit ?? '',          // Unit
         $item->quantity,                             // Qty.
-        trim($focal?->firstname . ' ' . $focal?->middlename . ' ' . $focal?->lastname),
+        $recipientName ?? '',
         $focal?->position ?? '',
-        $division,
-        // $inventoryItem?->useful_life ?? '',        // Optional if exists
+        $recipientDivision,
+        $item?->estimated_useful_life ?? '',        // Optional if exists
     ];
 }
 

@@ -15,7 +15,6 @@ class RIS extends Model
         'po_id',
         'ris_number',
         'requested_by',
-        
         'issued_by',
         'remarks',
     ];

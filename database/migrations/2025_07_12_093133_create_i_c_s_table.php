@@ -14,7 +14,7 @@ return new class extends Migration
         // ICS Header
         Schema::create('tbl_ics', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('po_id')->constrained('tbl_purchase_orders')->onDelete('cascade');
+            $table->foreignId('po_id')->nullable()->constrained('tbl_purchase_orders')->onDelete('cascade');
             $table->string('ics_number')->unique();
             $table->foreignId('requested_by')->nullable()->constrained('users');
             $table->foreignId('received_from')->constrained('users');
@@ -27,6 +27,8 @@ return new class extends Migration
         Schema::create('tbl_ics_items', function (Blueprint $table) {
             $table->id();
             $table->foreignId('ics_id')->constrained('tbl_ics')->onDelete('cascade');
+            $table->string('recipient')->nullable();
+            $table->string('recipient_division')->nullable();
             $table->foreignId('inventory_item_id')->constrained('tbl_inventory')->onDelete('cascade');
             $table->decimal('estimated_useful_life', 12, 2);
             $table->string('inventory_item_number')->nullable();

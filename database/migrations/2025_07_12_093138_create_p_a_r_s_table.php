@@ -14,7 +14,7 @@ return new class extends Migration
         // PAR Header
         Schema::create('tbl_par', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('po_id')->constrained('tbl_purchase_orders')->onDelete('cascade');
+            $table->foreignId('po_id')->nullable()->constrained('tbl_purchase_orders')->onDelete('cascade');
             $table->string('par_number')->unique();
             $table->foreignId('requested_by')->nullable()->constrained('users');
             $table->foreignId('issued_by')->constrained('users');
@@ -28,6 +28,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('par_id')->constrained('tbl_par')->onDelete('cascade');
             $table->foreignId('inventory_item_id')->constrained('tbl_inventory')->onDelete('cascade');
+            $table->string('recipient')->nullable();
+            $table->string('recipient_division')->nullable();
             $table->decimal('estimated_useful_life', 12, 2);
             $table->string('inventory_item_number')->nullable();
             $table->string('ppe_sub_major_account')->nullable();

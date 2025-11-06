@@ -155,10 +155,22 @@
 
         $issuedByName = trim(($ris->issuedBy->firstname ?? '') . ' ' . ($ris->issuedBy->middlename ?? '') . ' ' . ($ris->issuedBy->lastname ?? ''));
         $issuedByPosition = $ris->issuedBy->position ?? '';
-
-        $receivedByName = trim(($ris->requestedBy->firstname ?? '') . ' ' . ($ris->requestedBy->middlename ?? '') . ' ' . ($ris->requestedBy->lastname ?? ''));
-        $receivedByPosition = $ris->requestedBy->position ?? '';
     @endphp
+    @php
+        // Try to find a recipient name from items (if any has recipient)
+        $recipientItem = $ris->items->firstWhere('recipient', '!=', null);
+
+        if ($recipientItem && $recipientItem->recipient) {
+            // Use recipient from the item if available
+            $receivedByName = $recipientItem->recipient;
+            $receivedByPosition = $recipientItem->recipient_division ?? '';
+        } else {
+            // Otherwise, fallback to the requested_by user
+            $receivedByName = trim(($ris->requestedBy->firstname ?? '') . ' ' . ($ris->requestedBy->middlename ?? '') . ' ' . ($ris->requestedBy->lastname ?? ''));
+            $receivedByPosition = $ris->requestedBy->position ?? '';
+        }
+    @endphp
+
     <table class="with-border" style="width:100%; border-collapse:collapse;font-size:11px; text-align:center;">
     <tr class="font-bold">
         <td style="width: 13%;border-bottom:none !important;border-top:none !important" class="text-left"></td>
@@ -177,15 +189,16 @@
     <tr>
         <td class="text-left text-nowrap">Printed Name :</td>
         <td class="font-bold">
-            {{ trim(($focal->firstname ?? '').' '.($focal->middlename ?? '').' '.($focal->lastname ?? '')) }}
+            {{ $receivedByName }}
         </td>
         <td class="font-bold">Adeline C. Soriano</td>
         <td class="font-bold">
             {{ trim(($ris->issuedBy->firstname ?? '').' '.($ris->issuedBy->middlename ?? '').' '.($ris->issuedBy->lastname ?? '')) }}
         </td>
         <td class="font-bold">
-            {{ trim(($ris->requestedBy->firstname ?? '').' '.($ris->requestedBy->middlename ?? '').' '.($ris->requestedBy->lastname ?? '')) }}
+            {{ $receivedByName }}
         </td>
+
     </tr>
     <tr>
         <td class="text-left">Designation :</td>

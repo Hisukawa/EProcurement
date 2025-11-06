@@ -16,6 +16,7 @@ import Dropdown from '@/Components/Dropdown';
 import axios from 'axios';
 import { BoxesIcon, ClipboardCheck, PackageCheck, Repeat, TrashIcon, User2Icon } from 'lucide-react';
 import { Toaster } from "@/components/ui/toaster";
+import { PaperClipIcon } from '@heroicons/react/16/solid';
 
 function PORequestsDropdown({ isSidebarCollapsed }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -133,6 +134,13 @@ export default function SupplyOfficerLayout({ header, children }) {
               <span className="text-white font-medium">Inventory</span>
             </NavLink>
             <NavLink
+              href={route('supply_officer.delivery_receipts')}
+              active={route().current('supply_officer.delivery_receipts')}
+              className="flex items-center gap-2 px-4 py-2 hover:bg-indigo-600 rounded-lg">
+              <PaperClipIcon className="w-5 h-5 text-gray-300" />
+              <span className="text-white font-medium">Delivery Receipts</span>
+            </NavLink>
+            <NavLink
               href={route('supply_officer.ris_issuance')}
               active={[
                 'supply_officer.ris_issuance',
@@ -154,8 +162,8 @@ export default function SupplyOfficerLayout({ header, children }) {
               <span className="text-white font-medium">Disposal</span>
             </NavLink>
             <NavLink
-              href={route('supply_officer.reissued_items')}
-              active={route().current('supply_officer.reissued_items')}
+              href={route('supply_officer.returned_items')}
+              active={route().current('supply_officer.returned_items')}
               className="flex items-center gap-2 px-4 py-2 hover:bg-indigo-600 rounded-lg"
             >
               <Repeat className="w-5 h-5 text-gray-300" />

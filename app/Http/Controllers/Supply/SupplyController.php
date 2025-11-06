@@ -535,11 +535,40 @@ public function store_po(Request $request)
             'supplier',
             'details' 
         ])->findOrFail($id);
+        $iarNumber = $this->generateIARNumber();
         return Inertia::render('Supply/RecordIar', [
             'po' => $po,
-            'inspectionCommittee' => $committee
+            'inspectionCommittee' => $committee,
+            'iarNumber' => $iarNumber
         ]);
     }
+
+private function generateIARNumber()
+{
+    $year = now()->format('y');
+    $month = now()->format('m');
+
+    // Get the latest IAR record for the current year and month
+    $lastIAR = IAR::whereYear('created_at', now()->year)
+        ->latest('id')
+        ->first();
+
+    if ($lastIAR && preg_match('/\d{2}-\d{2}-(\d{3})$/', $lastIAR->iar_number, $matches)) {
+        // Extract the last 3 digits and increment by 1
+        $lastSeries = (int) $matches[1];
+        $nextSeries = $lastSeries + 1;
+    } else {
+        // No existing record for this month/year
+        $nextSeries = 1;
+    }
+
+    // Pad with zeros (e.g., 001, 002, 010)
+    $series = str_pad($nextSeries, 3, '0', STR_PAD_LEFT);
+
+    // Final format e.g. "25-11-002"
+    return "{$year}-{$month}-{$series}";
+}
+
 public function store_iar(Request $request)
 {
     $po = PurchaseOrder::with([
@@ -607,13 +636,14 @@ public function store_iar(Request $request)
             'specs'                   => $item['specs'],
             'quantity_ordered'        => $item['quantity_ordered'],
             'quantity_received'       => $item['quantity_received'],
-            'unit'                    => $unit->id,  // Use the unit name from PR
+            'unit_id'                 => $unit->id,  // Use the unit name from PR
             'unit_price'              => $item['unit_price'],
             'total_price'             => $item['total_price'],
             'remarks'                 => $item['remarks'] ?? "",
             'inspection_committee_id' => $validated['inspection_committee_id'],
             'date_received'           => $validated['date_received'],
-            'recorded_by'             => $userId
+            'recorded_by'             => $userId,
+            'source_type'             => 'po',
         ]);
 
         // ✅ Save to Inventory using `po_detail_id` instead of `po_id`
@@ -628,6 +658,7 @@ public function store_iar(Request $request)
             'status'        => 'Available',
             'item_desc'     => trim(($poDetail->prDetail->item ?? 'N/A') . ' - ' . ($poDetail->prDetail->specs ?? '')),
             'total_stock'   => $item['quantity_received'],
+            'source_type'   => 'po',
         ]);
     }
 
@@ -672,7 +703,6 @@ public function replaceMember(Request $request, $id)
 public function iar_table(Request $request)
 {
     $search = $request->input('search');
-
     $iar = IAR::with([
         'purchaseOrder.details.prDetail.product.unit',
         'purchaseOrder.supplier',
@@ -706,7 +736,8 @@ public function print_iar($id)
         'purchaseOrder.details',
         'purchaseOrder.details.prDetail.product.unit',
         'purchaseOrder.supplier',
-        'purchaseOrder.rfq.purchaseRequest.division'
+        'purchaseOrder.rfq.purchaseRequest.division',
+        'unit'
     ])->findOrFail($id);
 
     // Generate PDF from Blade

@@ -36,7 +36,7 @@
 
     {{-- ======= PROJECT META ======= --}}
     <div style="font-size:12px; margin:15px 0;">
-        <p class="left"><strong>Project No.:</strong> {{ $rfq['project_no'] }}</p>
+        <p class="left"><strong>Lot No.:</strong> {{ $rfq['project_no'] }}</p>
         <p class="left"><strong>Date of Opening:</strong> {{ $rfq['date_of_opening'] }}</p>
         <p class="left"><strong>Venue:</strong> {{ $rfq['venue'] }}</p>
     </div>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Supply;
 use App\Http\Controllers\Controller;
 use App\Models\Disposed;
 use App\Models\ICS;
+use App\Models\Inventory;
 use App\Models\PAR;
 use App\Models\PPESubMajorAccount;
 use App\Models\Reissued;
@@ -51,7 +52,7 @@ public function generateRrspNumber()
 }
 
 
-public function reissued_items(Request $request)
+public function returned_items(Request $request)
 {
     $query = Reissued::with(['items.inventoryItem', 'items.returnedBy', 'items.reissuedBy'])
         ->latest();
@@ -70,7 +71,7 @@ public function reissued_items(Request $request)
 
     $record = $query->paginate(10)->appends($request->only('search'));
 
-    return Inertia::render('Supply/ReissuedItems', [
+    return Inertia::render('Supply/ReturnedItems', [
         'records' => $record,
         'user' => Auth::user(),
         'filters' => $request->only('search'),
@@ -102,7 +103,7 @@ public function disposed_items(Request $request)
     ]);
 }
 
-public function reissuance_form($type, $id)
+public function return_form($type, $id)
 {
     $selectedItems = array_filter(explode(',', request('items', '')));
 
@@ -152,7 +153,7 @@ public function reissuance_form($type, $id)
 
     $ppeOptions = PPESubMajorAccount::with('generalLedgerAccounts')->get();
 
-    return inertia('Supply/ReissuanceForm', [
+    return inertia('Supply/ReturnForm', [
         'type' => $type,
         'record' => $record,
         'po_id' => $record->po->id ?? null,
@@ -164,7 +165,7 @@ public function reissuance_form($type, $id)
 }
 
 
-public function submit_reissuance(Request $request)
+public function submit_return(Request $request)
 {
     $reissued_by = Auth::user()->id;
 
@@ -175,14 +176,13 @@ public function submit_reissuance(Request $request)
         'items' => 'required|array',
         'items.*.inventory_item_id' => 'required|exists:tbl_inventory,id',
         'items.*.returned_by' => 'required|exists:users,id',
-        'items.*.recipient' => 'nullable|string',
         'items.*.quantity' => 'required|numeric|min:0.01',
         'items.*.remarks' => 'nullable|string',
     ]);
 
     $rrsp_number = $this->generateRrspNumber();
 
-    // Create the reissued record with the generated RRSP number
+    // Create the reissued record
     $reissued = Reissued::create([
         'rrsp_number' => $rrsp_number,
         'ics_number' => $validated['ics_number'] ?? null,
@@ -191,22 +191,44 @@ public function submit_reissuance(Request $request)
     ]);
 
     foreach ($validated['items'] as $itemData) {
+        // Find the inventory item being returned
+        $inventoryItem = Inventory::with('poDetail')->find($itemData['inventory_item_id']);
+
+        if ($inventoryItem) {
+            // 🧩 Find matching inventory by the same PO detail
+            $existingInventory = Inventory::where('po_detail_id', $inventoryItem->po_detail_id)->first();
+
+            if ($existingInventory) {
+                // ✅ Update stock quantities
+                $existingInventory->total_stock += $itemData['quantity'];
+                $existingInventory->save();
+            } else {
+                // ⚠️ Create new inventory record if none found
+                Inventory::create([
+                    'po_detail_id' => $inventoryItem->po_detail_id,
+                    'total_stock' => $itemData['quantity'],
+                    'status' => 'available',
+                ]);
+            }
+        }
+
         // Create the reissued item record
-        $reissuedItem = $reissued->items()->create([
+        $reissued->items()->create([
             'inventory_item_id' => $itemData['inventory_item_id'],
             'returned_by' => $itemData['returned_by'],
             'reissued_by' => $reissued_by,
-            'recipient' => $itemData['recipient'] ?? null,
             'quantity' => $itemData['quantity'],
             'remarks' => $itemData['remarks'] ?? null,
         ]);
 
-        // Update the status to "returned_for_reissuance" in the corresponding RIS/ICS/PAR record
+        // Update status of the original item
         $this->updateItemStatus($itemData['inventory_item_id'], 'reissued');
     }
 
-    return redirect()->route('supply_officer.reissued_items')->with('success', 'Reissuance recorded successfully.');
+    return redirect()->route('supply_officer.returned_items')
+        ->with('success', 'Reissuance recorded and inventory updated successfully.');
 }
+
 
 
 public function disposal_form($type, $id)

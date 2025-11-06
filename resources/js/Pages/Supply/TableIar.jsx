@@ -91,13 +91,18 @@ console.log(iarData);
     
 
       // collect product specs from related PR details
-      if (iar.purchase_order?.details?.length) {
-        iar.purchase_order.details.forEach((d) => {
-          if (d.pr_detail?.specs) {
-            acc[key].specs.push(d.pr_detail.specs);
-          }
-        });
-      }
+    if (iar.purchase_order?.details?.length) {
+      // 🧾 Case 1: With Purchase Order — use PR detail specs
+      iar.purchase_order.details.forEach((d) => {
+        if (d.pr_detail?.specs) {
+          acc[key].specs.push(d.pr_detail.specs);
+        }
+      });
+    } else if (iar.specs) {
+      // 📦 Case 2: No PO — use specs directly from IAR table
+      acc[key].specs.push(iar.specs);
+    }
+
 
       // add IAR-level price (since qty_received & unit_price are on IAR record itself)
       const qtyReceived = parseFloat(iar.quantity_received) || 0;

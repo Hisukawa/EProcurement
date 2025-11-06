@@ -48,10 +48,10 @@ const getTodayDate = () => {
   return `${year}-${month}-${day}`;
 };
 
-export default function RecordIar({ po, inspectionCommittee }) {
+export default function RecordIar({ po, inspectionCommittee, iarNumber }) {
   const { data, setData, post, processing, errors } = useForm({
     po_id: po.id,
-    iar_number: po.po_number,
+    iar_number: iarNumber ?? "",
     date_received: getTodayDate(), // Prefill with today's date
     inspection_committee_id: inspectionCommittee?.id || "",
     items: (po.details || []).map((detail) => {
@@ -416,7 +416,6 @@ return (
                             }
                             rows={3}
                             className="min-h-[70px] focus-visible:ring-yellow-400 bg-gray-50"
-                            required
                           />
                         </LabeledInput>
                       </div>

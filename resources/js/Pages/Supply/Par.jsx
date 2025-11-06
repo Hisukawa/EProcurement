@@ -33,7 +33,8 @@ const filteredPar = par?.data?.filter(record => {
     record.par_number?.toLowerCase().includes(search.toLowerCase()) ||
     record.inventory_item?.item_desc?.toLowerCase().includes(search.toLowerCase()) ||
     requestedByName.toLowerCase().includes(search.toLowerCase()) ||
-    focalPersonName.toLowerCase().includes(search.toLowerCase());
+    focalPersonName.toLowerCase().includes(search.toLowerCase())||
+      (record.items?.[0]?.recipient ?? '').toLowerCase().includes(search.toLowerCase());
 
 
     const recordDate = new Date(record.created_at);
@@ -68,7 +69,7 @@ const handleActionSelect = (e, record) => {
   if (action === "reissuance" || action === "disposal") {
     const routeName =
       action === "reissuance"
-        ? "supply_officer.reissuance_form"
+        ? "supply_officer.return_form"
         : "supply_officer.disposal_form";
 
     window.location.href = route(routeName, { id: record.id, type: "par" });
@@ -186,6 +187,16 @@ const [switchRecord, setSwitchRecord] = useState(null);
                   const visibleItems = isExpanded
                     ? itemsWithDetails
                     : itemsWithDetails.slice(0, 1);
+                    const issuedTo =
+                    record.items?.[0]?.recipient ??
+                    (record.requested_by
+                      ? `${record.requested_by.firstname ?? ""} ${record.requested_by.lastname ?? ""}`.trim()
+                      : "N/A");
+
+                  const division =
+                    record.items?.[0]?.recipient_division ??
+                    record.po?.details?.[0]?.pr_detail?.purchase_request?.division?.division ??
+                    "N/A";
 
                   return (
                     <React.Fragment key={record.id}>
@@ -216,16 +227,14 @@ const [switchRecord, setSwitchRecord] = useState(null);
                                 rowSpan={visibleItems.length}
                                 className="px-4 py-3 align-top"
                               >
-                                {record.po?.rfq?.purchase_request?.division?.division ??
-                                  "N/A"}
+                                {division}
                               </td>
 
                               <td
                                 rowSpan={visibleItems.length}
                                 className="px-4 py-3 align-top"
                               >
-                                {record.requested_by?.firstname}{" "}
-                                {record.requested_by?.lastname}
+                                {issuedTo}
                               </td>
                             </>
                           )}
@@ -651,7 +660,7 @@ const [switchRecord, setSwitchRecord] = useState(null);
 
   const routeName =
     returnType === "reissuance"
-      ? "supply_officer.reissuance_form"
+      ? "supply_officer.return_form"
       : "supply_officer.disposal_form";
 
   router.visit(

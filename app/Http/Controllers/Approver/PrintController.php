@@ -11,12 +11,16 @@ use Illuminate\Http\Request;
 
 class PrintController extends Controller
 {
-    public function print_rfq($prId)
+public function print_rfq($prId)
 {
     $pr = PurchaseRequest::with(['details.product.unit'])->findOrFail($prId);
-    $committee = BacCommittee::with('members')
-        ->where('committee_status', 'active')
-        ->first();
+    $committee = BacCommittee::with(['members' => function ($query) {
+        // Only fetch active members
+        $query->where('status', 'active');
+    }])->where('committee_status', 'active')->first();
+
+    // Fetch saved RFQ data (BAC CN, Services, Location, Subject, Delivery Period, ABC)
+    $rfq = RFQ::where('pr_id', $prId)->first();
 
     $details = $pr->details->map(function ($detail) {
         return [
@@ -37,25 +41,36 @@ class PrintController extends Controller
         $logo = null;
     }
 
+    // Pass RFQ and other data to the view
     $pdf = Pdf::loadView('pdf.rfq', [
         'rfq' => $pr,
         'details' => $details,
         'logo' => $logo,
-        'committee' => $committee
+        'committee' => $committee,
+        // Pass the saved RFQ data to the PDF
+        'bac_cn' => $rfq->bac_cn,
+        'services' => $rfq->services,
+        'location' => $rfq->location,
+        'subject' => $rfq->subject,
+        'delivery_period' => $rfq->delivery_period,
+        'abc' => $rfq->abc,
     ]);
 
     return $pdf->stream("PR-{$pr->id}-RFQ.pdf");
 }
+
 public function print_rfq_selected(Request $request, $prId)
 {
     $itemIds = $request->query('items', []);
 
-    $pr = PurchaseRequest::with(['details.product.unit'])
-        ->findOrFail($prId);
+    $pr = PurchaseRequest::with(['details.product.unit'])->findOrFail($prId);
+    $committee = BacCommittee::with(['members' => function ($query) {
+        // Only fetch active members
+        $query->where('status', 'active');
+    }])->where('committee_status', 'active')->first();
 
-    $committee = BacCommittee::with('members')
-        ->where('committee_status', 'active')
-        ->first();
+    // Fetch saved RFQ data (BAC CN, Services, Location, Subject, Delivery Period, ABC)
+    $rfq = RFQ::where('pr_id', $prId)->first();
 
     // Filter details by selected IDs
     $details = $pr->details
@@ -93,15 +108,24 @@ public function print_rfq_selected(Request $request, $prId)
         $logo = null;
     }
 
+    // Pass RFQ and other data to the view
     $pdf = Pdf::loadView('pdf.rfq', [
         'rfq' => $pr,
         'details' => $details,
         'logo' => $logo,
-        'committee' => $committee
+        'committee' => $committee,
+        // Pass the saved RFQ data to the PDF
+        'bac_cn' => $rfq->bac_cn,
+        'services' => $rfq->services,
+        'location' => $rfq->location,
+        'subject' => $rfq->subject,
+        'delivery_period' => $rfq->delivery_period,
+        'abc' => $rfq->abc,
     ]);
 
     return $pdf->stream("PR-{$pr->id}-RFQ-Selected.pdf");
 }
+
 public function printAOQ($id)
 {
     $rfq = RFQ::with([
@@ -109,9 +133,10 @@ public function printAOQ($id)
         'details.supplier'
     ])->findOrFail($id);
 
-    $committee = BacCommittee::with('members')
-        ->where('committee_status', 'active')
-        ->first();
+    $committee = BacCommittee::with(['members' => function ($query) {
+        // Only fetch active members
+        $query->where('status', 'active');
+    }])->where('committee_status', 'active')->first();
 
     // ----------------------
     // ALWAYS USE FULL AOQ MODE
@@ -160,9 +185,10 @@ public function printAOQCalculated($id, $pr_detail_id = null)
         'details.supplier'
     ])->findOrFail($id);
 
-    $committee = BacCommittee::with('members')
-        ->where('committee_status', 'active')
-        ->first();
+    $committee = BacCommittee::with(['members' => function ($query) {
+        // Only fetch active members
+        $query->where('status', 'active');
+    }])->where('committee_status', 'active')->first();
 
     // ----------------------
     // PER-ITEM AOQ MODE
@@ -260,9 +286,10 @@ public function printAoqPerItemGrouped($id)
         'details.supplier'
     ])->findOrFail($id);
 
-    $committee = BacCommittee::with('members')
-        ->where('committee_status', 'active')
-        ->first();
+    $committee = BacCommittee::with(['members' => function ($query) {
+        // Only fetch active members
+        $query->where('status', 'active');
+    }])->where('committee_status', 'active')->first();
 
     // Build groups: supplier_id => ['supplier' => Supplier, 'lines' => []]
     $groupsMap = [];
@@ -368,9 +395,10 @@ public function printAoqPerItemGroupedRead($id)
         'details.supplier'
     ])->findOrFail($id);
 
-    $committee = BacCommittee::with('members')
-        ->where('committee_status', 'active')
-        ->first();
+    $committee = BacCommittee::with(['members' => function ($query) {
+        // Only fetch active members
+        $query->where('status', 'active');
+    }])->where('committee_status', 'active')->first();
 
     // Build groups: supplier_id => ['supplier' => Supplier, 'lines' => []]
     $groupsMap = [];

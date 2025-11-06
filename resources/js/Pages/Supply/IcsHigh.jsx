@@ -1,7 +1,7 @@
 import IssuanceTabs from '@/Layouts/IssuanceTabs';
 import SupplyOfficerLayout from '@/Layouts/SupplyOfficerLayout';
 import { Head, Link, router } from '@inertiajs/react';
-import { FileText, PrinterCheck } from 'lucide-react';
+import { FileText, MinusCircle, PlusCircle, PrinterCheck } from 'lucide-react';
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import {
@@ -36,7 +36,8 @@ export default function IcsHigh({ ics, user, filters }) {
       record.ics_number?.toLowerCase().includes(search.toLowerCase()) ||
       record.inventory_item?.item_desc?.toLowerCase().includes(search.toLowerCase()) ||
       requestedBy.toLowerCase().includes(search.toLowerCase()) ||
-      focalPerson.toLowerCase().includes(search.toLowerCase());
+      focalPerson.toLowerCase().includes(search.toLowerCase()) ||
+      (record.items?.[0]?.recipient ?? '').toLowerCase().includes(search.toLowerCase());
 
     const recordDate = new Date(record.created_at);
     const matchesMonth = filterMonth === '' || recordDate.getMonth() + 1 === Number(filterMonth);
@@ -63,7 +64,7 @@ const handleActionSelect = (e, record) => {
   if (action === "reissuance" || action === "disposal") {
     const routeName =
       action === "reissuance"
-        ? "supply_officer.reissuance_form"
+        ? "supply_officer.return_form"
         : "supply_officer.disposal_form";
 
     window.location.href = route(routeName, { id: record.id, type: "ics" });
@@ -197,213 +198,133 @@ const [switchRecord, setSwitchRecord] = useState(null);
                     const visibleItems = isExpanded
                       ? itemsWithDetails
                       : itemsWithDetails.slice(0, 1);
+                      const issuedTo =
+                      record.items?.[0]?.recipient ??
+                      (record.requested_by
+                        ? `${record.requested_by.firstname ?? ""} ${record.requested_by.lastname ?? ""}`.trim()
+                        : "N/A");
+
+                    const division =
+                      record.items?.[0]?.recipient_division ??
+                      record.requested_by?.division?.division ??
+                      "N/A";
 
                     return (
                       <React.Fragment key={record.id}>
-                        {visibleItems.map((item, itemIdx) => {
-                          const baseRowClass = `transition-all duration-150 ${
-                            itemIdx % 2 === 0 ? "bg-white" : "bg-gray-50"
-                          } hover:bg-blue-50 hover:shadow-sm`;
+                            <tr className="relative bg-white hover:bg-blue-50 transition z-[1]">
+                            <td className="px-4 py-3 font-semibold text-gray-800 align-top">{index + 1}</td>
+                            <td className="px-4 py-3 text-blue-600 font-medium align-top">{record.ics_number}</td>
+                            <td className="px-4 py-3 align-top">{division}</td>
+                            <td className="px-4 py-3 align-top">{issuedTo}</td>
+                            <td className="px-4 py-3 font-medium">
+                              {record.items[0]?.inventory_item?.item_desc ?? "N/A"}
+                            </td>
+                            <td className="px-4 py-3 text-center">{record.items[0]?.quantity ?? 0}</td>
+                            <td className="px-4 py-3 text-right">
+                              {Number(record.items[0]?.inventory_item?.unit_cost ?? 0).toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {(
+                                (record.items[0]?.quantity ?? 0) *
+                                (record.items[0]?.inventory_item?.unit_cost ?? 0)
+                              ).toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3">
+                              {new Date(record.items[0]?.created_at).toLocaleDateString("en-PH")}
+                            </td>
 
-                          // 🔹 If item has its own recipient (displayed separately)
-                          if (item.recipient) {
-                            return (
-                              <tr key={`${record.id}-${itemIdx}`} className={baseRowClass}>
-                                <td className="px-4 py-3 font-semibold text-gray-800">
-                                  {index + 1}
-                                </td>
-                                <td className="px-4 py-3 text-blue-600 font-medium">
-                                  H-{record.ics_number}
-                                </td>
-                                <td className="px-4 py-3">
-                                  {record.po?.rfq?.purchase_request?.division?.division ?? "N/A"}
-                                </td>
-                                <td className="px-4 py-3">
-                                  {record.requested_by?.firstname} {record.requested_by?.lastname}
-                                </td>
-                                <td className="px-4 py-3">
-                                  <span className="font-medium">{item.description}</span>
-                                  {item.specs && (
-                                    <span className="block text-xs text-gray-500">
-                                      {item.specs}
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="px-4 py-3 text-center">{item.quantity}</td>
-                                <td className="px-4 py-3 text-right">
-                                  ₱{item.unitCost.toFixed(2)}
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  ₱{item.totalCost.toFixed(2)}
-                                </td>
-                                <td className="px-4 py-3">{item.date}</td>
+                            <td className="px-4 py-3 text-center">
+                              <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                                <a
+                                  href={route("supply_officer.print_ics", [record.id, "high"])}
+                                  target="_blank"
+                                  className="inline-flex items-center justify-center gap-1 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg shadow-sm text-xs font-medium"
+                                >
+                                  <PrinterCheck size={14} />
+                                  Print
+                                </a>
 
-                                <td className="px-4 py-3 text-center">
-                                  <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                                    <a
-                                      href={route("supply_officer.print_ics", [record.id, "high"])}
-                                      target="_blank"
-                                      className="inline-flex items-center justify-center gap-1 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg shadow-sm text-xs font-medium"
-                                    >
-                                      <PrinterCheck size={14} />
-                                      Print
-                                    </a>
+                                <Button
+                                  type="button"
+                                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
+                                  onClick={() => {
+                                    setSwitchRecord(record);
+                                    setSwitchItems([]);
+                                    setShowSwitchModal(true);
+                                  }}
+                                >
+                                  Switch Type
+                                </Button>
 
-                                    <Button
-                                      type="button"
-                                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
-                                      onClick={() => {
-                                        setSwitchRecord(record);
-                                        setSwitchItems([]);
-                                        setShowSwitchModal(true);
-                                      }}
-                                    >
-                                      Switch Type
-                                    </Button>
-
-                                    <Button
-                                      type="button"
-                                      onClick={(e) => handleActionSelect(e, record)}
-                                      value="return"
-                                      className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
-                                    >
-                                      Return
-                                    </Button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          }
-
-                          // 🔹 If items are grouped (no recipient)
-                          return (
-                            <tr key={`${record.id}-no-recipient-${itemIdx}`} className={baseRowClass}>
-                              {itemIdx === 0 && (
-                                <>
-                                  <td
-                                    rowSpan={visibleItems.length}
-                                    className="px-4 py-3 font-semibold text-gray-800 align-top"
+                                <Button
+                                  type="button"
+                                  onClick={(e) => handleActionSelect(e, record)}
+                                  value="return"
+                                  className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
+                                >
+                                  Return
+                                </Button>
+                              </div>
+                                {/* Expand/Collapse toggle */}
+                                {record.items.length > 1 && (
+                                  <button
+                                    onClick={() => toggleRow(record.id)}
+                                    className="mt-2 text-blue-600 hover:underline text-xs flex items-center justify-center gap-1"
                                   >
-                                    {index + 1}
-                                  </td>
-                                  <td
-                                    rowSpan={visibleItems.length}
-                                    className="px-4 py-3 text-blue-600 font-medium align-top"
-                                  >
-                                    H-{record.ics_number}
-                                  </td>
-                                  <td
-                                    rowSpan={visibleItems.length}
-                                    className="px-4 py-3 align-top"
-                                  >
-                                    {record.po?.rfq?.purchase_request?.division?.division ?? "N/A"}
-                                  </td>
-                                  <td
-                                    rowSpan={visibleItems.length}
-                                    className="px-4 py-3 align-top"
-                                  >
-                                    {record.requested_by?.firstname}{" "}
-                                    {record.requested_by?.lastname}
-                                  </td>
-                                </>
-                              )}
-                              <td className="px-4 py-3">
-                                <span className="font-medium">{item.description}</span>
-                                {item.specs && (
-                                  <span className="block text-xs text-gray-500">
-                                    {item.specs}
-                                  </span>
+                                    {isExpanded ? (
+                                      <>
+                                        <MinusCircle size={14} /> Show Less
+                                      </>
+                                    ) : (
+                                      <>
+                                        <PlusCircle size={14} /> Show More ({record.items.length - 1} more)
+                                      </>
+                                    )}
+                                  </button>
                                 )}
-                              </td>
+                            </td>
+                          </tr>
+                          {isExpanded &&
+                          record.items.slice(1).map((item, idx) => (
+                            <tr key={`${record.id}-${idx}`} className="bg-gray-50 hover:bg-blue-50 transition relative z-0">
+                              <td colSpan="4"></td>
+                              <td className="px-4 py-3 font-medium">{item.inventory_item?.item_desc ?? "N/A"}</td>
                               <td className="px-4 py-3 text-center">{item.quantity}</td>
                               <td className="px-4 py-3 text-right">
-                                ₱{item.unitCost.toFixed(2)}
+                                {Number(item.inventory_item?.unit_cost ?? 0).toFixed(2)}
                               </td>
                               <td className="px-4 py-3 text-right">
-                                ₱{item.totalCost.toFixed(2)}
+                                {(
+                                  (item.quantity ?? 0) * (item.inventory_item?.unit_cost ?? 0)
+                                ).toFixed(2)}
                               </td>
-                              <td className="px-4 py-3">{item.date}</td>
-
-                              {itemIdx === visibleItems.length - 1 && (
-                                <td
-                                  rowSpan={visibleItems.length}
-                                  className="px-4 py-3 text-center align-top"
-                                >
-                                  <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                                    <a
-                                      href={route("supply_officer.print_ics", [record.id, "high"])}
-                                      target="_blank"
-                                      className="inline-flex items-center justify-center gap-1 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg shadow-sm text-xs font-medium"
-                                    >
-                                      <PrinterCheck size={14} />
-                                      Print
-                                    </a>
-
-                                    <Button
-                                      type="button"
-                                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
-                                      onClick={() => {
-                                        setSwitchRecord(record);
-                                        setSwitchItems([]);
-                                        setShowSwitchModal(true);
-                                      }}
-                                    >
-                                      Switch Type
-                                    </Button>
-
-                                    <Button
-                                      type="button"
-                                      onClick={(e) => handleActionSelect(e, record)}
-                                      value="return"
-                                      className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
-                                    >
-                                      Return
-                                    </Button>
-                                  </div>
-
-                                  {/* Expand/Collapse toggle */}
-                                  {itemsWithDetails.length > 2 && (
-                                    <button
-                                      onClick={() => toggleRowExpansion(record.id)}
-                                      className="mt-2 text-blue-600 hover:underline text-xs flex items-center justify-center gap-1"
-                                    >
-                                      {isExpanded ? (
-                                        <>
-                                          <MinusCircle size={14} /> Show Less
-                                        </>
-                                      ) : (
-                                        <>
-                                          <PlusCircle size={14} /> Show More
-                                        </>
-                                      )}
-                                    </button>
-                                  )}
-                                </td>
-                              )}
+                              <td className="px-4 py-3">
+                                {new Date(item.created_at).toLocaleDateString("en-PH")}
+                              </td>
+                              <td></td>
                             </tr>
-                          );
-                        })}
-                      </React.Fragment>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td
-                      colSpan="10"
-                      className="text-center py-10 text-gray-500 bg-gray-50 italic"
-                    >
-                      <div className="flex flex-col items-center justify-center">
-                        <FileText className="w-10 h-10 mb-2 text-gray-400" />
-                        <span>No ICS records found</span>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
+                          ))}
+                                </React.Fragment>
+                              );
+                            })
+                          ) : (
+                            <tr>
+                              <td
+                                colSpan="10"
+                                className="text-center py-10 text-gray-500 bg-gray-50 italic"
+                              >
+                                <div className="flex flex-col items-center justify-center">
+                                  <FileText className="w-10 h-10 mb-2 text-gray-400" />
+                                  <span>No ICS records found</span>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
 
-            </table>
-          </div>
-        </div>
+                      </table>
+                    </div>
+                  </div>
 
 
         {/* Pagination */}
@@ -693,7 +614,7 @@ const [switchRecord, setSwitchRecord] = useState(null);
 
               const routeName =
                 returnType === "reissuance"
-                  ? "supply_officer.reissuance_form"
+                  ? "supply_officer.return_form"
                   : "supply_officer.disposal_form";
 
               router.visit(

@@ -14,7 +14,7 @@ class IAR extends Model
         'po_id',
         'iar_number',
         'specs',
-        'unit',
+        'unit_id',
         'quantity_ordered',
         'quantity_received',
         'unit_price',
@@ -22,19 +22,24 @@ class IAR extends Model
         'remarks',
         'inspection_committee_id',
         'date_received',
-        'recorded_by'
+        'recorded_by',
+        'source_type',
     ];
 
     public function purchaseOrder() {
         return $this->belongsTo(PurchaseOrder::class, 'po_id');
     }
         public function inspectionCommittee()
-            {
-                return $this->belongsTo(InspectionCommittee::class, 'inspection_committee_id');
-            }
+        {
+            return $this->belongsTo(InspectionCommittee::class, 'inspection_committee_id');
+        }
 
-            public function recordedBy()
-            {
-                return $this->belongsTo(User::class, 'recorded_by'); // Assuming User is a model  
-            }
+        public function recordedBy()
+        {
+            return $this->belongsTo(User::class, 'recorded_by'); // Assuming User is a model  
+        }
+        public function unit()
+        {
+            return $this->belongsTo(Unit::class, 'unit_id');
+        }
 }

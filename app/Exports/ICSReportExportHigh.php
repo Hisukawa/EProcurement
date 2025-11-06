@@ -62,7 +62,11 @@ class ICSReportExportHigh implements FromCollection, WithHeadings, WithMapping, 
                         $focalQuery->where('firstname', 'like', "%{$search}%")
                             ->orWhere('middlename', 'like', "%{$search}%")
                             ->orWhere('lastname', 'like', "%{$search}%");
+                    })->orWhereHas('items', function ($itemQuery) use ($search) {
+                        $itemQuery->where('recipient', 'like', "%{$search}%")
+                            ->orWhere('recipient_division', 'like', "%{$search}%");
                     });
+                    
             });
         }
         
@@ -100,31 +104,41 @@ class ICSReportExportHigh implements FromCollection, WithHeadings, WithMapping, 
     }
 
     public function map($row): array
-    {
-        $ics = $row->ics;
-        $item = $row->item;
+{
+    $ics = $row->ics;
+    $item = $row->item;
 
-        $inventoryItem = $item->inventoryItem;
-        $division = optional($ics->po?->rfq?->purchaseRequest?->division)->division ?? '';
-        $focal = $ics->po?->rfq?->purchaseRequest?->focal_person;
-        $productDesc = $inventoryItem?->item_desc ?? '';
+    $inventoryItem = $item->inventoryItem;
+    $focal = $ics->po?->rfq?->purchaseRequest?->focal_person;
+    $prDivision = optional($ics->po?->rfq?->purchaseRequest?->division)->division;
+    $productDesc = $inventoryItem?->item_desc ?? '';
 
-        return [
-            $item->inventory_item_number ?? '',                              // Inventory Item No.
-            strtoupper(substr($this->type, 0, 1)) . '-' . ($ics->ics_number ?? ''), // ICS No.
-            optional($ics->created_at)->format('Y-m-d') ?? '',               // Date
-            $ics->po?->po_number ?? '',                                      // PO No.
-            $productDesc,                                                    // Description
-            $item->serial_no ?? '',                                          // Serial No.
-            number_format((float)($item->quantity * $item->unit_cost), 2, '.', ','), // Amount
-            $inventoryItem?->unit?->unit ?? '',                              // Unit
-            $item->quantity ?? 0,                                            // Qty.
-            trim(($focal?->firstname ?? '') . ' ' . ($focal?->middlename ?? '') . ' ' . ($focal?->lastname ?? '')),
-            $focal?->position ?? '',
-            $division,
-            $inventoryItem?->useful_life ?? '',
-        ];
-    }
+    // ✅ Prefer recipient and recipient_division if present
+    $recipientName = $item->recipient ?: trim(
+        ($focal?->firstname ?? '') . ' ' .
+        ($focal?->middlename ?? '') . ' ' .
+        ($focal?->lastname ?? '')
+    );
+
+    $recipientDivision = $item->recipient_division ?: $prDivision;
+    $recipientPosition = $focal?->position ?? '';
+
+    return [
+        $item->inventory_item_number ?? '',                                        // Inventory Item No.
+        $ics->ics_number ?? '',   // ICS No.
+        optional($ics->created_at)->format('Y-m-d') ?? '',                         // Date
+        $ics->po?->po_number ?? $inventoryItem?->dr_number ?? '',                                                // PO No.
+        $productDesc,                                                              // Description
+        $item->serial_no ?? '',                                                    // Serial No.
+        number_format((float)($item->quantity * $item->unit_cost), 2, '.', ','),   // Amount
+        $inventoryItem?->unit?->unit ?? '',                                        // Unit
+        $item->quantity ?? 0,                                                      // Qty.
+        $recipientName,                                                            // ✅ Prefer item->recipient
+        $recipientPosition,                                                        // Position (from focal)
+        $recipientDivision,                                                        // ✅ Prefer item->recipient_division
+        $item?->estimated_useful_life ?? '',                                        // Useful Life
+    ];
+}
 
     public function registerEvents(): array
     {

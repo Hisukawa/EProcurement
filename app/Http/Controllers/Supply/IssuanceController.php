@@ -21,17 +21,111 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class IssuanceController extends Controller
 {
-public function issuance($po_detail_id, $inventory_id)
+private function generateRISNumber()
 {
-    $inventoryItem = Inventory::findOrFail($inventory_id);
+    $year = now()->format('y');
+    $month = now()->format('m');
 
+    // Get the last RIS created this year
+    $lastRIS = RIS::whereYear('created_at', now()->year)
+        ->latest('id')
+        ->first();
+
+    if ($lastRIS && preg_match('/\d{2}-\d{2}-(\d{3})$/', $lastRIS->ris_number, $matches)) {
+        $lastSeries = (int) $matches[1];
+        $nextSeries = $lastSeries + 1;
+    } else {
+        $nextSeries = 1;
+    }
+
+    $series = str_pad($nextSeries, 3, '0', STR_PAD_LEFT);
+    return "{$year}-{$month}-{$series}";
+}
+
+private function generateICSNumber($type = 'low')
+{
+    $year = now()->format('y');
+    $month = now()->format('m');
+    $prefix = $type === 'high' ? 'H' : 'L';
+
+    // Find last ICS created this year for the specific type
+    $lastICS = ICS::whereYear('created_at', now()->year)
+        ->whereHas('items', function ($query) use ($type) {
+            $query->where('type', $type);
+        })
+        ->latest('id')
+        ->first();
+
+    if ($lastICS && preg_match('/[LH]-\d{2}-\d{2}-(\d{3})$/', $lastICS->ics_number, $matches)) {
+        $lastSeries = (int) $matches[1];
+        $nextSeries = $lastSeries + 1;
+    } else {
+        $nextSeries = 1;
+    }
+
+    $series = str_pad($nextSeries, 3, '0', STR_PAD_LEFT);
+    return "{$prefix}-{$year}-{$month}-{$series}";
+}
+
+private function generatePARNumber()
+{
+    $year = now()->format('y');
+    $month = now()->format('m');
+
+    $lastPAR = PAR::whereYear('created_at', now()->year)
+        ->latest('id')
+        ->first();
+
+    if ($lastPAR && preg_match('/\d{2}-\d{2}-(\d{3})$/', $lastPAR->par_number, $matches)) {
+        $lastSeries = (int) $matches[1];
+        $nextSeries = $lastSeries + 1;
+    } else {
+        $nextSeries = 1;
+    }
+
+    $series = str_pad($nextSeries, 3, '0', STR_PAD_LEFT);
+    return "{$year}-{$month}-{$series}";
+}
+
+
+public function issuance($inventory_id)
+{
+    $inventoryItem = Inventory::with('unit')->find($inventory_id);
+
+    // ✅ Handle inventories with no tied PO
+    if (is_null($inventoryItem->po_detail_id)) {
+        // Load only the necessary data (no PO)
+        $ppeOptions = PPESubMajorAccount::with('generalLedgerAccounts')->get();
+
+        // Generate RIS, ICS, and PAR numbers
+        $risNumber = $this->generateRISNumber();
+        $unitCost = $inventoryItem->unit_cost ?? 0;
+        $type = $unitCost >= 5000 ? 'high' : 'low';
+        $icsNumber = $this->generateICSNumber($type);
+        $parNumber = $this->generatePARNumber();
+
+        $props = [
+            'inventoryItem' => $inventoryItem,
+            'user'          => Auth::user(),
+            'ppeOptions'    => $ppeOptions,
+            'risNumber'     => $risNumber,
+            'icsNumber'     => $icsNumber,
+            'type'          => $type,
+            'parNumber'     => $parNumber,
+            'purchaseOrder' => null, // No PO linked
+        ];
+
+        return Inertia::render('Supply/IssuancePage', $props);
+    }
+
+    // ✅ If tied to a PO, proceed as before
     $poDetail = PurchaseOrderDetail::with([
         'purchaseOrder.supplier',
         'purchaseOrder.details.prDetail.product.category',
         'purchaseOrder.details.prDetail.product.unit',
         'purchaseOrder.details.prDetail.purchaseRequest.division',
         'purchaseOrder.details.prDetail.purchaseRequest.focal_person',
-    ])->findOrFail($po_detail_id);
+    ])->findOrFail($inventoryItem->po_detail_id);
 
     $po = $poDetail->purchaseOrder;
 
@@ -40,9 +134,15 @@ public function issuance($po_detail_id, $inventory_id)
         return redirect()->back()->with('error', 'No matching PO detail found for this inventory item.');
     }
 
-    // Fetch all PPEs with their GLs
     $ppeOptions = PPESubMajorAccount::with('generalLedgerAccounts')->get();
-    
+
+    // Generate RIS, ICS, PAR numbers again
+    $risNumber = $this->generateRISNumber();
+    $unitCost = $inventoryItem->unit_cost ?? 0;
+    $type = $unitCost >= 5000 ? 'high' : 'low';
+    $icsNumber = $this->generateICSNumber($type);
+    $parNumber = $this->generatePARNumber();
+
     $props = [
         'purchaseOrder' => [
             'id' => $po->id,
@@ -52,6 +152,10 @@ public function issuance($po_detail_id, $inventory_id)
         'inventoryItem' => $inventoryItem,
         'user'          => Auth::user(),
         'ppeOptions'    => $ppeOptions,
+        'risNumber'     => $risNumber,
+        'icsNumber'     => $icsNumber,
+        'type'          => $type,
+        'parNumber'     => $parNumber,
     ];
 
     return Inertia::render('Supply/IssuancePage', $props);
@@ -59,66 +163,58 @@ public function issuance($po_detail_id, $inventory_id)
 
 
 
+
+
 public function store_ris(Request $request)
 {
     $validated = $request->validate([
-        'po_id'         => 'required|integer|exists:tbl_purchase_orders,id',
-        'requested_by'  => 'required|integer|exists:users,id',
-        'issued_by'     => 'required|integer|exists:users,id',
-        'remarks'       => 'nullable|string|max:255',
-
-        'items'                     => 'required|array|min:1',
+        'ris_number' => 'required|string',
+        'po_id' => 'nullable|integer|exists:tbl_purchase_orders,id',
+        'requested_by' => 'nullable|integer|exists:users,id',
+        'issued_by' => 'required|integer|exists:users,id',
+        'remarks' => 'nullable|string',
+        'items' => 'required|array|min:1',
         'items.*.inventory_item_id' => 'required|integer|exists:tbl_inventory,id',
-        'items.*.unit_cost'         => 'required|numeric|min:0.01',
-        'items.*.total_cost'        => 'required|numeric|min:0.01',
-        'items.*.quantity'          => 'required|numeric|min:0.01',
+        'items.*.recipient' => 'nullable|string',
+        'items.*.recipient_division' => 'nullable|string',
+        'items.*.quantity' => 'required|numeric|min:1',
+        'items.*.unit_cost' => 'required|numeric|min:0',
+        'items.*.total_cost' => 'required|numeric|min:0',
     ]);
 
-    DB::beginTransaction();
-    try {
-        $po = PurchaseOrder::findOrFail($validated['po_id']);
+    // 🔍 Check if RIS already exists
+    $ris = RIS::where('ris_number', $validated['ris_number'])->first();
 
-        $ris = RIS::firstOrCreate(
-            ['po_id' => $po->id],
-            [
-                'ris_number'   => $po->po_number,
-                'requested_by' => $validated['requested_by'],
-                'issued_by'    => $validated['issued_by'],
-                'remarks'      => $validated['remarks'] ?? null,
-            ]
-        );
-
-        foreach ($validated['items'] as $item) {
-            $inventory = Inventory::findOrFail($item['inventory_item_id']);
-
-            $remainingStock = $inventory->total_stock - $inventory->issued_qty;
-            if ($remainingStock < $item['quantity']) {
-                throw new \Exception("Not enough stock for {$inventory->item_desc}. Remaining: {$remainingStock}");
-            }
-
-            // ✅ Always create a new row per issuance
-            $ris->items()->create([
-                'inventory_item_id' => $item['inventory_item_id'],
-                'quantity'          => $item['quantity'],
-                'unit_cost'         => $item['unit_cost'],
-                'total_cost'        => $item['quantity'] * $item['unit_cost'], // recalc
-            ]);
-
-            // Update stock
-            $inventory->issued_qty += $item['quantity'];
-            $inventory->status = ($inventory->issued_qty >= $inventory->total_stock) ? 'Issued' : 'Available';
-            $inventory->save();
-        }
-
-        DB::commit();
-        return redirect()->route('supply_officer.ris_issuance')
-            ->with('success', "RIS {$ris->ris_number} successfully recorded.");
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return back()->withErrors(['error' => 'Failed to store RIS. ' . $e->getMessage()]);
+    if (!$ris) {
+        // 🆕 Create a new RIS if not found
+        $ris = RIS::create([
+            'po_id' => $validated['po_id'] ?? null,
+            'ris_number' => $validated['ris_number'],
+            'requested_by' => $validated['requested_by'] ?? null,
+            'issued_by' => $validated['issued_by'],
+            'remarks' => $validated['remarks'] ?? null,
+        ]);
     }
-}
 
+    // 🧾 Attach the item(s)
+    foreach ($validated['items'] as $item) {
+        $ris->items()->create([
+            'inventory_item_id' => $item['inventory_item_id'],
+            'recipient' => $item['recipient'],
+            'recipient_division' => $item['recipient_division'],
+            'quantity' => $item['quantity'],
+            'unit_cost' => $item['unit_cost'],
+            'total_cost' => $item['total_cost'],
+        ]);
+
+        // 📦 Update inventory counts
+        $inventory = Inventory::find($item['inventory_item_id']);
+        $inventory->total_stock -= $item['quantity'];
+        $inventory->save();
+    }
+
+    return redirect()->route('supply_officer.ris_issuance')->with('success', 'Item successfully added to RIS.');
+}
 
 
     public function ris_issuance(Request $request)
@@ -166,25 +262,25 @@ public function store_ris(Request $request)
             'user'           => Auth::user(),
         ]);
     }
-public function print_ris($id)
-{
-    $ris = RIS::with([
-        'requestedBy.division',
-        'issuedBy.division',
-        'po.details.prDetail' => function ($query) {
-            $query->select('id', 'pr_id', 'product_id', 'quantity');
-        },
-        'po.details.prDetail.purchaseRequest',
-        'po.details.prDetail.purchaseRequest.division',
-        'items.inventoryItem.unit',
-        'items.inventoryItem.poDetail.prDetail.product',
-    ])->findOrFail($id);
+    public function print_ris($id)
+    {
+        $ris = RIS::with([
+            'requestedBy.division',
+            'issuedBy.division',
+            'po.details.prDetail' => function ($query) {
+                $query->select('id', 'pr_id', 'product_id', 'quantity');
+            },
+            'po.details.prDetail.purchaseRequest',
+            'po.details.prDetail.purchaseRequest.division',
+            'items.inventoryItem.unit',
+            'items.inventoryItem.poDetail.prDetail.product',
+        ])->findOrFail($id);
 
 
-    $pdf = Pdf::loadView('pdf.print_ris', ['ris' => $ris])
-        ->setPaper('A4', 'portrait'); 
-    return $pdf->stream('RIS-'.$ris->ris_number.'.pdf');
-}
+        $pdf = Pdf::loadView('pdf.print_ris', ['ris' => $ris])
+            ->setPaper('A4', 'portrait'); 
+        return $pdf->stream('RIS-'.$ris->ris_number.'.pdf');
+    }
 public function printRisItem($risId, $itemId)
 {
     $ris = RIS::with([
@@ -225,6 +321,8 @@ public function store_ics(Request $request)
 
         'items' => 'required|array|min:1',
         'items.*.inventory_item_id' => 'required|integer|exists:tbl_inventory,id',
+        'items.*.recipient' => 'nullable|string',
+        'items.*.recipient_division' => 'nullable|string',
         'items.*.estimated_useful_life' => 'nullable|numeric|min:0.01',
         'items.*.inventory_item_number' => 'nullable|string|max:50',
         'items.*.ppe_sub_major_account' => 'nullable|string|max:100',
@@ -237,74 +335,42 @@ public function store_ics(Request $request)
         'items.*.unit_cost' => 'required|numeric|min:0.01',
         'items.*.total_cost' => 'required|numeric|min:0.01',
     ]);
-    DB::beginTransaction();
-    try {
-        $po = PurchaseOrder::with(['details.prDetail.product'])->findOrFail($validated['po_id']);
-
-        // 🔑 Always create new ICS
-        $ics = ICS::firstOrcreate([
-            'po_id' => $po->id,
+    $ics = ICS::where('ics_number', $validated['ics_number'])->first();
+    if (!$ics) {
+        // 🆕 Create a new RIS if not found
+        $ics = ICS::create([
+            'po_id' => $validated['po_id'] ?? null,
             'ics_number' => $validated['ics_number'],
-            'requested_by' => $validated['requested_by'],
+            'requested_by' => $validated['requested_by'] ?? null,
             'received_from' => $validated['received_from'],
             'remarks' => $validated['remarks'] ?? null,
         ]);
+    }
 
-        foreach ($validated['items'] as $item) {
-            $inventory = Inventory::findOrFail($item['inventory_item_id']);
+    // 🧾 Attach the item(s)
+    foreach ($validated['items'] as $item) {
+        $itemType = $item['unit_cost'] <= 5000 ? 'low' : 'high';
+        $inventory = Inventory::find($item['inventory_item_id']);
+        $ics->items()->create([
+            'inventory_item_id' => $inventory->id,
+            'recipient' => $item['recipient'],
+            'recipient_division' => $item['recipient_division'],
+            'estimated_useful_life' => $item['estimated_useful_life'] ?? null,
+            'inventory_item_number' => $item['inventory_item_number'] ?? null,
+            'ppe_sub_major_account' => $item['ppe_sub_major_account'] ?? null,
+            'general_ledger_account' => $item['general_ledger_account'] ?? null,
+            'series_number' => $item['series_number'] ?? null,
+            'office' => $item['office'] ?? null,
+            'school' => $item['school'] ?? null,
+            'quantity' => $item['quantity'],
+            'unit_cost' => $item['unit_cost'],
+            'total_cost' => $item['total_cost'],
+            'type' => $itemType,
+        ]);
+        $inventory->total_stock -= $item['quantity'];
+        $inventory->save();
 
-            // Calculate remaining stock
-            $remainingStock = $inventory->total_stock - $inventory->issued_qty;
-            if ($remainingStock < $item['quantity']) {
-                throw new \Exception("Not enough stock for {$inventory->item_desc}. Remaining: {$remainingStock}");
-            }
-
-            // Determine ICS item type
-            $itemType = $item['unit_cost'] <= 5000 ? 'low' : 'high';
-
-            // Save ICS item with extended fields
-            $ics->items()->create([
-                'inventory_item_id' => $inventory->id,
-                'estimated_useful_life' => $item['estimated_useful_life'] ?? null,
-                'inventory_item_number' => $item['inventory_item_number'] ?? null,
-                'ppe_sub_major_account' => $item['ppe_sub_major_account'] ?? null,
-                'general_ledger_account' => $item['general_ledger_account'] ?? null,
-                'series_number' => $item['series_number'] ?? null,
-                'office' => $item['office'] ?? null,
-                'school' => $item['school'] ?? null,
-                'quantity' => $item['quantity'],
-                'unit_cost' => $item['unit_cost'],
-                'total_cost' => $item['total_cost'],
-                'type' => $itemType,
-            ]);
-
-            // ✅ Increment issued_qty instead of subtracting from total_stock
-            $inventory->issued_qty += $item['quantity'];
-            $inventory->status = ($inventory->issued_qty >= $inventory->total_stock) ? 'Issued' : 'Available';
-            $inventory->save();
-        }
-
-        DB::commit();
-
-        // Redirect based on types included
-        $hasLow = $ics->items()->where('type', 'low')->exists();
-        $hasHigh = $ics->items()->where('type', 'high')->exists();
-
-        if ($hasLow && $hasHigh) {
-            return redirect()->route('supply_officer.ics_issuance_low')
-                ->with('success', 'ICS recorded with both Low and High items.');
-        } elseif ($hasLow) {
-            return redirect()->route('supply_officer.ics_issuance_low')
-                ->with('success', 'ICS recorded with Low items.');
-        } elseif ($hasHigh) {
-            return redirect()->route('supply_officer.ics_issuance_high')
-                ->with('success', 'ICS recorded with High items.');
-        }
-
-        return redirect()->back()->with('success', 'ICS successfully recorded.');
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return back()->withErrors(['error' => 'Failed to store ICS. ' . $e->getMessage()]);
+         return redirect()->route('supply_officer.ics_issuance_low')->with('success', 'Item successfully added to RIS.');
     }
 }
 
@@ -428,7 +494,7 @@ public function print_ics_all($id)
                 $q->where('type', 'high');
             })
             ->with([
-                'requestedBy',
+                'requestedBy.division',
                 'items.inventoryItem.unit',
                 'po.rfq.purchaseRequest.division',
                 'po.rfq.purchaseRequest.focal_person',
@@ -481,6 +547,8 @@ public function store_par(Request $request)
 
         'items'      => 'required|array|min:1',
         'items.*.inventory_item_id' => 'required|integer|exists:tbl_inventory,id',
+        'items.*.recipient' => 'nullable|string',
+        'items.*.recipient_division' => 'nullable|string',
         'items.*.estimated_useful_life' => 'numeric|min:0.01',
         'items.*.inventory_item_number' => 'nullable|string|max:50',
         'items.*.ppe_sub_major_account' => 'nullable|string|max:100',
@@ -495,65 +563,38 @@ public function store_par(Request $request)
         'items.*.property_no'       => 'nullable|string|max:50',
     ]);
 
-    DB::beginTransaction();
+    $par = PAR::where('par_number', $validated['par_number'])->first();
+    if (!$par) {
+        // 🆕 Create a new RIS if not found
+        $par = PAR::create([
+            'po_id' => $validated['po_id'] ?? null,
+            'par_number' => $validated['par_number'],
+            'requested_by' => $validated['requested_by'] ?? null,
+            'issued_by' => $validated['issued_by'],
+            'remarks' => $validated['remarks'] ?? null,
+        ]);
+    }
 
-    try {
-        // 1️⃣ Create or get existing PAR
-        $par = PAR::firstOrCreate(
-            ['par_number' => $validated['par_number']],
-            [
-                'po_id' => $validated['po_id'],
-                'requested_by' => $validated['requested_by'],
-                'issued_by' => $validated['issued_by'],
-                'remarks' => $validated['remarks'] ?? null,
-                'date_acquired' => $validated['date_acquired'] ?? null,
-            ]
-        );
-
-        foreach ($validated['items'] as $item) {
-            $inventory = Inventory::findOrFail($item['inventory_item_id']);
-
-            // Check stock availability
-            if ($inventory->total_stock < $item['quantity']) {
-                throw new \Exception("Not enough stock for {$inventory->item_desc}. Remaining: {$inventory->total_stock}");
-            }
-
-            // Create or update PAR item
-            $parItem = $par->items()->updateOrCreate(
-                ['inventory_item_id' => $inventory->id],
-                [
-                    'estimated_useful_life' => $item['estimated_useful_life'] ?? null,
-                    'inventory_item_number' => $item['inventory_item_number'] ?? null,
-                    'ppe_sub_major_account' => $item['ppe_sub_major_account'] ?? null,
-                    'general_ledger_account' => $item['general_ledger_account'] ?? null,
-                    'series_number' => $item['series_number'] ?? null,
-                    'office' => $item['office'] ?? null,
-                    'school' => $item['school'] ?? null,
-                    'quantity' => 0,
-                    'unit_cost' => $item['unit_cost'],
-                    'total_cost' => 0,
-                    'property_no' => $item['property_no'] ?? null,
-                ]
-            );
-
-            // Increment quantities & totals
-            $parItem->quantity += $item['quantity'];
-            $parItem->total_cost += $item['total_cost'];
-            $parItem->save();
-
-            // Deduct from inventory stock
-            $inventory->total_stock -= $item['quantity'];
-            $inventory->status = $inventory->total_stock > 0 ? 'Available' : 'Issued';
-            $inventory->save();
-        }
-
-        DB::commit();
-
-        return redirect()->route('supply_officer.par_issuance')
-            ->with('success', 'PAR successfully recorded or updated with new items.');
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return back()->withErrors(['error' => 'Failed to store PAR. ' . $e->getMessage()]);
+    // 🧾 Attach the item(s)
+    foreach ($validated['items'] as $item) {
+        $inventory = Inventory::find($item['inventory_item_id']);
+        $par->items()->create([
+            'inventory_item_id' => $inventory->id,
+            'recipient' => $item['recipient'],
+            'recipient_division' => $item['recipient_division'],
+            'estimated_useful_life' => $item['estimated_useful_life'] ?? null,
+            'inventory_item_number' => $item['inventory_item_number'] ?? null,
+            'ppe_sub_major_account' => $item['ppe_sub_major_account'] ?? null,
+            'general_ledger_account' => $item['general_ledger_account'] ?? null,
+            'series_number' => $item['series_number'] ?? null,
+            'office' => $item['office'] ?? null,
+            'school' => $item['school'] ?? null,
+            'quantity' => $item['quantity'],
+            'unit_cost' => $item['unit_cost'],
+            'total_cost' => $item['total_cost'],
+        ]);
+        $inventory->total_stock -= $item['quantity'];
+        $inventory->save();
     }
 }
 
