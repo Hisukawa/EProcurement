@@ -28,7 +28,6 @@ return new class extends Migration
             $table->foreignId('inventory_item_id')->constrained('tbl_inventory')->onDelete('cascade'); // The item being reissued
             $table->foreignId('returned_by')->constrained('users')->restrictOnDelete(); // Who returned the item
             $table->foreignId('reissued_by')->constrained('users')->restrictOnDelete(); // Who is reissuing
-            $table->string('recipient')->nullable(); // Person receiving the reissued item
             $table->decimal('quantity', 12, 2); // Quantity of the item being reissued
             $table->text('remarks')->nullable(); // Any remarks specific to the item
             $table->timestamps();

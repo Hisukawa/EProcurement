@@ -132,11 +132,11 @@ export default function Inventory({ inventoryData, filters }) {
                     const issuedQty = parseFloat(inv.issued_qty) || 0;
                     const totalStock = parseFloat(inv.total_stock) || 0;
                     const remainingStock = Math.max(totalStock - issuedQty, 0);
-                    const totalPrice = (unitCost * remainingStock).toFixed(2);
+                    const totalPrice = (unitCost * inv.total_stock).toFixed(2);
 
                     let statusLabel = "Available";
-                    if (remainingStock === 0) statusLabel = "Fully Issued";
-                    else if (remainingStock < totalStock) statusLabel = "Partially Issued";
+                    if (inv.total_stock === 0) statusLabel = "Fully Issued";
+                    else if (inv.total_stock < totalStock) statusLabel = "Partially Issued";
 
                     return (
                       <tr key={inv.id} className="hover:bg-blue-50 transition duration-200">
@@ -144,12 +144,12 @@ export default function Inventory({ inventoryData, filters }) {
                         <td className="px-6 py-4"></td>
                         <td className="px-6 py-4">{inv.item_desc ?? "No description"}</td>
                         <td className="px-6 py-4">{unit}</td>
-                        <td className="px-6 py-4">{remainingStock}</td>
+                        <td className="px-6 py-4">{inv.total_stock}</td>
                         <td className="px-6 py-4">₱ {unitCost.toFixed(2)}</td>
                         <td className="px-6 py-4">₱ {totalPrice}</td>
                         <td className="px-6 py-4">{statusLabel}</td>
                         <td className="px-6 py-4">
-                          {remainingStock === 0 ? (
+                          {inv.total_stock <= 0 ? (
                             <span className="bg-gray-300 text-gray-600 px-3 py-2 rounded cursor-not-allowed flex items-center justify-center gap-1">
                               <PackageCheck size={16} /> All Items Are Issued
                             </span>

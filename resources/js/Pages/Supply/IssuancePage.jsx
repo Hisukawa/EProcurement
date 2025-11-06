@@ -5,7 +5,7 @@ import ICSForm from "./ICSForm"; // your existing ICS form component
 import RISForm from "./RISForm"; // create similar for RIS
 import ParForm from "./ParForm"; // optional for other types
 
-export default function IssuancePage({ purchaseOrder, inventoryItem, user, ppeOptions }) {
+export default function IssuancePage({ purchaseOrder, inventoryItem, user, ppeOptions, risNumber, icsNumber, parNumber }) {
   const [selectedForm, setSelectedForm] = useState("ris"); // default form
 
   return (
@@ -44,13 +44,13 @@ export default function IssuancePage({ purchaseOrder, inventoryItem, user, ppeOp
       {/* Render the selected form */}
       <div className="bg-blue-50 p-8 rounded-xl shadow-md">
         {selectedForm === "ris" && (
-          <RISForm purchaseOrder={purchaseOrder} inventoryItem={inventoryItem} user={user} ppeOptions={ppeOptions}/>
+          <RISForm purchaseOrder={purchaseOrder} inventoryItem={inventoryItem} user={user} ppeOptions={ppeOptions} risNumber={risNumber}/>
         )}
         {selectedForm === "ics" && (
-          <ICSForm purchaseOrder={purchaseOrder} inventoryItem={inventoryItem} user={user} ppeOptions={ppeOptions}/>
+          <ICSForm purchaseOrder={purchaseOrder} inventoryItem={inventoryItem} user={user} ppeOptions={ppeOptions} icsNumber={icsNumber}/>
         )}
         {selectedForm === "other" && (
-          <ParForm purchaseOrder={purchaseOrder} inventoryItem={inventoryItem} user={user} ppeOptions={ppeOptions} />
+          <ParForm purchaseOrder={purchaseOrder} inventoryItem={inventoryItem} user={user} ppeOptions={ppeOptions} parNumber={parNumber}/>
         )}
       </div>
     </SupplyOfficerLayout>

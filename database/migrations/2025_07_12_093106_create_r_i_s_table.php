@@ -14,7 +14,7 @@ return new class extends Migration
         // RIS Header
         Schema::create('tbl_ris', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('po_id')->constrained('tbl_purchase_orders')->onDelete('cascade');
+            $table->foreignId('po_id')->nullable()->constrained('tbl_purchase_orders')->onDelete('cascade');
             $table->string('ris_number')->unique();
             $table->foreignId('requested_by')->nullable()->constrained('users');
             $table->foreignId('issued_by')->constrained('users');
@@ -26,6 +26,8 @@ return new class extends Migration
         Schema::create('tbl_ris_items', function (Blueprint $table) {
             $table->id();
             $table->foreignId('ris_id')->constrained('tbl_ris')->onDelete('cascade');
+            $table->string('recipient')->nullable();
+            $table->string('recipient_division')->nullable();
             $table->foreignId('inventory_item_id')->constrained('tbl_inventory')->onDelete('cascade');
             $table->enum('switch_type', ['ris', 'ics', 'par'])->nullable();
             $table->foreignId('switched_by')->nullable()->constrained('users');

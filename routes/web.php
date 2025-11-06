@@ -13,6 +13,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Requester\IssuedController;
 use App\Http\Controllers\Requester\RequesterController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\Supply\DeliveryReceiptsController;
 use App\Http\Controllers\Supply\IssuanceController;
 use App\Http\Controllers\Supply\ReturnController;
 use App\Http\Controllers\Supply\SwitchTypeController;
@@ -156,6 +157,9 @@ Route::get('/bac/rfqs/{id}/print-aoq-per-item-grouped-read',
   [PrintController::class, 'printAoqPerItemGroupedRead']
 )->name('bac_user.print_aoq_per_item_grouped_read');
 
+Route::post('/save/rfq/data', [RFQController::class, 'saveData'])->name('save.rfq.data');
+Route::get('/get/rfq/data', [RFQController::class, 'getRFQData'])->name('get.rfq.data');
+
 });
 
 // Supply Routes
@@ -171,7 +175,7 @@ Route::middleware(['auth', 'role:supply_officer'])->prefix('supply_officer')->gr
     Route::get('/iar_table', [SupplyController::class, 'iar_table'])->name('supply_officer.iar_table');
     Route::get('/print_iar/{id}', [SupplyController::class, 'print_iar'])->name('supply_officer.print_iar');
     Route::get('/inventory', [SupplyController::class, 'inventory'])->name('supply_officer.inventory');
-    Route::get('/issuance/{po_detail_id}/{inventory_id}', [IssuanceController::class, 'issuance'])->name('supply_officer.issuance');
+    Route::get('/issuance/{inventory_id}', [IssuanceController::class, 'issuance'])->name('supply_officer.issuance');
     Route::post('/store_ris', [IssuanceController::class, 'store_ris'])->name('supply_officer.store_ris');
     Route::post('/store_ics', [IssuanceController::class, 'store_ics'])->name('supply_officer.store_ics');
     Route::post('/store_par', [IssuanceController::class, 'store_par'])->name('supply_officer.store_par');
@@ -199,10 +203,10 @@ Route::middleware(['auth', 'role:supply_officer'])->prefix('supply_officer')->gr
     Route::post('/switch_to_ics', [SwitchTypeController::class, 'switchToIcs'])->name('supply_officer.switch_to_ics');
     Route::post('/switch_to_par', [SwitchTypeController::class, 'switchToPar'])->name('supply_officer.switch_to_par');
 
-    Route::get('/reissuance', [ReturnController::class, 'reissuance'])->name('supply_officer.reissuance');
-    Route::get('/reissuance/{type}/{id}', [ReturnController::class, 'reissuance_form'])->name('supply_officer.reissuance_form');
-    Route::post('/submit_reissuance', [ReturnController::class, 'submit_reissuance'])->name('supply_officer.submit_reissuance');
-    Route::get('reissued_items', [ReturnController::class, 'reissued_items'])->name('supply_officer.reissued_items');
+    Route::get('/return', [ReturnController::class, 'return'])->name('supply_officer.return');
+    Route::get('/return/{type}/{id}', [ReturnController::class, 'return_form'])->name('supply_officer.return_form');
+    Route::post('/submit_return', [ReturnController::class, 'submit_return'])->name('supply_officer.submit_return');
+    Route::get('returned_items', [ReturnController::class, 'returned_items'])->name('supply_officer.returned_items');
     Route::get('/disposal/{type}/{id}', [ReturnController::class, 'disposal_form'])->name('supply_officer.disposal_form');
     Route::post('/submit_disposal', [ReturnController::class, 'submit_disposal'])->name('supply_officer.submit_disposal');
     Route::get('/disposed_items', [ReturnController::class, 'disposed_items'])->name('supply_officer.disposed_items');
@@ -218,6 +222,8 @@ Route::middleware(['auth', 'role:supply_officer'])->prefix('supply_officer')->gr
 
     Route::post('/supply_officer/reissued-items/update/{id}', [ReturnController::class, 'updateReissuedItem'])->name('supply_officer.update_reissued_item');
 
+    Route::get('/delivery_receipts', [DeliveryReceiptsController::class, 'delivery_receipts'])->name('supply_officer.delivery_receipts');
+    Route::post('/store_central_delivery', [DeliveryReceiptsController::class, 'store_central_delivery'])->name('supply_officer.store_central_delivery');
 });
 // Shared dashboard route
 Route::get('/dashboard', function () {

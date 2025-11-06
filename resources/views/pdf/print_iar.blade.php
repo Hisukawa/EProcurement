@@ -34,101 +34,93 @@
     <div class="text-center font-bold" style="font-size:16px; margin-bottom:30px; margin-top:30px;">
         Inspection and Acceptance Report
     </div>
+
     <table>
         <tr>
             <td colspan="2" class="font-semibold">
                 Entity Name: <span class="underline">SDO City of Ilagan</span>
             </td>
-            <td class="font-semibold">
-                &nbsp;
-            </td>
+            <td class="font-semibold">&nbsp;</td>
         </tr>
     </table>
 
     <table>
         <tr class="with-border">
-            <td style="border-bottom: none !important;" colspan="2">
-                Supplier: <span class="underline font-semibold">{{ $iarData->purchaseOrder->supplier->company_name ?? '' }}</span>
+            <td colspan="2" style="border-bottom: none !important;">
+                Supplier: 
+                <span class="underline font-semibold">
+                    {{ $iarData->purchaseOrder->supplier->company_name ?? 'CENTRAL PROCUREMENT' }}
+                </span>
             </td>
-            <td style="border-bottom: none !important;" colspan="2" class="">
+            <td colspan="2" style="border-bottom: none !important;">
                 IAR No.: <span class="underline font-semibold">{{ $iarData->iar_number }}</span>
             </td>
         </tr>
         <tr class="with-border">
-            <td style="border-bottom: none !important;border-top:none !important" colspan="2">
-                PO No.:<span class="underline font-semibold">{{ $iarData->purchaseOrder->po_number ?? '' }}</span>
+            <td colspan="2" style="border-bottom:none !important;border-top:none !important">
+                PO No.: 
+                <span class="underline font-semibold">
+                    {{ $iarData->purchaseOrder->po_number ?? 'N/A' }}
+                </span>
             </td>
-            <td style="border-bottom: none !important;border-top:none !important" colspan="2" class="">
-                Date: <span class="underline font-semibold"></span>
-            </td>
-        </tr>
-        <tr class="with-border">
-            <td style="border-bottom: none !important;border-top:none !important" colspan="2">
-                Requisitioning Office/Dept : <span class="underline font-semibold">{{ $iarData->purchaseOrder->rfq->purchaseRequest->division->meaning ?? '' }}</span>
-            </td>
-            <td style="border-bottom: none !important;border-top:none !important" colspan="2" class="">
-                Invoice No.: <span class="underline font-semibold"></span>
+            <td colspan="2" style="border-bottom:none !important;border-top:none !important">
+                Date: <span class="underline font-semibold">{{ \Carbon\Carbon::parse($iarData->date_received)->format('F d, Y') }}</span>
             </td>
         </tr>
         <tr class="with-border">
-            <td style="border-bottom: none !important;border-top:none !important" colspan="2">
-                Responsibility Center Code : <span class="underline font-semibold"></span>
+            <td colspan="2" style="border-bottom:none !important;border-top:none !important">
+                Requisitioning Office/Dept :
+                <span class="underline font-semibold">
+                    {{ $iarData->purchaseOrder->rfq->purchaseRequest->division->meaning ?? 'CENTRAL WAREHOUSE' }}
+                </span>
             </td>
-            <td style="border-bottom: none !important;border-top:none !important" colspan="2" class="">
-                Date: <span class="underline font-semibold"></span>
+            <td colspan="2" style="border-bottom:none !important;border-top:none !important">
+                Invoice No.: <span class="underline font-semibold">{{ $iarData->invoice_number ?? 'N/A' }}</span>
             </td>
         </tr>
+        <tr class="with-border">
+            <td colspan="2" style="border-bottom:none !important;border-top:none !important">
+                Responsibility Center Code : <span class="underline font-semibold">____________________</span>
+            </td>
+            <td colspan="2" style="border-bottom:none !important;border-top:none !important">
+                Date: <span class="underline font-semibold">{{ $iarData->date_received }}</span>
+            </td>
+        </tr>
+
         <tr class="text-center font-bold with-border">
             <td style="width: 15%;">Stock/Property No.</td>
             <td style="width: 40%;">Description</td>
             <td style="width: 25%;">Unit</td>
             <td style="width: 25%;">Quantity</td>
         </tr>
-        @foreach($iarData->purchaseOrder->details as $detail)
+
+        {{-- ✅ Show IAR details (if PO-based or central) --}}
+        @if($iarData->purchaseOrder)
+            @foreach($iarData->purchaseOrder->details as $detail)
+                <tr class="text-center with-border">
+                    <td></td>
+                    <td>{{ $detail->prDetail->item ?? '' }} - {{ $detail->prDetail->specs ?? '' }}</td>
+                    <td>{{ $detail->prDetail->unit->unit ?? '' }}</td>
+                    <td>{{ $detail->quantity ?? 0 }}</td>
+                </tr>
+            @endforeach
+        @else
+            {{-- ✅ For central deliveries --}}
             <tr class="text-center with-border">
                 <td></td>
-                <td>{{ $detail->prDetail->item ?? '' }} - {{ $detail->prDetail->specs ?? '' }}</td>
-                <td>{{ $detail->prDetail->unit ?? '' }}</td>
-                <td>{{ $detail->quantity ?? 0 }}</td>
+                <td>{{ $iarData->specs }}</td>
+                <td>{{ $iarData->unit?->unit ?? '—' }}</td>
+                <td>{{ $iarData->quantity_received }}</td>
             </tr>
-        @endforeach
+        @endif
 
-        <tr class="with-border">
-            <td>&nbsp;</td>
-            <td>&nbsp;</td>
-            <td>&nbsp;</td>
-            <td>&nbsp;</td>
-        </tr>
-        <tr class="with-border">
-            <td>&nbsp;</td>
-            <td>&nbsp;</td>
-            <td>&nbsp;</td>
-            <td>&nbsp;</td>
-        </tr>
-        <tr class="with-border">
-            <td>&nbsp;</td>
-            <td>&nbsp;</td>
-            <td>&nbsp;</td>
-            <td>&nbsp;</td>
-        </tr>
-        <tr class="with-border">
-            <td>&nbsp;</td>
-            <td>&nbsp;</td>
-            <td>&nbsp;</td>
-            <td>&nbsp;</td>
-        </tr>
-        <tr class="with-border">
-            <td>&nbsp;</td>
-            <td>&nbsp;</td>
-            <td>&nbsp;</td>
-            <td>&nbsp;</td>
-        </tr>
-        <tr class="with-border">
-            <td>&nbsp;</td>
-            <td>&nbsp;</td>
-            <td>&nbsp;</td>
-            <td>&nbsp;</td>
-        </tr>
+        {{-- Fill empty rows for layout consistency --}}
+        @for ($i = 0; $i < 5; $i++)
+            <tr class="with-border">
+                <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+            </tr>
+        @endfor
+
         <tr class="with-border font-semibold" style="font-size: 14px">
             <td colspan="2" class="text-center">Inspection</td>
             <td colspan="2" class="text-center">Acceptance</td>
@@ -138,59 +130,58 @@
             <td colspan="2" style="border-bottom:none !important">Date Received: {{ $iarData->date_received }}</td>
         </tr>
         <tr class="with-border">
-            <td colspan="2" class="text-center" style="border-bottom:none !important; border-top:none !important">Inspected, verified and found in order</td>
-            <td colspan="2" class="text-start" style="padding-left: 80px;border-bottom:none !important; border-top:none !important">Complete _____________________</td>
+            <td colspan="2" class="text-center" style="border-bottom:none !important; border-top:none !important">
+                Inspected, verified and found in order
+            </td>
+            <td colspan="2" class="text-start" style="padding-left: 80px;border-bottom:none !important; border-top:none !important">
+                Complete _____________________
+            </td>
         </tr>
         <tr class="with-border">
-            <td colspan="2" class="text-center" style="border-bottom:none !important; border-top:none !important">as to quantity and specifications</td>
-            <td colspan="2" class="text-start" style="padding-left: 80px; border-bottom:none !important; border-top:none !important">Partial Delivery _____________________</td>
+            <td colspan="2" class="text-center" style="border-bottom:none !important; border-top:none !important">
+                as to quantity and specifications
+            </td>
+            <td colspan="2" class="text-start" style="padding-left: 80px; border-bottom:none !important; border-top:none !important">
+                Partial Delivery _____________________
+            </td>
         </tr>
+
         @php
             $activeMembers = $inspectors->members->where('status', 'active');
             $leader = $activeMembers->firstWhere('position', 'Leader');
             $members = $activeMembers->filter(fn($m) => str_starts_with($m->position, 'Member'));
         @endphp
+
         <tr class="with-border">
             <td colspan="2" class="text-center" style="height: 7%">
                 <span class="underline font-bold">{{ strtoupper(optional($leader)->name ?? '__________________') }}</span><br>
-                <small>Team Leader</small></td>
-            <td colspan="2" class="text-center">&nbsp;
+                <small>Team Leader</small>
             </td>
+            <td colspan="2" class="text-center">&nbsp;</td>
         </tr>
+
         <tr class="with-border">
             <td colspan="2" class="text-center" style="height: 7%">
                 <span class="underline font-bold">{{ strtoupper(optional($members->shift())->name ?? '__________________') }}</span><br>
-                <small>Accounting Representative</small></td>
-            <td colspan="2" class="text-center"><span class="underline font-bold">Adeline C. Soriano</span><br>
+                <small>Accounting Representative</small>
+            </td>
+            <td colspan="2" class="text-center">
+                <span class="underline font-bold">Adeline C. Soriano</span><br>
                 <small>AO-IV (Supply Officer)</small>
             </td>
         </tr>
+
         <tr class="with-border">
             <td colspan="2" class="text-center" style="height: 5%">
                 <span class="underline font-bold">{{ strtoupper(optional($members->shift())->name ?? '__________________') }}</span><br>
-                <small>Supply Representative</small></td>
-            <td colspan="2" class="text-center"><span class="underline font-bold">
+                <small>Supply Representative</small>
             </td>
+            <td colspan="2" class="text-center"></td>
         </tr>
+
         <tr class="with-border font-semibold" style="font-size: 12px">
             <td colspan="2" class="text-center">Inspection Officer/Inspection Committee</td>
             <td colspan="2" class="text-center">Supply/Property Custodian</td>
-        </tr>
-
-    </table>
-
-    <table>
-        <tr>
-            
-        </tr>
-        
-        <tr>
-            <td colspan="2" class="text-center">
-                
-            </td>
-            <td colspan="2" class="text-center">
-                
-            </td>
         </tr>
     </table>
 </body>

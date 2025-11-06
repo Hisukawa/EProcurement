@@ -68,7 +68,11 @@ public function collection()
                 // ✅ Search by Division
                 ->orWhereHas('po.details.prDetail.purchaseRequest.division', function ($divQuery) use ($search) {
                     $divQuery->where('division', 'like', "%{$search}%");
-                });
+                })
+                ->orWhereHas('items', function ($itemQuery) use ($search) {
+                        $itemQuery->where('recipient', 'like', "%{$search}%")
+                            ->orWhere('recipient_division', 'like', "%{$search}%");
+                    });
         });
     }
 
@@ -137,40 +141,40 @@ public function collection()
     /**
      * Map each flattened row (stdClass with ris + item) to the final array
      */
-public function map($row): array
-{
-    $ris = $row->ris;
-    $itm = $row->item;
+    public function map($row): array
+    {
+        $ris = $row->ris;
+        $itm = $row->item;
 
-    $inventoryItem = $itm?->inventoryItem;
+        $inventoryItem = $itm?->inventoryItem;
 
-    // ✅ Use item_desc directly, fallback if missing
-    $itemDesc = $inventoryItem?->item_desc
-        ?? optional($ris->po->details->first()?->prDetail?->product)->name
-        ?? '';
+        // ✅ Use item_desc directly, fallback if missing
+        $itemDesc = $inventoryItem?->item_desc
+            ?? optional($ris->po->details->first()?->prDetail?->product)->name
+            ?? '';
 
-    $unit     = $inventoryItem?->unit?->unit ?? '';
-    $quantity = $itm?->quantity ?? 0;
-    $unitCost = $itm?->unit_cost ?? 0;
-    $amount   = $quantity * $unitCost;
+        $unit     = $inventoryItem?->unit?->unit ?? '';
+        $quantity = $itm?->quantity ?? 0;
+        $unitCost = $itm?->unit_cost ?? 0;
+        $amount   = $quantity * $unitCost;
 
-    // only show RIS number once
-    $showRis = $this->lastRisNo !== $ris->ris_number;
-    if ($showRis) {
-        $this->lastRisNo = $ris->ris_number;
+        // only show RIS number once
+        $showRis = $this->lastRisNo !== $ris->ris_number;
+        if ($showRis) {
+            $this->lastRisNo = $ris->ris_number;
+        }
+
+        return [
+            $showRis ? $ris->ris_number : '',
+            '', // Responsibility Center Code
+            $inventoryItem?->stock_no ?? '', // Stock No
+            $itemDesc, // ✅ Description from item_desc
+            $unit,
+            $quantity,
+            $unitCost ? number_format((float)$unitCost, 2, '.', ',') : '',
+            $amount ? number_format((float)$amount, 2, '.', ',') : '',
+        ];
     }
-
-    return [
-        $showRis ? $ris->ris_number : '',
-        '', // Responsibility Center Code
-        $inventoryItem?->stock_no ?? '', // Stock No
-        $itemDesc, // ✅ Description from item_desc
-        $unit,
-        $quantity,
-        $unitCost ? number_format((float)$unitCost, 2, '.', ',') : '',
-        $amount ? number_format((float)$amount, 2, '.', ',') : '',
-    ];
-}
 
 
 

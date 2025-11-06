@@ -12,7 +12,7 @@ class RFQ extends Model
 {
     protected $table = 'tbl_rfqs';
 
-    protected $fillable = ['user_id', 'pr_id', 'supplier_id', 'total_price_calculated', 'project_no', 'date_of_opening', 'venue'];
+    protected $fillable = ['user_id', 'pr_id', 'supplier_id', 'total_price_calculated', 'project_no', 'date_of_opening', 'venue', 'bac_cn', 'services', 'location', 'subject', 'delivery_period', 'abc'];
 
     
     public function purchaseRequest()

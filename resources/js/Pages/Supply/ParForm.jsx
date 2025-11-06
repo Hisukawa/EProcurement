@@ -6,26 +6,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import AutoCompleteInput from "./AutoCompleteInput";
 
-export default function ParForm({ purchaseOrder, inventoryItem, user, ppeOptions }) {
+export default function ParForm({ purchaseOrder, inventoryItem, user, ppeOptions, parNumber }) {
   const { toast } = useToast();
-  const detail = purchaseOrder.detail;
-  const pr = detail?.pr_detail?.purchase_request;
-  const product = detail?.pr_detail?.product;
+  const detail = purchaseOrder?.detail ?? null;
+  const pr = detail?.pr_detail?.purchase_request ?? null;
   const [ppe, setPpe] = useState(null);
   const [gl, setGl] = useState(null);
   const [office, setOffice] = useState(null);
   const [school, setSchool] = useState(null);
   const [series, setSeries] = useState("0001");
   const [generatedNumber, setGeneratedNumber] = useState("");
-const item = product ? `${product.name} (${product.specs})` : "N/A";
+const item = inventoryItem ? inventoryItem.item_desc: "N/A";
   const focal = pr
     ? `${pr.focal_person.firstname} ${pr.focal_person.middlename} ${pr.focal_person.lastname}`
     : "N/A";
   const glOptions = ppe?.general_ledger_accounts ?? [];
 
-  const { data, setData, post, processing, errors, reset } = useForm({
-    po_id: detail?.po_id ?? null,
-    par_number: purchaseOrder.po_number ?? "",
+  const { data, setData, post, processing, errors } = useForm({
+    po_id: purchaseOrder?.id ?? null,
+    par_number: parNumber ?? "",
     requested_by: pr?.focal_person?.id ?? "",
     issued_by: user?.id ?? null,
     remarks: "",
@@ -33,14 +32,18 @@ const item = product ? `${product.name} (${product.specs})` : "N/A";
     items: [
       {
         inventory_item_id: inventoryItem?.id ?? null,
+        recipient: "",
+        recipient_division: "",
         estimated_useful_life: null,
         inventory_item_number: "",
         ppe_sub_major_account: "",
         general_ledger_account: "",
         office: "",
-        quantity: detail?.quantity ?? 0,
+        quantity: detail?.quantity ?? 1,
         unit_cost: inventoryItem?.unit_cost ?? 0,
-        total_cost: (detail?.quantity ?? 0) * (inventoryItem?.unit_cost ?? 0),
+        total_cost:
+          (inventoryItem?.unit_cost ?? 0) * (detail?.quantity ?? 1),
+        series_number: series,
         property_no: "",
       },
     ],
@@ -137,7 +140,22 @@ useEffect(() => {
       },
     ]);
   };
+    const handleQuantityChange = (e) => {
+    let qty = parseFloat(e.target.value) || 0;
+    const maxQty = inventoryItem.total_stock;
+    if (qty > maxQty) qty = maxQty;
 
+    const unit = data.items[0].unit_cost ?? 0;
+    setData("items", [
+      { ...data.items[0], quantity: qty, total_cost: qty * unit },
+    ]);
+  };
+
+  const handleRecipientChange = (field, value) => {
+    setData("items", [
+      { ...data.items[0], [field]: value },
+    ]);
+  };
   return (
     <div className="bg-white p-6 rounded-xl shadow-md">
       <h2 className="text-3xl font-bold text-blue-800 mb-1 flex items-center gap-2">
@@ -167,6 +185,9 @@ useEffect(() => {
             <div>
               <label className="block text-sm font-medium text-gray-700">PAR No.</label>
               <input type="text" value={data.par_number} onChange={(e) => setData("par_number", e.target.value)} className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"/>
+              <p className="text-xs text-gray-500 mt-1">
+                Auto-generated ({parNumber}) — you may edit if needed.
+              </p>
             </div>
 
             <div>
@@ -176,9 +197,16 @@ useEffect(() => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Quantity</label>
-                <input type="number" value={data.items[0].quantity} onChange={(e) => updateItemField("quantity", Number(e.target.value))} className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm"/>
-              </div>
+              <label className="block text-sm font-medium text-gray-700">Quantity</label>
+              <input
+                type="number"
+                min="1"
+                max={inventoryItem.total_stock}
+                onChange={handleQuantityChange}
+                placeholder={`Max: ${inventoryItem.total_stock}`}
+                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+              />
+            </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Unit Cost</label>
                 <input type="number" value={data.items[0].unit_cost} onChange={(e) => updateItemField("unit_cost", Number(e.target.value))} className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm"/>
@@ -190,7 +218,7 @@ useEffect(() => {
               <input type="text" value={data.items[0].total_cost.toFixed(2)} readOnly className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50"/>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Received By</label>
+              <label className="block text-sm font-medium text-gray-700">Requested By</label>
               <input type="text" value={focal} readOnly className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"/>
             </div>
             <div>
@@ -211,6 +239,35 @@ useEffect(() => {
         {/* Right Section */}
         <div className="p-5 border rounded-md bg-green-50">
           <h3 className="text-lg font-semibold text-green-700 mb-4">Acknowledgement</h3>
+          <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Recipient Name
+              </label>
+              <input
+                type="text"
+                value={data.items[0].recipient}
+                onChange={(e) =>
+                  handleRecipientChange("recipient", e.target.value)
+                }
+                placeholder="Leave blank to issue to requester"
+                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Recipient Office / Division
+              </label>
+              <input
+                type="text"
+                value={data.items[0].recipient_division}
+                onChange={(e) =>
+                  handleRecipientChange("recipient_division", e.target.value)
+                }
+                placeholder="Optional"
+                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+              />
+            </div>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">PPE Sub-major Account</label>

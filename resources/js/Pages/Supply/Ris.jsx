@@ -39,6 +39,7 @@ export default function Ris({ purchaseOrders, inventoryItems, ris, user }) {
     risMap.get(key).push(r);
   });
 
+
   // Apply filters and search
   const filteredRis =
     ris?.data?.filter((record) => {
@@ -47,6 +48,7 @@ export default function Ris({ purchaseOrders, inventoryItems, ris, user }) {
       const firstName = record.requested_by?.firstname ?? record.issued_to?.firstname ?? '';
       const lastName = record.requested_by?.lastname ?? record.issued_to?.lastname ?? '';
       const fullName = `${firstName} ${lastName}`.trim().toLowerCase();
+      const recipientName = record.items?.[0]?.recipient?.toLowerCase() ?? '';
 
       const division =
         record.po?.details?.[0]?.pr_detail?.purchase_request?.division?.division?.toLowerCase() ??
@@ -61,7 +63,8 @@ export default function Ris({ purchaseOrders, inventoryItems, ris, user }) {
       risNo.includes(search.toLowerCase()) ||
       fullName.includes(search.toLowerCase()) || // ✅ name searching fixed
       division.includes(search.toLowerCase()) ||
-      itemsText.includes(search.toLowerCase());
+      itemsText.includes(search.toLowerCase()) ||
+      recipientName.includes(search.toLowerCase());
 
 
       // Date filter
@@ -107,7 +110,7 @@ const handleActionSelect = (e, record) => {
   if (action === "reissuance" || action === "disposal") {
     const routeName =
       action === "reissuance"
-        ? "supply_officer.reissuance_form"
+        ? "supply_officer.return_form"
         : "supply_officer.disposal_form";
 
     window.location.href = route(routeName, { id: record.id, type: "ris" });
@@ -220,149 +223,126 @@ const [switchRecord, setSwitchRecord] = useState(null);
             <tbody className="divide-y divide-gray-100">
               {filteredRis && filteredRis.length > 0 ? (
                 filteredRis.map((record, index) => {
-                  const itemsWithDetails =
-                    record.items?.map((item) => ({
-                      description: item.inventory_item?.item_desc ?? "N/A",
-                      quantity: item.quantity,
-                      unitCost: Number(item.inventory_item?.unit_cost ?? 0),
-                      totalCost: Number(item.inventory_item?.unit_cost ?? 0) * item.quantity,
-                      date: new Date(item.created_at).toLocaleDateString("en-PH", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      }),
-                    })) || [];
-
                   const isExpanded = expandedRows.includes(record.id);
-                  const visibleItems = isExpanded
-                    ? itemsWithDetails
-                    : itemsWithDetails.slice(0, 1);
+                  const visibleItems = isExpanded ? record.items : record.items.slice(0, 1);
+
+                  const issuedTo =
+                    record.items?.[0]?.recipient ??
+                    (record.requested_by
+                      ? `${record.requested_by.firstname ?? ""} ${record.requested_by.lastname ?? ""}`.trim()
+                      : "N/A");
+
+                  const division =
+                    record.items?.[0]?.recipient_division ??
+                    record.po?.details?.[0]?.pr_detail?.purchase_request?.division?.division ??
+                    "N/A";
+                    console.log(record);
 
                   return (
                     <React.Fragment key={record.id}>
-                      {visibleItems.map((item, itemIdx) => (
-                        <tr
-                          key={`${record.id}-${itemIdx}`}
-                          className={`transition-all duration-150 ${
-                            itemIdx % 2 === 0 ? "bg-white" : "bg-gray-50"
-                          } hover:bg-blue-50 hover:shadow-sm`}
-                        >
-                          {itemIdx === 0 && (
-                            <>
-                              <td
-                                rowSpan={visibleItems.length}
-                                className="px-4 py-3 font-semibold text-gray-800 align-top"
-                              >
-                                {index + 1}
-                              </td>
-                              <td
-                                rowSpan={visibleItems.length}
-                                className="px-4 py-3 text-blue-600 font-medium align-top"
-                              >
-                                {record.ris_number}
-                              </td>
-                              <td
-                                rowSpan={visibleItems.length}
-                                className="px-4 py-3 align-top"
-                              >
-                                {record.po?.details?.[0]?.pr_detail?.purchase_request?.division
-                                  ?.division ?? "N/A"}
-                              </td>
-                              <td
-                                rowSpan={visibleItems.length}
-                                className="px-4 py-3 align-top"
-                              >
-                                {record.requested_by?.firstname}{" "}
-                                {record.requested_by?.lastname}
-                              </td>
-                            </>
-                          )}
+                      {/* Main Row (first item only) */}
+                      <tr className="bg-white hover:bg-blue-50 transition">
+                        <td className="px-4 py-3 font-semibold text-gray-800">{index + 1}</td>
+                        <td className="px-4 py-3 text-blue-600 font-medium">{record.ris_number}</td>
+                        <td className="px-4 py-3">{division}</td>
+                        <td className="px-4 py-3">{issuedTo}</td>
 
-                          <td className="px-4 py-3">
-                            <span className="font-medium">{item.description}</span>
-                          </td>
+                        <td className="px-4 py-3 font-medium">
+                          {record.items[0]?.inventory_item?.item_desc ?? "N/A"}
+                        </td>
+                        <td className="px-4 py-3 text-center">{record.items[0]?.quantity ?? 0}</td>
+                        <td className="px-4 py-3 text-right">
+                          {Number(record.items[0]?.inventory_item?.unit_cost ?? 0).toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {(
+                            (record.items[0]?.quantity ?? 0) *
+                            (record.items[0]?.inventory_item?.unit_cost ?? 0)
+                          ).toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3">
+                          {new Date(record.items[0]?.created_at).toLocaleDateString("en-PH")}
+                        </td>
 
-                          <td className="px-4 py-3 text-center text-gray-800">
-                            {item.quantity}
-                          </td>
-
-                          <td className="px-4 py-3 text-right">
-                            ₱{item.unitCost.toFixed(2)}
-                          </td>
-
-                          <td className="px-4 py-3 text-right">
-                            ₱{item.totalCost.toFixed(2)}
-                          </td>
-
-                          <td className="px-4 py-3">{item.date}</td>
-
-                          {itemIdx === visibleItems.length - 1 && (
-                            <td
-                              rowSpan={visibleItems.length}
-                              className="px-4 py-3 text-center align-top"
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                            <a
+                              href={route("supply_officer.print_ris", record.id)}
+                              target="_blank"
+                              className="inline-flex items-center justify-center gap-1 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg shadow-sm text-xs font-medium"
                             >
-                              <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                                <a
-                                  href={route("supply_officer.print_ris", record.id)}
-                                  target="_blank"
-                                  className="inline-flex items-center justify-center gap-1 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg shadow-sm text-xs font-medium"
-                                >
-                                  <PrinterCheck size={14} />
-                                  Print
-                                </a>
+                              <PrinterCheck size={14} /> Print
+                            </a>
 
-                                <Button
-                                  type="button"
-                                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
-                                  onClick={() => {
-                                    setSwitchRecord(record);
-                                    setSwitchItems([]);
-                                    setShowSwitchModal(true);
-                                  }}
-                                >
-                                  Switch Type
-                                </Button>
+                            <Button
+                              type="button"
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
+                              onClick={() => {
+                                setSwitchRecord(record);
+                                setSwitchItems([]);
+                                setShowSwitchModal(true);
+                              }}
+                            >
+                              Switch Type
+                            </Button>
 
-                                <Button
-                                  type="button"
-                                  onClick={(e) => handleActionSelect(e, record)}
-                                  value="return"
-                                  className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
-                                >
-                                  Return
-                                </Button>
-                              </div>
+                            <Button
+                              type="button"
+                              value="return"
+                              onClick={(e) => handleActionSelect(e, record)}
+                              className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
+                            >
+                              Return
+                            </Button>
+                          </div>
 
-                              {/* Expand/Collapse toggle */}
-                              {itemsWithDetails.length > 2 && (
-                                <button
-                                  onClick={() => toggleRow(record.id)}
-                                  className="mt-2 text-blue-600 hover:underline text-xs flex items-center justify-center gap-1"
-                                >
-                                  {isExpanded ? (
-                                    <>
-                                      <MinusCircle size={14} /> Show Less
-                                    </>
-                                  ) : (
-                                    <>
-                                      <PlusCircle size={14} /> Show More
-                                    </>
-                                  )}
-                                </button>
+                          {/* Toggle */}
+                          {record.items.length > 1 && (
+                            <button
+                              onClick={() => toggleRow(record.id)}
+                              className="mt-2 text-blue-600 hover:underline text-xs flex items-center justify-center gap-1"
+                            >
+                              {isExpanded ? (
+                                <>
+                                  <MinusCircle size={14} /> Show Less
+                                </>
+                              ) : (
+                                <>
+                                  <PlusCircle size={14} /> Show More ({record.items.length - 1} more)
+                                </>
                               )}
-                            </td>
+                            </button>
                           )}
-                        </tr>
-                      ))}
+                        </td>
+                      </tr>
+
+                      {/* Expanded Rows */}
+                      {isExpanded &&
+                        record.items.slice(1).map((item, idx) => (
+                          <tr key={`${record.id}-${idx}`} className="bg-gray-50 hover:bg-blue-50 transition">
+                            <td colSpan="4"></td>
+                            <td className="px-4 py-3 font-medium">{item.inventory_item?.item_desc ?? "N/A"}</td>
+                            <td className="px-4 py-3 text-center">{item.quantity}</td>
+                            <td className="px-4 py-3 text-right">
+                              {Number(item.inventory_item?.unit_cost ?? 0).toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {(
+                                (item.quantity ?? 0) * (item.inventory_item?.unit_cost ?? 0)
+                              ).toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3">
+                              {new Date(item.created_at).toLocaleDateString("en-PH")}
+                            </td>
+                            <td></td>
+                          </tr>
+                        ))}
                     </React.Fragment>
                   );
                 })
               ) : (
                 <tr>
-                  <td
-                    colSpan="10"
-                    className="text-center py-10 text-gray-500 bg-gray-50 italic"
-                  >
+                  <td colSpan="10" className="text-center py-10 text-gray-500 bg-gray-50 italic">
                     <div className="flex flex-col items-center justify-center">
                       <FileText className="w-10 h-10 mb-2 text-gray-400" />
                       <span>No RIS records found</span>
@@ -703,7 +683,7 @@ const [switchRecord, setSwitchRecord] = useState(null);
 
   const routeName =
     returnType === "reissuance"
-      ? "supply_officer.reissuance_form"
+      ? "supply_officer.return_form"
       : "supply_officer.disposal_form";
 
   router.visit(

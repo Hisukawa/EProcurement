@@ -2,9 +2,38 @@ import { useEffect, useState } from "react";
 import { FilePlus2, ScrollText } from "lucide-react";
 import ApproverLayout from "@/Layouts/ApproverLayout";
 import { Head } from "@inertiajs/react";
+import axios from "axios"; // Import axios for API requests
 
 export default function GenerateRFQ({ pr, purchaseRequest }) {
   const [selectedItems, setSelectedItems] = useState([]);
+  const [bacCn, setBacCn] = useState("");
+  const [services, setServices] = useState("");
+  const [location, setLocation] = useState("");
+  const [subject, setSubject] = useState("");
+  const [deliveryPeriod, setDeliveryPeriod] = useState("");
+  const [abc, setAbc] = useState("");
+  const [loading, setLoading] = useState(false); // Loading state for Save button
+
+  // Fetch saved data
+  useEffect(() => {
+    // Fetch saved RFQ data if it exists
+    const fetchData = async () => {
+      try {
+        const response = await axios.get(route("get.rfq.data", { pr_id: pr.id }));
+        if (response.data) {
+          setBacCn(response.data.bac_cn || "");
+          setServices(response.data.services || "");
+          setLocation(response.data.location || "");
+          setSubject(response.data.subject || "");
+          setDeliveryPeriod(response.data.delivery_period || "");
+          setAbc(response.data.abc || "");
+        }
+      } catch (error) {
+        console.error("Error fetching RFQ data:", error);
+      }
+    };
+    fetchData();
+  }, [pr.id]);
 
   // Handle checkbox toggle
   const toggleItem = (itemId) => {
@@ -24,22 +53,50 @@ export default function GenerateRFQ({ pr, purchaseRequest }) {
     }
   };
 
-const handlePrint = () => {
-  if (selectedItems.length === 0) {
-    // Print all items
-    window.open(route("bac_user.print_rfq", { id: pr.id }), "_blank");
-  } else {
-    // Print only selected items
-    window.open(
-      route("bac_user.print_rfq_selected", { pr: pr.id }) +
-        "?items[]=" +
-        selectedItems.join("&items[]="),
-      "_blank"
-    );
+  // Handle saving form data
+  const saveData = async () => {
+    setLoading(true);
+    try {
+      // Send the form data to your backend API
+      const response = await axios.post(route("save.rfq.data"), {
+        bac_cn: bacCn,
+        services,
+        location,
+        subject,
+        delivery_period: deliveryPeriod,
+        abc,
+        pr_id: pr.id, // You might need to include the pr_id to associate it
+      });
 
-  }
-};
+      if (response.status === 200) {
+        // Show success message or handle success case
+        alert("Data saved successfully!");
+      } else {
+        // Handle failure
+        alert("Failed to save data.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("An error occurred while saving data.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const handlePrint = () => {
+    if (selectedItems.length === 0) {
+      // Print all items
+      window.open(route("bac_user.print_rfq", { id: pr.id }), "_blank");
+    } else {
+      // Print only selected items
+      window.open(
+        route("bac_user.print_rfq_selected", { pr: pr.id }) +
+          "?items[]=" +
+          selectedItems.join("&items[]="),
+        "_blank"
+      );
+    }
+  };
 
   return (
     <ApproverLayout header={"Schools Divisions Office - Ilagan | Request for Quotation"}>
@@ -100,12 +157,90 @@ const handlePrint = () => {
                 Purchase Request Items
               </h2>
 
+              {/* Input fields for the RFQ info */}
+              <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="bacCn" className="block text-sm font-medium text-gray-700">BAC CN</label>
+                  <input
+                    id="bacCn"
+                    type="text"
+                    value={bacCn}
+                    onChange={(e) => setBacCn(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="services" className="block text-sm font-medium text-gray-700">Services to be Provided</label>
+                  <input
+                    id="services"
+                    type="text"
+                    value={services}
+                    onChange={(e) => setServices(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="location" className="block text-sm font-medium text-gray-700">Location</label>
+                  <input
+                    id="location"
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700">Subject</label>
+                  <input
+                    id="subject"
+                    type="text"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="deliveryPeriod" className="block text-sm font-medium text-gray-700">Delivery Period</label>
+                  <input
+                    id="deliveryPeriod"
+                    type="text"
+                    value={deliveryPeriod}
+                    onChange={(e) => setDeliveryPeriod(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="abc" className="block text-sm font-medium text-gray-700">Approved Budget for Contract (ABC)</label>
+                  <input
+                    id="abc"
+                    type="number"
+                    value={abc}
+                    onChange={(e) => setAbc(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
               {/* Print Selected Button */}
               <button
                 onClick={handlePrint}
-                className="text-sm text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-md shadow-sm mb-4"
+                className="text-sm text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-md shadow-sm mb-4 me-2"
               >
                 🖨️ Print {selectedItems.length > 0 ? "Selected Items" : "All Items"}
+              </button>
+
+              {/* Save Button */}
+              <button
+                onClick={saveData}
+                className={`text-sm text-white bg-green-600 hover:bg-green-700 px-4 py-2 rounded-md shadow-sm ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+                disabled={loading}
+              >
+                {loading ? "Saving..." : "Save Info"}
               </button>
 
               {/* Items Table */}

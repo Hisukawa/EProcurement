@@ -20,12 +20,12 @@ class BacCommitteeSeeder extends Seeder
 
         // Members for this committee
         $members = [
-            ['position' => 'secretariat', 'name' => 'John Doe', 'status' => 'active'],
-            ['position' => 'member1', 'name' => 'Jane Smith', 'status' => 'active'],
-            ['position' => 'member2', 'name' => 'Alice Johnson', 'status' => 'active'],
-            ['position' => 'member3', 'name' => 'Bob Brown', 'status' => 'active'],
-            ['position' => 'vice_chair', 'name' => 'Michael Lee', 'status' => 'active'],
-            ['position' => 'chair', 'name' => 'Sarah White', 'status' => 'active'],
+            ['position' => 'secretariat', 'name' => 'HEIDELYN D. MESA', 'status' => 'active'],
+            ['position' => 'member1', 'name' => 'JOSEPH R. UANIA', 'status' => 'active'],
+            ['position' => 'member2', 'name' => 'MARY ANN M. BELTRAN', 'status' => 'active'],
+            ['position' => 'member3', 'name' => 'SAMUEL P. LAZAMA', 'status' => 'active'],
+            ['position' => 'vice_chair', 'name' => 'JULIET V. GUMPAL', 'status' => 'active'],
+            ['position' => 'chair', 'name' => 'CHERYL R. RAMIRO', 'status' => 'active'],
         ];
 
         // Save members

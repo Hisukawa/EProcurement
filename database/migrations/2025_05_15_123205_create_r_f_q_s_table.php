@@ -19,6 +19,12 @@ return new class extends Migration
             $table->text('project_no')->nullable();
             $table->date('date_of_opening')->nullable();
             $table->string('venue')->nullable();
+            $table->string('bac_cn')->nullable();
+            $table->string('services')->nullable();
+            $table->string('location')->nullable();
+            $table->string('subject')->nullable();
+            $table->string('delivery_period')->nullable();
+            $table->string('abc')->nullable();
             $table->timestamps();
         });
 

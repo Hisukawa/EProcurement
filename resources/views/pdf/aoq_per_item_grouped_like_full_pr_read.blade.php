@@ -36,7 +36,7 @@
 
     {{-- ======= PROJECT META ======= --}}
     <div style="font-size:12px; margin:15px 0;">
-        <p class="left"><strong>Project No.:</strong> {{ $rfq['project_no'] }}</p>
+        <p class="left"><strong>Lot No.:</strong> {{ $rfq['project_no'] }}</p>
         <p class="left"><strong>Date of Opening:</strong> {{ $rfq['date_of_opening'] }}</p>
         <p class="left"><strong>Venue:</strong> {{ $rfq['venue'] }}</p>
     </div>
@@ -79,25 +79,6 @@
     </tbody>
 </table>
 
-    {{-- ======= AWARD LINE: highlight awarded supplier for this page ======= --}}
-    @php
-        $awarded = collect($suppliers)->firstWhere('is_winner', 1) ?? collect($suppliers)->firstWhere('supplier.id', $detail['winner_supplier_id']) ?? null;
-    @endphp
-
-    @php
-        $awarded_company = data_get($awarded, 'supplier.company_name', null);
-        $awarded_remarks = data_get($awarded, 'remarks_as_read', '');
-    @endphp
-
-    <p>
-        Awarded to
-        <span style="text-decoration:underline; font-weight:bold;">
-            {{ strtoupper($awarded_company ?? '__________') }}
-        </span>
-        @if(!empty($awarded_remarks))
-            by offering the <em>{{ $awarded_remarks }}</em>.
-        @endif
-    </p>
 
     {{-- ======= PREPARED BY / BAC (unchanged layout) ======= --}}
     @php

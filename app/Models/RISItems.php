@@ -13,6 +13,8 @@ class RISItems extends Model
 
     protected $fillable = [
         'ris_id',
+        'recipient',
+        'recipient_division',
         'inventory_item_id',
         'unit_cost',
         'total_cost',

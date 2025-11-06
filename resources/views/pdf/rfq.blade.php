@@ -36,7 +36,7 @@
 <table style="width:100%; margin-top:5px; font-size:12px;">
   <tr>
     <td style="width:70%"></td>
-    <td style="text-align:right;">BAC CN: _______</td>
+    <td style="text-align:right;">BAC CN: <span class="underline font-semibold">{{ $bac_cn }}</span></td>
   </tr>
   <tr>
     <td></td>
@@ -76,7 +76,7 @@
   </thead>
   <tbody>
     <tr>
-      <td colspan="5" class="text-left" style="border-bottom: none !important">Services to be provided:</td>
+      <td colspan="5" class="text-left" style="border-bottom: none !important">Services to be provided: <span class="underline font-bold">{{ $services }}</span></td>
       <td style="border-bottom: none !important"></td>
       <td style="border-bottom: none !important"></td>
       <td style="border-bottom: none !important"></td>
@@ -84,7 +84,7 @@
       <td style="border-bottom: none !important"></td>
     </tr>
     <tr>
-      <td colspan="5" class="text-left" style="border-bottom: none !important; border-top: none !important;">Location:</td>
+      <td colspan="5" class="text-left" style="border-bottom: none !important; border-top: none !important;">Location: <span class="underline font-bold">{{ $location }}</span></td>
       <td style="border-bottom: none !important; border-top: none !important;"></td>
       <td style="border-bottom: none !important; border-top: none !important;"></td>
       <td style="border-bottom: none !important; border-top: none !important;"></td>
@@ -92,7 +92,7 @@
       <td style="border-bottom: none !important; border-top: none !important;"></td>
     </tr>
     <tr>
-      <td colspan="5" class="text-left" style="border-bottom: none !important; border-top: none !important;">Subject:</td>
+      <td colspan="5" class="text-left" style="border-bottom: none !important; border-top: none !important;">Subject: <span class="underline font-bold">{{ $subject }}</span></td>
       <td style="border-bottom: none !important; border-top: none !important;"></td>
       <td style="border-bottom: none !important; border-top: none !important;"></td>
       <td style="border-bottom: none !important; border-top: none !important;"></td>
@@ -100,7 +100,7 @@
       <td style="border-bottom: none !important; border-top: none !important;"></td>
     </tr>
     <tr>
-      <td colspan="5" class="text-left" style="border-bottom: none !important; border-top: none !important;">Delivery Period:</td>
+      <td colspan="5" class="text-left" style="border-bottom: none !important; border-top: none !important;">Delivery Period: <span class="underline font-bold">{{ $delivery_period }}</span></td>
       <td style="border-bottom: none !important; border-top: none !important;"></td>
       <td style="border-bottom: none !important; border-top: none !important;"></td>
       <td style="border-bottom: none !important; border-top: none !important;"></td>
@@ -108,7 +108,7 @@
       <td style="border-bottom: none !important; border-top: none !important;"></td>
     </tr>
     <tr>
-      <td colspan="5" class="text-left" style="border-top: none !important;">Approved Budget for the Contract (ABC):</td>
+      <td colspan="5" class="text-left" style="border-top: none !important;">Approved Budget for the Contract (ABC): <span class="underline font-bold">{{ $abc }}</span></td>
       <td style="border-top: none !important;"></td>
       <td style="border-top: none !important;"></td>
       <td style="border-top: none !important;"></td>
