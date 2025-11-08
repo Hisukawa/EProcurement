@@ -111,6 +111,9 @@ Route::middleware(['auth', 'role:requester'])->prefix('requester')->group(functi
     Route::get('/ics_issued_high', [IssuedController::class, 'ics_issued_high'])->name('requester.ics_issued_high');
     Route::get('/par_issued', [IssuedController::class, 'par_issued'])->name('requester.par_issued');
     Route::put('/update_purpose/{pr}', [PurchaseRequestController::class, 'updatePurpose'])->name('requester.update_purpose');
+    Route::post('/upload-approved-form/{id}', [RequesterController::class, 'uploadApprovedForm'])
+    ->name('requester.upload_approved_form');
+
 });
 
 Route::middleware(['auth','role:twg_user'])->prefix('twg_user')->group(function () {
@@ -159,6 +162,8 @@ Route::get('/bac/rfqs/{id}/print-aoq-per-item-grouped-read',
 
 Route::post('/save/rfq/data', [RFQController::class, 'saveData'])->name('save.rfq.data');
 Route::get('/get/rfq/data', [RFQController::class, 'getRFQData'])->name('get.rfq.data');
+
+Route::get('/view_details/{id}', [ApproverController::class, 'view_details'])->name('bac_user.view_details');
 
 });
 

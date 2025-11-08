@@ -200,7 +200,37 @@ public function submit_project_info(Request $request, $id)
 
     return back()->with('success', 'Project information updated successfully!');
 }
+    public function view_details($id)
+{
+    $pr = PurchaseRequest::with(['details.product.unit', 'division', 'focal_person'])
+        ->findOrFail($id);
 
+    return Inertia::render('BacApprover/ViewDetails', [
+        'pr' => [
+            
+            'id' => $pr->id,
+            'focal_person' => $pr->focal_person,
+            'pr_number' => $pr->pr_number,
+            'purpose' => $pr->purpose,
+            'status' => $pr->status,
+            'approval_image' => $pr->approval_image,
+            'created_at' => $pr->created_at,
+            'requester_name' => $pr->requested_by ?? 'N/A',
+            'division' => $pr->division->division ?? 'N/A',
+            'details' => $pr->details->map(function ($detail) {
+                return [
+                    'id' => $detail->id,
+                    'item' => $detail->item ?? '',
+                    'specs' => $detail->specs ?? '',
+                    'unit' => $detail->unit ?? '',
+                    'quantity' => $detail->quantity,
+                    'unit_price' => $detail->unit_price,
+                    'total_price' => $detail->quantity * $detail->unit_price,
+                ];
+            }),
+        ],
+    ]);
+}
 
 
 
