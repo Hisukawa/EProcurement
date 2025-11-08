@@ -10,6 +10,7 @@ use App\Models\PurchaseRequest;
 use App\Models\SupplyCategory;
 use App\Models\Unit;
 use App\Models\User;
+use App\Notifications\ApprovedFormUploaded;
 use Barryvdh\Snappy\Facades\SnappyPdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,6 +22,7 @@ use App\Notifications\PurchaseRequestSubmitted;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class RequesterController extends Controller
 {
@@ -237,7 +239,42 @@ $purchaseRequests = $query->paginate(10)->withQueryString();
 
         return back()->with('success', 'Purchase request and notification sent to the reviewing body.');
     }
+public function uploadApprovedForm(Request $request, $id)
+{
+    $request->validate([
+        'approval_image' => 'required|file|mimes:jpeg,png,jpg,pdf|max:5120',
+    ]);
 
+    $purchaseRequest = PurchaseRequest::findOrFail($id);
+
+    // Only allow upload if status is "Reviewed"
+    if ($purchaseRequest->status !== 'Reviewed') {
+        return back()->with('error', 'Approved form can only be uploaded once the request has been reviewed.');
+    }
+
+    // Handle file upload
+    if ($request->hasFile('approval_image')) {
+        // Delete old file if it exists
+        if ($purchaseRequest->approval_image && Storage::disk('public')->exists($purchaseRequest->approval_image)) {
+            Storage::disk('public')->delete($purchaseRequest->approval_image);
+        }
+
+        $file = $request->file('approval_image');
+        $filename = time() . '_' . $file->getClientOriginalName();
+        $path = $file->storeAs('approval_forms', $filename, 'public');
+
+        $purchaseRequest->approval_image = $path;
+        $purchaseRequest->save();
+    }
+
+    // Notify all BAC users
+    $bacUsers = User::role('bac_user')->get();
+    foreach ($bacUsers as $bac) {
+        $bac->notify(new ApprovedFormUploaded($purchaseRequest));
+    }
+
+    return back()->with('success', 'Approved form uploaded successfully and BAC has been notified.');
+}
     
 
 

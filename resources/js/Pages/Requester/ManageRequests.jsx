@@ -198,6 +198,51 @@ useEffect(() => {
   return () => clearInterval(interval);
 }, []);
 
+const handleUploadApprovedForm = useCallback((id) => {
+  if (!approvalImages[id]) {
+    toast({
+      title: "No file selected",
+      description: "Please choose an approved PR form image before uploading.",
+      className: "bg-yellow-500 text-white",
+      duration: 3000,
+    });
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("approval_image", approvalImages[id]);
+
+  router.post(route("requester.upload_approved_form", id), formData, {
+    forceFormData: true,
+    preserveScroll: true,
+    preserveState: true,
+    onSuccess: () => {
+      toast({
+        title: "Form Uploaded",
+        description: "Approved PR form uploaded successfully.",
+        className: "bg-green-500 text-white",
+        duration: 3000,
+      });
+      setApprovalImages((prev) => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Upload Failed",
+        description: "Could not upload approved PR form.",
+        className: "bg-red-500 text-white",
+        duration: 3000,
+      });
+    },
+  });
+}, [approvalImages]);
+
+// Add these state hooks at the top
+const [viewFormModal, setViewFormModal] = useState(false);
+const [selectedForm, setSelectedForm] = useState(null);
 
 
   return (
@@ -287,7 +332,7 @@ useEffect(() => {
                   <td className="px-6 py-4 text-center">
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        pr.status === "Approved" ? "bg-green-100 text-green-800" :
+                        pr.status === "Reviewed" ? "bg-green-100 text-green-800" :
                         pr.status === "Pending" ? "bg-yellow-100 text-yellow-800" :
                         pr.status === "Rejected" ? "bg-red-100 text-red-800" :
                         "bg-gray-200 text-gray-800"
@@ -304,17 +349,43 @@ useEffect(() => {
 
                   {/* File Upload */}
                   <td className="px-6 py-4 text-center">
-                    {pr.is_sent === 0 ? (
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleFileChange(e, pr.id)}
-                        className="text-sm px-2 py-1 border border-gray-300 rounded-md"
-                      />
+                    {pr.status === "Reviewed" ? (
+                      !pr.approval_image ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            onChange={(e) => handleFileChange(e, pr.id)}
+                            className="text-sm px-2 py-1 border border-gray-300 rounded-md"
+                          />
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => handleUploadApprovedForm(pr.id)}
+                          >
+                            Upload Form
+                          </Button>
+                        </div>
+                      ) : (
+                        <button
+                          className="text-indigo-600 hover:underline text-sm"
+                          onClick={() => {
+                            setSelectedForm(pr.approval_image);
+                            setViewFormModal(true);
+                          }}
+                        >
+                          View Uploaded Form
+                        </button>
+                      )
+                    ) : pr.is_sent === 0 ? (
+                      <span className="text-gray-500 text-sm">Pending send for review</span>
                     ) : (
-                      <span className="text-green-600 font-medium text-sm">Approved form already sent</span>
+                      <span className="text-gray-500 text-sm">Waiting for approval</span>
                     )}
                   </td>
+
+
+
 
                   {/* Actions */}
                   <td className="px-6 py-4 text-center space-x-2">
@@ -418,6 +489,48 @@ useEffect(() => {
       </DialogFooter>
     </DialogContent>
   </Dialog>
+
+  <Dialog open={viewFormModal} onOpenChange={setViewFormModal}>
+  <DialogContent className="w-full max-w-4xl h-[80vh]">
+    <DialogHeader>
+      <DialogTitle>Approved Form</DialogTitle>
+      <DialogDescription>
+        You can view or download the approved PR form here.
+      </DialogDescription>
+    </DialogHeader>
+
+    <div className="mt-4 flex-1 overflow-auto">
+      {selectedForm?.endsWith(".pdf") ? (
+        <iframe
+          src={`/storage/${selectedForm}`}
+          className="w-full h-[70vh] border rounded-lg"
+          title="Approved Form"
+        />
+      ) : (
+        <img
+          src={`/storage/${selectedForm}`}
+          alt="Approved Form"
+          className="w-full max-h-[70vh] object-contain border rounded-lg"
+        />
+      )}
+    </div>
+
+    <DialogFooter className="mt-4 flex justify-end gap-2">
+      {/* <a
+        href={`/storage/${selectedForm}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
+      >
+        Download
+      </a> */}
+      <Button onClick={() => setViewFormModal(false)} variant="outline">
+        Close
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
 
 
 

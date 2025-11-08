@@ -81,9 +81,9 @@ export default function PurchaseRequests({ purchaseRequests, filters = {} }) {
                   <tr key={pr.id} className="text-center hover:bg-indigo-50 transition">
                     <td className="px-6 py-4 text-gray-800">
                       <TooltipLink
-                        // to={route("bac_user.show_details", pr.id)}
-                        // tooltip="View PR details"
-                        // className="hover:underline focus:underline"
+                        to={route("bac_user.view_details", pr.id)}
+                        tooltip="View PR details"
+                        className="hover:underline focus:underline"
                       >
                         {pr.pr_number}
                       </TooltipLink>

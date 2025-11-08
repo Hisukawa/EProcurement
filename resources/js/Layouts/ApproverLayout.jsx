@@ -221,7 +221,19 @@ const markAsRead = async (notification) => {
                       .map((n) => (
                         <li
                           key={n.id}
-                          onClick={() => markAsRead(n)} // ✅ pass full object
+                          onClick={async () => {
+                            try {
+                              // Mark as read
+                              await axios.post(`/notifications/${n.id}/read`);
+                              
+                              // Redirect to PR details page
+                              if (n.url) {
+                                router.visit(n.url);
+                              }
+                            } catch (error) {
+                              console.error('Failed to handle notification:', error);
+                            }
+                          }}
                           className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition duration-150 ${
                             n.read ? 'bg-white text-gray-500' : 'bg-gray-50 text-gray-900 font-semibold'
                           }`}
