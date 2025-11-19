@@ -111,8 +111,7 @@ Route::middleware(['auth', 'role:requester'])->prefix('requester')->group(functi
     Route::get('/ics_issued_high', [IssuedController::class, 'ics_issued_high'])->name('requester.ics_issued_high');
     Route::get('/par_issued', [IssuedController::class, 'par_issued'])->name('requester.par_issued');
     Route::put('/update_purpose/{pr}', [PurchaseRequestController::class, 'updatePurpose'])->name('requester.update_purpose');
-    Route::post('/upload-approved-form/{id}', [RequesterController::class, 'uploadApprovedForm'])
-    ->name('requester.upload_approved_form');
+    Route::post('/upload-approved-form/{id}', [RequesterController::class, 'uploadApprovedForm'])->name('requester.upload_approved_form');
 
 });
 
