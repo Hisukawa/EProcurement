@@ -107,7 +107,6 @@ public function saveData(Request $request)
         'pr_id'           => 'required|exists:tbl_purchase_requests,id',
     ]);
 
-<<<<<<< HEAD
         // Find the RFQ by the purchase request ID
         $rfq = RFQ::where('pr_id', $validated['pr_id'])->first();
         $user = Auth::user();
@@ -125,13 +124,6 @@ public function saveData(Request $request)
         $rfq->subject = $validated['subject'] ?? null;
         $rfq->delivery_period = $validated['delivery_period'] ?? null;
         $rfq->abc = $validated['abc'];
-
-        // Save the RFQ
-        $rfq->save();
-
-        // Return a success response
-        return response()->json(['message' => 'Data saved successfully!'], 200);
-=======
     // Try to find existing RFQ
     $rfq = RFQ::where('pr_id', $validated['pr_id'])->first();
 
@@ -139,7 +131,6 @@ public function saveData(Request $request)
         // Create new RFQ
         $rfq = new RFQ();
         $rfq->pr_id = $validated['pr_id']; // Required!
->>>>>>> a2bdbcc3f393c95c53ca5e4059c16da0a6bde9e2
     }
 
     // Update RFQ fields
