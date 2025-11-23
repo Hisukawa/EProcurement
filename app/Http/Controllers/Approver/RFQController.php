@@ -10,6 +10,7 @@ use App\Models\RFQDetail;
 use App\Models\Supplier;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class RFQController extends Controller
@@ -109,11 +110,12 @@ public function saveData(Request $request)
 
         // Find the RFQ by the purchase request ID
         $rfq = RFQ::where('pr_id', $validated['pr_id'])->first();
-
+        $user = Auth::user();
         if (!$rfq) {
             // If the RFQ doesn't exist, create a new one
             $rfq = new RFQ();
             $rfq->pr_id = $validated['pr_id'];
+            $rfq->user_id = $user->id;
         }
 
         // Update the RFQ with the validated data

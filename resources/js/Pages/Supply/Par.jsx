@@ -220,7 +220,7 @@ const [switchRecord, setSwitchRecord] = useState(null);
                                 rowSpan={visibleItems.length}
                                 className="px-4 py-3 text-blue-600 font-medium align-top"
                               >
-                                P-{record.par_number}
+                                {record.par_number}
                               </td>
 
                               <td

@@ -41,20 +41,24 @@
         <p class="left"><strong>Venue:</strong> {{ $rfq['venue'] }}</p>
     </div>
 
-    {{-- ======= SUMMARY TABLE: render all suppliers who quoted the group's items ======= --}}
 @php
-    // Get suppliers for this detail
     $suppliers = collect($detail['suppliers'] ?? [])
-        // Sort by: winner first, then by total quotation ascending
-        ->sortBy(function ($row) {
-            return [
-                $row['is_winner'] ? 0 : 1, // winner first
-                $row['total_amount'] ?? INF // then by lowest total
-            ];
+        ->sort(function ($a, $b) {
+            $aWinner = $a['is_winner'] ?? false;
+            $bWinner = $b['is_winner'] ?? false;
+
+            if ($aWinner && !$bWinner) return -1;
+            if (!$aWinner && $bWinner) return 1;
+
+            $aTotal = $a['total_amount'] ?? INF;
+            $bTotal = $b['total_amount'] ?? INF;
+
+            return $aTotal <=> $bTotal;
         })
         ->values()
         ->all();
 @endphp
+
 
 <table>
     <thead>
