@@ -10,6 +10,7 @@ use App\Models\RFQDetail;
 use App\Models\Supplier;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class RFQController extends Controller
@@ -106,6 +107,31 @@ public function saveData(Request $request)
         'pr_id'           => 'required|exists:tbl_purchase_requests,id',
     ]);
 
+<<<<<<< HEAD
+        // Find the RFQ by the purchase request ID
+        $rfq = RFQ::where('pr_id', $validated['pr_id'])->first();
+        $user = Auth::user();
+        if (!$rfq) {
+            // If the RFQ doesn't exist, create a new one
+            $rfq = new RFQ();
+            $rfq->pr_id = $validated['pr_id'];
+            $rfq->user_id = $user->id;
+        }
+
+        // Update the RFQ with the validated data
+        $rfq->bac_cn = $validated['bac_cn'] ?? null;
+        $rfq->services = $validated['services'] ?? null;
+        $rfq->location = $validated['location'] ?? null;
+        $rfq->subject = $validated['subject'] ?? null;
+        $rfq->delivery_period = $validated['delivery_period'] ?? null;
+        $rfq->abc = $validated['abc'];
+
+        // Save the RFQ
+        $rfq->save();
+
+        // Return a success response
+        return response()->json(['message' => 'Data saved successfully!'], 200);
+=======
     // Try to find existing RFQ
     $rfq = RFQ::where('pr_id', $validated['pr_id'])->first();
 
@@ -113,6 +139,7 @@ public function saveData(Request $request)
         // Create new RFQ
         $rfq = new RFQ();
         $rfq->pr_id = $validated['pr_id']; // Required!
+>>>>>>> a2bdbcc3f393c95c53ca5e4059c16da0a6bde9e2
     }
 
     // Update RFQ fields

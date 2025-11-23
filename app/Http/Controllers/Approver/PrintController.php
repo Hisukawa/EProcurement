@@ -396,7 +396,6 @@ public function printAoqPerItemGroupedRead($id)
     ])->findOrFail($id);
 
     $committee = BacCommittee::with(['members' => function ($query) {
-        // Only fetch active members
         $query->where('status', 'active');
     }])->where('committee_status', 'active')->first();
 
@@ -404,13 +403,23 @@ public function printAoqPerItemGroupedRead($id)
     $groupsMap = [];
 
     foreach ($rfq->purchaseRequest->details as $prDetail) {
-        // Find the quote for this PR detail that was marked as winner (as calculated)
+        // Try to find winner first
         $winningQuote = $rfq->details
             ->where('pr_details_id', $prDetail->id)
             ->firstWhere('is_winner_as_calculated', 1);
 
+        // If no winner → use the lowest bid
         if (!$winningQuote) {
-            // Skip items without a per-item winner
+            $winningQuote = $rfq->details
+                ->where('pr_details_id', $prDetail->id)
+                ->sortBy(function ($q) {
+                    return $q->unit_price_edited ?? $q->quoted_price ?? INF;
+                })
+                ->first();
+        }
+
+        // If STILL no quote at all (no supplier), skip item
+        if (!$winningQuote) {
             continue;
         }
 
@@ -444,8 +453,6 @@ public function printAoqPerItemGroupedRead($id)
     }
 
     // Prepare final groups array for the view
-    // For each winner (group), we will collect ALL suppliers who quoted on the items
-    // that the winner won, compute their totals for those items, and mark the winner.
     $groups = [];
     foreach ($groupsMap as $sid => $g) {
         $prDetailIds = collect($g['lines'])->pluck('pr_detail_id')->filter()->values()->all();
@@ -455,38 +462,45 @@ public function printAoqPerItemGroupedRead($id)
             return in_array($q->pr_details_id, $prDetailIds);
         });
 
-        // Group by supplier and compute totals for these lines
         $suppliersSummary = $quotesForGroup->groupBy('supplier_id')->map(function ($quotes) use ($rfq) {
-            $supplier = $quotes->first()->supplier;
-            $total = $quotes->sum(function ($q) use ($rfq) {
-                $prDetail = $rfq->purchaseRequest->details->firstWhere('id', $q->pr_details_id);
-                $qty = $prDetail->quantity ?? 0;
-                $unitPrice = $q->unit_price_edited ?? $q->quoted_price ?? 0;
-                return $unitPrice * $qty;
-            });
 
-            $remarks = $quotes->pluck('remarks_as_read')->filter()->unique()->implode(', ');
+    $supplier = $quotes->first()->supplier;
 
-            return [
-                'supplier' => $supplier,
-                'total_amount' => $total,
-                'remarks_as_read' => $remarks,
-                'is_winner' => $quotes->contains('remarks_as_read', 1),
-            ];
-        })->values()->all();
+    // Compute total amount
+    $total = $quotes->sum(function ($q) use ($rfq) {
+        $prDetail = $rfq->purchaseRequest->details->firstWhere('id', $q->pr_details_id);
+        $qty = $prDetail->quantity ?? 0;
+        $unitPrice = $q->unit_price_edited ?? $q->quoted_price ?? 0;
+        return $unitPrice * $qty;
+    });
+
+    // Remarks
+    $remarks = $quotes->pluck('remarks_as_read')->filter()->unique()->implode(', ');
+
+    // Determine if this supplier is the winner for ANY item
+    $isWinner = $quotes->contains(fn($q) => $q->is_winner_as_calculated == 1);
+
+    return [
+        'supplier' => $supplier,
+        'total_amount' => $total,
+        'remarks_as_read' => $remarks,
+        'is_winner' => $isWinner,   // <--- REQUIRED FOR SORTING
+    ];
+})->values()->all();
+
 
         // Build group entry
         $groups[] = [
-            'winner_supplier_id' => $sid,
+            'winner_supplier_id' => $sid, // still used for display/heading
             'suppliers' => $suppliersSummary,
-            // keep lines for potential future use (not printed by current layout)
             'lines' => $g['lines'],
         ];
     }
 
-    // If no groups (no per-item winners), abort or show an empty PDF
+    // No abort — allow printing even if no winners
     if (empty($groups)) {
-        abort(400, 'No per-item winners to print.');
+        // Still return printable PDF with empty state
+        $groups = [];
     }
 
     $pdf = Pdf::loadView('pdf.aoq_per_item_grouped_like_full_pr_read', [
@@ -497,4 +511,5 @@ public function printAoqPerItemGroupedRead($id)
 
     return $pdf->stream("AOQ_per_item_grouped_{$id}.pdf");
 }
+
 }
