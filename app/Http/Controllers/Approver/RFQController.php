@@ -95,41 +95,40 @@ public function generate_rfq($id)
 }
 
 public function saveData(Request $request)
-    {
-        // Validate the incoming request
-        $validated = $request->validate([
-            'bac_cn'          => 'nullable|string|max:255',
-            'services'        => 'nullable|string|max:255',
-            'location'        => 'nullable|string|max:255',
-            'subject'         => 'nullable|string|max:255',
-            'delivery_period' => 'nullable|string|max:255',
-            'abc'             => 'required|string|max:255',
-            'pr_id'           => 'required|exists:tbl_purchase_requests,id', // Ensure that the PR exists
-        ]);
+{
+    $validated = $request->validate([
+        'bac_cn'          => 'nullable|string|max:255',
+        'services'        => 'nullable|string|max:255',
+        'location'        => 'nullable|string|max:255',
+        'subject'         => 'nullable|string|max:255',
+        'delivery_period' => 'nullable|string|max:255',
+        'abc'             => 'required|string|max:255',
+        'pr_id'           => 'required|exists:tbl_purchase_requests,id',
+    ]);
 
-        // Find the RFQ by the purchase request ID
-        $rfq = RFQ::where('pr_id', $validated['pr_id'])->first();
+    // Try to find existing RFQ
+    $rfq = RFQ::where('pr_id', $validated['pr_id'])->first();
 
-        if (!$rfq) {
-            // If the RFQ doesn't exist, create a new one
-            $rfq = new RFQ();
-            $rfq->pr_id = $validated['pr_id'];
-        }
-
-        // Update the RFQ with the validated data
-        $rfq->bac_cn = $validated['bac_cn'] ?? null;
-        $rfq->services = $validated['services'] ?? null;
-        $rfq->location = $validated['location'] ?? null;
-        $rfq->subject = $validated['subject'] ?? null;
-        $rfq->delivery_period = $validated['delivery_period'] ?? null;
-        $rfq->abc = $validated['abc'];
-
-        // Save the RFQ
-        $rfq->save();
-
-        // Return a success response
-        return response()->json(['message' => 'Data saved successfully!'], 200);
+    if (!$rfq) {
+        // Create new RFQ
+        $rfq = new RFQ();
+        $rfq->pr_id = $validated['pr_id']; // Required!
     }
+
+    // Update RFQ fields
+    $rfq->bac_cn         = $validated['bac_cn'] ?? null;
+    $rfq->services       = $validated['services'] ?? null;
+    $rfq->location       = $validated['location'] ?? null;
+    $rfq->subject        = $validated['subject'] ?? null;
+    $rfq->delivery_period = $validated['delivery_period'] ?? null;
+    $rfq->abc            = $validated['abc'];
+
+    $rfq->save(); // <= This WILL write the record
+
+    return response()->json(['message' => 'Data saved successfully!'], 200);
+}
+
+
 
         public function getRFQData(Request $request)
     {

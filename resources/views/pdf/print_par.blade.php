@@ -115,24 +115,35 @@
     </table>
 
     <table class="sig-table" style="margin-top:none !important">
-        @php
-            $focal = optional($par->po->details->first()->prDetail->purchaseRequest->focal_person);
-            $focalName = trim(($focal->firstname ?? '') . ' ' . ($focal->middlename ?? '') . ' ' . ($focal->lastname ?? ''));
-            $focalDesignation = trim(($focal->position ?? '') . ($focal->division ? ' - ' . $focal->division->division : ''));
+         @php
+        $focal = optional($par->po->details->first()->prDetail->purchaseRequest->focal_person);
+        $focalName = trim(($focal->firstname ?? '') . ' ' . ($focal->middlename ?? '') . ' ' . ($focal->lastname ?? ''));
+        $focalDesignation = trim(($focal->position ?? '') . ($focal->division ? ' - ' . $focal->division->division : ''));
 
-            $issuedByName = trim(($par->issuedBy->firstname ?? '') . ' ' . ($par->issuedBy->middlename ?? '') . ' ' . ($par->issuedBy->lastname ?? ''));
-            $issuedByPosition = $par->issuedBy->position ?? '';
+        $issuedByName = trim(($par->issuedBy->firstname ?? '') . ' ' . ($par->issuedBy->middlename ?? '') . ' ' . ($par->issuedBy->lastname ?? ''));
+        $issuedByPosition = $par->issuedBy->position ?? '';
+    @endphp
+    @php
+        // Try to find a recipient name from items (if any has recipient)
+        $recipientItem = $par->items->firstWhere('recipient', '!=', null);
 
+        if ($recipientItem && $recipientItem->recipient) {
+            // Use recipient from the item if available
+            $receivedByName = $recipientItem->recipient;
+            $receivedByPosition = $recipientItem->recipient_division ?? '';
+        } else {
+            // Otherwise, fallback to the requested_by user
             $receivedByName = trim(($par->requestedBy->firstname ?? '') . ' ' . ($par->requestedBy->middlename ?? '') . ' ' . ($par->requestedBy->lastname ?? ''));
             $receivedByPosition = $par->requestedBy->position ?? '';
-        @endphp
+        }
+    @endphp
         <tr class="with-border">
             <td class="sig-cell" style="border-top:none !important">
                 <div class="text-left" style="font-size:13px;">Received By:</div>
-                <div class="sig-name" style="font-size:13px; margin-top: 20px !important;">{{ $focalName ?? '_________________' }}</div>
+                <div class="sig-name" style="font-size:13px; margin-top: 20px !important;">{{ $receivedByName }}</div>
                 <div class="signature-line"></div>
                 <p style="font-size:10px">Signature Over Printed Name by End User</p>
-                <div class="sig-designation" style="font-size:13px;">{{ $focalDesignation ?? 'Administrative Assistant' }}</div>
+                <div class="sig-designation" style="font-size:13px;">{{ $receivedByPosition ?? 'Administrative Assistant' }}</div>
                 <div class="signature-line"></div>
                 <div>Position/Office</div>
                 <div style="min-height: 36px;line-height: 18px;" class="signature-line"></div>

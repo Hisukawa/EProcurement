@@ -10,12 +10,12 @@ return new class extends Migration
     {
         Schema::create('tbl_rfqs', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->restrictOnDelete();
-            $table->foreignId('pr_id')->constrained('tbl_purchase_requests')->restrictOnDelete();
-            $table->boolean('grouped')->default(true);
+            $table->foreignId('user_id')->nullable()->constrained('users')->restrictOnDelete();
+            $table->foreignId('pr_id')->nullable()->constrained('tbl_purchase_requests')->restrictOnDelete();
+            $table->boolean('grouped')->nullable()->default(true);
             $table->enum('award_mode', ['whole-pr', 'per-item'])->nullable();
             $table->decimal('total_price_calculated', 12, 2)->nullable();
-            $table->enum('mode', ['as-read', 'as-calculated'])->default('as-read');
+            $table->enum('mode', ['as-read', 'as-calculated'])->nullable()->default('as-read');
             $table->text('project_no')->nullable();
             $table->date('date_of_opening')->nullable();
             $table->string('venue')->nullable();
