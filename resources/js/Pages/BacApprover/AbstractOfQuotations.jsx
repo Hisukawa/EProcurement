@@ -257,7 +257,7 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
                 onClick={() => handlePrintPerItemGroupedAsRead(rfq.id)}
                 disabled={!hasAnyWinner}
               >
-                🖨️ Print AOQ As Read
+                🖨️ Print AOQ AS READ
               </Button>
             </div>
     
