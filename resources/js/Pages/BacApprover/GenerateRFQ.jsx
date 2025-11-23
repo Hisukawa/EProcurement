@@ -14,26 +14,32 @@ export default function GenerateRFQ({ pr, purchaseRequest }) {
   const [abc, setAbc] = useState("");
   const [loading, setLoading] = useState(false); // Loading state for Save button
 
-  // Fetch saved data
-  useEffect(() => {
-    // Fetch saved RFQ data if it exists
-    const fetchData = async () => {
-      try {
-        const response = await axios.get(route("get.rfq.data", { pr_id: pr.id }));
-        if (response.data) {
-          setBacCn(response.data.bac_cn || "");
-          setServices(response.data.services || "");
-          setLocation(response.data.location || "");
-          setSubject(response.data.subject || "");
-          setDeliveryPeriod(response.data.delivery_period || "");
-          setAbc(response.data.abc || "");
-        }
-      } catch (error) {
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const response = await axios.get(route("get.rfq.data", { pr_id: pr.id }));
+      
+      if (response.data) {
+        setBacCn(response.data.bac_cn || "");
+        setServices(response.data.services || "");
+        setLocation(response.data.location || "");
+        setSubject(response.data.subject || "");
+        setDeliveryPeriod(response.data.delivery_period || "");
+        setAbc(response.data.abc || "");
+      }
+    } catch (error) {
+      if (error.response && error.response.status === 404) {
+        // RFQ NOT FOUND = FIRST TIME OPENING THE PAGE = NOT AN ERROR
+        console.log("No RFQ data yet — this is normal.");
+      } else {
         console.error("Error fetching RFQ data:", error);
       }
-    };
-    fetchData();
-  }, [pr.id]);
+    }
+  };
+
+  fetchData();
+}, [pr.id]);
+
 
   // Handle checkbox toggle
   const toggleItem = (itemId) => {
