@@ -313,9 +313,9 @@ public function printRisItem($risId, $itemId)
 public function store_ics(Request $request)
 {
     $validated = $request->validate([
-        'po_id' => 'required|integer|exists:tbl_purchase_orders,id',
+        'po_id' => 'nullable|integer|exists:tbl_purchase_orders,id',
         'ics_number' => 'required|string|max:20',
-        'requested_by' => 'required|integer|exists:users,id',
+        'requested_by' => 'nullable|integer|exists:users,id',
         'received_from' => 'required|integer|exists:users,id',
         'remarks' => 'nullable|string|max:255',
 
@@ -538,9 +538,9 @@ public function print_ics_all($id)
 public function store_par(Request $request)
 {
     $validated = $request->validate([
-        'po_id'   => 'required|integer|exists:tbl_purchase_orders,id',
+        'po_id'   => 'nullable|integer|exists:tbl_purchase_orders,id',
         'par_number' => 'required|string|max:20',
-        'requested_by' => 'required|integer|exists:users,id',
+        'requested_by' => 'nullable|integer|exists:users,id',
         'issued_by'   => 'required|integer|exists:users,id',
         'date_acquired' => 'nullable|date',
         'remarks'    => 'nullable|string|max:255',
@@ -596,6 +596,7 @@ public function store_par(Request $request)
         $inventory->total_stock -= $item['quantity'];
         $inventory->save();
     }
+    return redirect()->route('supply_officer.par_issuance')->with('success', 'Item successfully added to PAR.');
 }
 
     public function print_par($id)

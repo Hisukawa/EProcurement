@@ -1,13 +1,14 @@
 import NavLink from "@/Components/NavLink";
 import RequesterLayout from "@/Layouts/RequesterLayout";
 import { Head, useForm, usePage } from "@inertiajs/react";
-import { User, FileText, ClipboardList, Building2, UserPlus, SendHorizonalIcon } from "lucide-react";
+import { User, FileText, ClipboardList, Building2, UserPlus, SendHorizonalIcon, Loader2 } from "lucide-react";
 import Swal from 'sweetalert2';
 import { useState, useMemo, useEffect, useCallback } from "react"; // ✅ Added useCallback
 import { router } from "@inertiajs/react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
+import * as XLSX from "xlsx";
 
 function CreateProductModal({ open, onClose, units, onProductSaved }) {
     const { data, setData, processing, errors, reset } = useForm({
@@ -238,6 +239,39 @@ function ProductTable({ products, handleProductSelect, setOpenProductModal, onPr
             }
         );
     };
+const [loading, setLoading] = useState(false);
+const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setLoading(true);
+
+    try {
+        const res = await axios.post(route("requester.import"), formData);
+
+        toast({
+            title: "Success",
+            description: "Products imported successfully!",
+        });
+
+        window.location.reload();
+
+
+    } catch (error) {
+        toast({
+            title: "Error",
+            description: "Failed to import products!",
+            variant: "destructive",
+        });
+
+    } finally {
+        setLoading(false);
+    }
+};
+
 
     return (
         <div className="flex flex-col md:col-span-2">
@@ -253,7 +287,7 @@ function ProductTable({ products, handleProductSelect, setOpenProductModal, onPr
                 </button>
             </div>
             {/* Search */}
-            <div className="mb-4">
+            <div className="mb-4 flex gap-2 items-center">
                 <input
                     type="text"
                     value={search}
@@ -264,6 +298,24 @@ function ProductTable({ products, handleProductSelect, setOpenProductModal, onPr
                     placeholder="Search by item name or specifications..."
                     className="w-full md:w-1/3 px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring focus:border-blue-400"
                 />
+
+                <a
+                    href={route("requester.download_product_template")}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                >
+                    Download Excel Template
+                </a>
+
+                <input 
+                    type="file" 
+                    accept=".xlsx,.csv"
+                    onChange={handleFileUpload}
+                    className="border px-3 py-2 rounded"
+                />
+                {loading && <Loader2 className="animate-spin h-4 w-4" />}
+
+
+
             </div>
             {/* Table */}
             <div className="overflow-x-auto">

@@ -21,7 +21,7 @@ return new class extends Migration
             $table->decimal('quantity_received', 10, 2)->nullable();
             $table->decimal('unit_price', 10, 2);
             $table->decimal('total_price', 10, 2);
-            $table->text('remarks');
+            $table->text('remarks')->nullable();
             $table->foreignId('inspection_committee_id')
                 ->nullable()
                 ->constrained('tbl_inspection_committees')

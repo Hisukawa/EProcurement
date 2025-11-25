@@ -131,6 +131,7 @@ public function saveData(Request $request)
         // Create new RFQ
         $rfq = new RFQ();
         $rfq->pr_id = $validated['pr_id']; // Required!
+        $rfq->user_id = Auth::user()->id;
     }
 
     // Update RFQ fields

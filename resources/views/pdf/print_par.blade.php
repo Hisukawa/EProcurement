@@ -16,43 +16,15 @@
         .text-right { text-align: right; }
         .font-bold { font-weight: bold; }
         .underline { text-decoration: underline; }
-
         table { width: 100%; border-collapse: collapse; font-size: 12px; }
         td, th { padding: 4px; vertical-align: middle; }
         .with-border td, .with-border th { border: 1px solid black; }
-
-        /* signature styles */
-        .sig-table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-top: 20px; 
-        }
-        .sig-cell {
-            width: 50%;
-            vertical-align: top;
-            text-align: center;
-            padding: 8px;
-            font-size: 11px;
-            border: 1px solid black;
-        }
-
-        .signature-line {
-            display: block;
-            border-bottom: 1px solid black;
-            margin: 8px 18px;
-            background-color: #fff; /* white space for signature */
-        }
+        .sig-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .sig-cell { width: 50%; vertical-align: top; text-align: center; padding: 8px; font-size: 11px; border: 1px solid black; }
+        .signature-line { display: block; border-bottom: 1px solid black; margin: 8px 18px; background-color: #fff; }
         .sig-name { font-weight: bold; margin-top: 20px; word-break: break-word; }
         .sig-designation { margin-top: 4px; font-size: 11px; word-break: break-word; }
-
-        /* highlight receiver fields */
-        .receiver-highlight {
-            background-color: #fce4ec; /* light pink */
-            width: 100%;
-            display: inline-block;
-            padding: 2px 4px;
-            margin-top: 2px;
-        }
+        .receiver-highlight { background-color: #fce4ec; width: 100%; display: inline-block; padding: 2px 4px; margin-top: 2px; }
     </style>
 </head>
 <body>
@@ -83,60 +55,59 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($par->items as $issued)
-                @php
-                    $detail = $issued->inventoryItem->poDetail ?? null;
-                    $product = optional($detail->prDetail)->product;
-                    $unit = optional($product->unit)->unit ?? '';
-                    $quantity = $issued->quantity ?? 0;
-                    $propertyNo = $issued->inventory_item_number ?? '';
-                    $totalCost = $issued->total_cost ?? 0;
-                @endphp
-            <tr class="text-center">
-                <td>{{ (int) $quantity }}</td>
-                <td>{{ $unit }}</td>
-                <td class="text-left" style="padding-left:8px;">
-                    {{ $product->name ?? '' }} {{ $product->specs ?? '' }}
-                </td>
-                <td>{{ $propertyNo }}</td>
-                <td>{{ $par->created_at->format('y-m-d') }}</td>
-                <td>{{ number_format($totalCost, 2) }}</td>
-            </tr>
-            @endforeach
+@foreach($par->items as $issued)
+    @php
+        $inventory = $issued->inventoryItem;
+
+        $quantity = $issued->quantity ?? 0;
+        $unit = optional($inventory->unit)->unit ?? '';
+        $description = $inventory->item_desc ?? '';
+        $unitCost = $issued->unit_cost ?? 0;
+        $totalCost = $issued->total_cost ?? 0;
+        $inventoryNumber = $inventory->id ?? ''; // or $inventory->stock_number if exists
+        $dateAcquired = optional($par->created_at)->format('Y-m-d');
+    @endphp
+    <tr class="text-center">
+        <td>{{ $quantity }}</td>
+        <td>{{ $unit }}</td>
+        <td class="text-left" style="padding-left:8px;">{{ $description }}</td>
+        <td>{{ $issued->inventory_item_number }}</td>
+        <td>{{ $dateAcquired }}</td>
+        <td>{{ number_format($totalCost, 2) }}</td>
+    </tr>
+@endforeach
+
 
             @for($i = 0; $i < 6; $i++)
             <tr class="with-border">
-                <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
-                <td>&nbsp;</td><td>&nbsp;</td>
+                <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
             </tr>
             @endfor
-
         </tbody>
     </table>
 
-    <table class="sig-table" style="margin-top:none !important">
-         @php
-        $focal = optional($par->po->details->first()->prDetail->purchaseRequest->focal_person);
-        $focalName = trim(($focal->firstname ?? '') . ' ' . ($focal->middlename ?? '') . ' ' . ($focal->lastname ?? ''));
-        $focalDesignation = trim(($focal->position ?? '') . ($focal->division ? ' - ' . $focal->division->division : ''));
+    @php
+        // Focal person from PO (optional)
+        $focal = data_get($par, 'po.details.0.prDetail.purchaseRequest.focal_person', []);
+        $focalName = trim(($focal['firstname'] ?? '') . ' ' . ($focal['middlename'] ?? '') . ' ' . ($focal['lastname'] ?? ''));
+        $focalDesignation = trim(($focal['position'] ?? '') . (data_get($focal, 'division.division') ? ' - ' . data_get($focal, 'division.division') : ''));
 
+        // Issued by
         $issuedByName = trim(($par->issuedBy->firstname ?? '') . ' ' . ($par->issuedBy->middlename ?? '') . ' ' . ($par->issuedBy->lastname ?? ''));
         $issuedByPosition = $par->issuedBy->position ?? '';
-    @endphp
-    @php
-        // Try to find a recipient name from items (if any has recipient)
-        $recipientItem = $par->items->firstWhere('recipient', '!=', null);
 
+        // Recipient fallback: use item recipient if exists, else requestedBy
+        $recipientItem = $par->items->firstWhere('recipient', '!=', null);
         if ($recipientItem && $recipientItem->recipient) {
-            // Use recipient from the item if available
             $receivedByName = $recipientItem->recipient;
-            $receivedByPosition = $recipientItem->recipient_division ?? '';
+            $receivedByPosition = $recipientItem->recipient_division ?? ($par->requestedBy->position ?? '');
         } else {
-            // Otherwise, fallback to the requested_by user
             $receivedByName = trim(($par->requestedBy->firstname ?? '') . ' ' . ($par->requestedBy->middlename ?? '') . ' ' . ($par->requestedBy->lastname ?? ''));
             $receivedByPosition = $par->requestedBy->position ?? '';
         }
     @endphp
+
+    <table class="sig-table" style="margin-top:none !important">
         <tr class="with-border">
             <td class="sig-cell" style="border-top:none !important">
                 <div class="text-left" style="font-size:13px;">Received By:</div>

@@ -71,7 +71,7 @@ export default function Approved({ purchaseRequests, filters = {} }) {
                 <tr>
                   {[
                     "PR Number", "Focal Person", "Division", "Item", "Specs",
-                    "Unit", "Total Price", "Action"
+                    "Unit", "Default Price", "Action"
                   ].map((heading) => (
                     <th key={heading} className="px-6 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                       {heading}

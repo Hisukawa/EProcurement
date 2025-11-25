@@ -5,12 +5,15 @@ namespace App\Http\Controllers\Supply;
 use App\Http\Controllers\Controller;
 use App\Models\Disposed;
 use App\Models\ICS;
+use App\Models\ICSItems;
 use App\Models\Inventory;
 use App\Models\PAR;
+use App\Models\PARItems;
 use App\Models\PPESubMajorAccount;
 use App\Models\Reissued;
 use App\Models\ReissuedItems;
 use App\Models\RIS;
+use App\Models\RISItems;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -168,7 +171,6 @@ public function return_form($type, $id)
 public function submit_return(Request $request)
 {
     $reissued_by = Auth::user()->id;
-
     $validated = $request->validate([
         'ics_number' => 'nullable|string',
         'date_reissued' => 'nullable|date',
@@ -191,19 +193,20 @@ public function submit_return(Request $request)
     ]);
 
     foreach ($validated['items'] as $itemData) {
+
         // Find the inventory item being returned
         $inventoryItem = Inventory::with('poDetail')->find($itemData['inventory_item_id']);
 
         if ($inventoryItem) {
-            // 🧩 Find matching inventory by the same PO detail
+            // 🧩 Find inventory by PO detail
             $existingInventory = Inventory::where('po_detail_id', $inventoryItem->po_detail_id)->first();
 
             if ($existingInventory) {
-                // ✅ Update stock quantities
+                // Add back to stock
                 $existingInventory->total_stock += $itemData['quantity'];
                 $existingInventory->save();
             } else {
-                // ⚠️ Create new inventory record if none found
+                // Create new inventory entry
                 Inventory::create([
                     'po_detail_id' => $inventoryItem->po_detail_id,
                     'total_stock' => $itemData['quantity'],
@@ -212,7 +215,7 @@ public function submit_return(Request $request)
             }
         }
 
-        // Create the reissued item record
+        // Create the reissued item
         $reissued->items()->create([
             'inventory_item_id' => $itemData['inventory_item_id'],
             'returned_by' => $itemData['returned_by'],
@@ -221,13 +224,62 @@ public function submit_return(Request $request)
             'remarks' => $itemData['remarks'] ?? null,
         ]);
 
-        // Update status of the original item
+        //-------------------------------------------------------
+        //  🔽 DECREASE ISSUED QUANTITY IN RIS
+        //-------------------------------------------------------
+        $risItem = RISItems::where('inventory_item_id', $inventoryItem->id)
+            ->whereNull('status') // only active issued items
+            ->first();
+
+        if ($risItem) {
+            $risItem->quantity -= $itemData['quantity'];
+            if ($risItem->quantity <= 0) {
+                $risItem->quantity = 0;
+                $risItem->status = 'reissued';
+            }
+            $risItem->save();
+        }
+
+        //-------------------------------------------------------
+        //  🔽 DECREASE ISSUED QUANTITY IN ICS
+        //-------------------------------------------------------
+        $icsItem = ICSItems::where('inventory_item_id', $inventoryItem->id)
+            ->whereNull('status')
+            ->first();
+
+        if ($icsItem) {
+            $icsItem->quantity -= $itemData['quantity'];
+            if ($icsItem->quantity <= 0) {
+                $icsItem->quantity = 0;
+                $icsItem->status = 'reissued';
+            }
+            $icsItem->save();
+        }
+
+        //-------------------------------------------------------
+        //  🔽 DECREASE ISSUED QUANTITY IN PAR
+        //-------------------------------------------------------
+        $parItem = PARItems::where('inventory_item_id', $inventoryItem->id)
+            ->whereNull('status')
+            ->first();
+
+        if ($parItem) {
+            $parItem->quantity -= $itemData['quantity'];
+            if ($parItem->quantity <= 0) {
+                $parItem->quantity = 0;
+                $parItem->status = 'reissued';
+            }
+            $parItem->save();
+        }
+
+        // Update original inventory item status
         $this->updateItemStatus($itemData['inventory_item_id'], 'reissued');
     }
 
     return redirect()->route('supply_officer.returned_items')
         ->with('success', 'Reissuance recorded and inventory updated successfully.');
 }
+
 
 
 

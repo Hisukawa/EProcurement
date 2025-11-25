@@ -610,10 +610,7 @@ public function store_iar(Request $request)
         $poDetail = $po->details->firstWhere('pr_detail_id', $item['pr_details_id']);
         $prDetail = $poDetail?->prDetail;
 
-        // Fetch the unit from the associated Purchase Request (PR)
-        $unitFromPr = $prDetail?->unit;  // Get the unit from the PR Detail
-
-        // If the unit is not found in PR, show error message
+        $unitFromPr = $prDetail?->unit;
         if (!$unitFromPr) {
             return back()->withErrors([
                 'unit' => "Unable to determine unit for item: {$item['specs']}. No unit found in Purchase Request."
