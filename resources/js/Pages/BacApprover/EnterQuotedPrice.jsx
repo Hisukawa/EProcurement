@@ -561,16 +561,6 @@ const [skippedItems, setSkippedItems] = useState([]);
                         let value = parseFloat(e.target.value);
                         if (isNaN(value)) value = "";
 
-                        if (value > unitPrice) {
-                          // ✅ Only warn, don’t block
-                          Swal.fire({
-                            icon: "info",
-                            title: "Notice",
-                            text: `Quoted price is higher than the estimated ₱${unitPrice.toLocaleString()}.`,
-                            timer: 2000,
-                            showConfirmButton: false,
-                          });
-                        }
 
                         setQuotedPrices((prev) => ({ ...prev, [uniqueId]: value }));
                       };

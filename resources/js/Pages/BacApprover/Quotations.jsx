@@ -75,7 +75,7 @@ export default function Quotation({ purchaseRequests, filters = {} }) {
                     "Specs",
                     "Unit",
                     "Quantity",
-                    "Total Price",
+                    "Default Price",
                     "Actions",
                   ].map((title) => (
                     <th key={title} className="px-4 py-3 text-xs font-semibold uppercase tracking-wider">

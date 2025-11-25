@@ -291,10 +291,27 @@ return (
                   <Input
                     type="date"
                     value={data.date_received}
-                    onChange={(e) => setData("date_received", e.target.value)}
-                    className="h-12 text-base focus-visible:ring-yellow-400 bg-gray-50"
+                    max={getTodayDate()}               // Prevent selecting future date
+                    onChange={(e) => {
+                      const selected = e.target.value;
+
+                      if (selected > getTodayDate()) {
+                        // Prevent future date from being set
+                        setData("date_received", getTodayDate());
+                        toast({
+                          title: "Invalid Date",
+                          description: "Future dates are not allowed.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+
+                      setData("date_received", selected);
+                    }}
+                    className="h-12 text-base bg-gray-50"
                     required
                   />
+
                 </LabeledInput>
               </div>
             </section>
@@ -396,6 +413,7 @@ return (
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2,
                             })}
+                            
                             readOnly
                           />
                         </LabeledInput>

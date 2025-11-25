@@ -21,7 +21,7 @@ class DatabaseSeeder extends Seeder
             SchoolsSeeder::class,
             UnitSeeder::class,
             SupplierSeeder::class,
-            ProductSeeder::class,
+            // ProductSeeder::class,
             DivisionSeeder::class,  // if you have tbl_divisions
             UserSeeder::class,
             RequestingSeeder::class,

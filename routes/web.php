@@ -22,6 +22,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ProductImportController;
 use App\Http\Controllers\Requester\PurchaseRequestController;
 use App\Http\Controllers\Supply\DisposedItemsController;
 use App\Http\Controllers\Supply\ExcelReportsController;
@@ -112,6 +113,13 @@ Route::middleware(['auth', 'role:requester'])->prefix('requester')->group(functi
     Route::get('/par_issued', [IssuedController::class, 'par_issued'])->name('requester.par_issued');
     Route::put('/update_purpose/{pr}', [PurchaseRequestController::class, 'updatePurpose'])->name('requester.update_purpose');
     Route::post('/upload-approved-form/{id}', [RequesterController::class, 'uploadApprovedForm'])->name('requester.upload_approved_form');
+
+    Route::get('/download-product-template', [ProductImportController::class, 'downloadProductTemplate'])
+    ->name('requester.download_product_template');
+    Route::post('/import_products', [ProductImportController::class, 'import'])
+    ->name('requester.import');
+
+
 
 });
 

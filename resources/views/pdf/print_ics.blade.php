@@ -40,14 +40,13 @@
             display: block;
             border-bottom: 1px solid black;
             margin: 8px 18px;
-            background-color: #fff; /* white space for signature */
+            background-color: #fff;
         }
         .sig-name { font-weight: bold; margin-top: 20px; word-break: break-word; }
         .sig-designation { margin-top: 4px; font-size: 11px; word-break: break-word; }
 
-        /* highlight receiver fields */
         .receiver-highlight {
-            background-color: #fce4ec; /* light pink */
+            background-color: #fce4ec;
             width: 100%;
             display: inline-block;
             padding: 6px 8px;
@@ -89,29 +88,29 @@
         <tbody>
             @foreach($ics->items as $issued)
                 @php
-                    $detail = $issued->inventoryItem->poDetail ?? null;
-                    $product = optional($detail->prDetail)->product;
-                    $unit = optional($product->unit)->unit ?? '';
-                @endphp
-            <tr class="text-center">
-                <td>{{ (int) ($issued->quantity ?? 0) }}</td>
-                <td>{{ $unit }}</td>
-                <td>{{ number_format($issued->unit_cost ?? 0, 2) }}</td>
-                <td>{{ number_format($issued->total_cost ?? 0, 2) }}</td>
-                <td class="text-left" style="padding-left:8px;">
-                    {{ $product->name ?? '' }} {{ $product->specs ?? '' }}
-                </td>
-                <td>{{ $issued->inventory_item_number ?? '' }}</td>
-                <td>
-                    {{ $issued->estimated_useful_life 
-                        ? (fmod($issued->estimated_useful_life, 1) == 0 
-                            ? intval($issued->estimated_useful_life) 
-                            : number_format($issued->estimated_useful_life, 2)) . ' years' 
-                        : '' 
-                    }}
-                    </td>
+                    $inventory = $issued->inventoryItem;
 
-            </tr>
+                    $quantity = $issued->quantity ?? 0;
+                    $unit = optional($inventory->unit)->unit ?? '';
+                    $description = $inventory->item_desc ?? '';
+                    $unitCost = $issued->unit_cost ?? 0;
+                    $totalCost = $issued->total_cost ?? 0;
+                    $inventoryNumber = $inventory->id ?? ''; // or use a stock_number if exists
+                    $usefulLife = $issued->estimated_useful_life 
+                                  ? (fmod($issued->estimated_useful_life, 1) == 0 
+                                    ? intval($issued->estimated_useful_life) 
+                                    : number_format($issued->estimated_useful_life, 2)) . ' years' 
+                                  : '';
+                @endphp
+                <tr class="text-center">
+                    <td>{{ $quantity }}</td>
+                    <td>{{ $unit }}</td>
+                    <td>{{ number_format($unitCost, 2) }}</td>
+                    <td>{{ number_format($totalCost, 2) }}</td>
+                    <td class="text-left" style="padding-left:8px;">{{ $description }}</td>
+                    <td>{{ $inventoryNumber }}</td>
+                    <td>{{ $usefulLife }}</td>
+                </tr>
             @endforeach
 
             @for($i = 0; $i < 6; $i++)
@@ -123,44 +122,64 @@
         </tbody>
     </table>
 
-    <table class="sig-table" style="margin-top:none !important">
-        @php
-            $focal = optional($ics->po->details->first()->prDetail->purchaseRequest->focal_person);
-            $focalName = trim(($focal->firstname ?? '') . ' ' . ($focal->middlename ?? '') . ' ' . ($focal->lastname ?? ''));
-            $focalDesignation = trim(($focal->position ?? '') . ($focal->division ? ' - ' . $focal->division->division : ''));
 
-            $issuedByName = trim(($ics->receivedFrom->firstname ?? '') . ' ' . ($ics->receivedFrom->middlename ?? '') . ' ' . ($ics->receivedFrom->lastname ?? ''));
-            $issuedByPosition = $ics->receivedFrom->position ?? '';
+@php
+        $focal = data_get($ics, 'po.details.0.prDetail.purchaseRequest.focal_person', []);
+        $focalName = trim(($focal['firstname'] ?? '') . ' ' . ($focal['middlename'] ?? '') . ' ' . ($focal['lastname'] ?? ''));
+        $focalDesignation = trim(($focal['position'] ?? '') . (data_get($focal, 'division.division') ? ' - ' . data_get($focal, 'division.division') : ''));
+        $focalDivisionMeaning = data_get($focal, 'division.meaning', '');
+        $purpose = data_get($ics, 'po.details.0.prDetail.purchaseRequest.purpose', 'Purpose is not specified');
 
-            $receivedByName = trim(($ics->requestedBy->firstname ?? '') . ' ' . ($ics->requestedBy->middlename ?? '') . ' ' . ($ics->requestedBy->lastname ?? ''));
-            $receivedByPosition = $ics->requestedBy->position ?? '';
-        @endphp
-        <tr class="with-border">
-            <td class="sig-cell" style="border-top:none !important">
-                <div class="text-left" style="font-size:13px;">Received from:</div>
-                <div class="sig-name" style="font-size:13px; margin-top: 20px !important;">{{ $issuedByName ?? '_________________' }}</div>
-                <div class="signature-line"></div>
-                <p style="font-size:10px; font-style: italic;">Signature Over Printed Name</p>
-                <div class="sig-designation" style="font-size: 12px">{{ $issuedByPosition ?? 'AO - IV (Supply Officer)' }}</div>
-                <div class="signature-line"></div>
-                <div style="font-style: italic">Position/Office</div>
-                <div class="receiver-highlight py-10">&nbsp;</div>
-                <div class="signature-line"></div>
-                <div>Date</div>
-            </td>
-            <td class="sig-cell" style="border-top:none !important">
-                <div class="text-left" style="font-size:13px;">Received by:</div>
-                <div class="sig-name receiver-highlight" style="font-size:13px; margin-top: 20px !important;">{{ $focalName ?? '_________________' }}</div>
-                <div class="signature-line"></div>
-                <p style="font-size:10px; font-style:italic;">Signature Over Printed Name</p>
-                <div class="sig-designation receiver-highlight">{{ $focalDesignation ?? 'Administrative Assistant' }}</div>
-                <div class="signature-line"></div>
-                <div style="font-style: italic">Position/Office</div>
-                <div class="py-10">&nbsp;</div>
-                <div class="signature-line"></div>
-                <div>Date</div>
-            </td>
-        </tr>
-    </table>
+        $issuedByName = trim(
+            (data_get($ics, 'receivedFrom.firstname') ?? '') . ' ' .
+            (data_get($ics, 'receivedFrom.middlename') ?? '') . ' ' .
+            (data_get($ics, 'receivedFrom.lastname') ?? '')
+        );
+        $issuedByPosition = data_get($ics, 'issuedBy.position', '');
+
+        $requestedByName = trim(
+            (data_get($ics, 'requestedBy.firstname') ?? '') . ' ' .
+            (data_get($ics, 'requestedBy.middlename') ?? '') . ' ' .
+            (data_get($ics, 'requestedBy.lastname') ?? '')
+        );
+        $requestedByPosition = data_get($ics, 'requestedBy.position', '');
+
+        // Recipient fallback
+        $recipientItem = $ics->items->firstWhere('recipient', '!=', null);
+        $receivedByName = $recipientItem->recipient ?? $requestedByName;
+        $receivedByPosition = $recipientItem->recipient_division ?? $requestedByPosition;
+    @endphp
+
+
+<table class="sig-table">
+    <tr class="with-border">
+        <td class="sig-cell" style="border-top:none !important">
+            <div class="text-left" style="font-size:13px;">Received from:</div>
+            <div class="sig-name" style="font-size:13px; margin-top: 20px !important;">{{ $issuedByName ?? '_________________' }}</div>
+            <div class="signature-line"></div>
+            <p style="font-size:10px; font-style: italic;">Signature Over Printed Name</p>
+            <div class="sig-designation" style="font-size: 12px">{{ $issuedByPosition ?? 'AO - IV (Supply Officer)' }}</div>
+            <div class="signature-line"></div>
+            <div style="font-style: italic">Position/Office</div>
+            <div class="receiver-highlight py-10">&nbsp;</div>
+            <div class="signature-line"></div>
+            <div>Date</div>
+        </td>
+        <td class="sig-cell" style="border-top:none !important">
+            <div class="text-left" style="font-size:13px;">Received by:</div>
+            <div class="sig-name receiver-highlight" style="font-size:13px; margin-top: 20px !important;">{{ $receivedByName ?? '_________________' }}</div>
+            <div class="signature-line"></div>
+            <p style="font-size:10px; font-style:italic;">Signature Over Printed Name</p>
+            <div class="sig-designation receiver-highlight">{{ $focalDesignation ?? 'Administrative Assistant' }}</div>
+            <div class="signature-line"></div>
+            <div style="font-style: italic">Position/Office</div>
+            <div class="py-10">&nbsp;</div>
+            <div class="signature-line"></div>
+            <div>Date</div>
+        </td>
+    </tr>
+</table>
+
+
 </body>
 </html>
