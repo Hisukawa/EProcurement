@@ -88,81 +88,121 @@ private function generatePARNumber()
 }
 
 
-public function issuance($inventory_id)
+public function issuance(Request $request, $inventory_id = null)
 {
-    $inventoryItem = Inventory::with('unit')->find($inventory_id);
+    $selectedItems = $request->items ?? null;
 
-    // ✅ Handle inventories with no tied PO
-    if (is_null($inventoryItem->po_detail_id)) {
-        // Load only the necessary data (no PO)
+    // -------- MULTI-ITEM ISSUANCE --------
+    if ($selectedItems && is_array($selectedItems)) {
+        $inventoryItems = Inventory::with([
+    'unit',
+    'product',
+    'poDetail' => function ($q) {
+        $q->with([
+            'purchaseOrder' => fn($q2) => $q2->with('supplier'),
+            'prDetail.purchaseRequest.focal_person',
+            'prDetail.purchaseRequest.division',
+            'prDetail.product.unit',
+        ]);
+    },
+])->whereIn('id', $selectedItems)->get();
+
+
+        if ($inventoryItems->isEmpty()) {
+            return back()->with('error', 'No valid inventory items selected.');
+        }
+
+        // Determine type based on highest unit cost
+        $unitCosts = $inventoryItems->pluck('unit_cost')->filter();
+        $type = $unitCosts->max() >= 5000 ? 'high' : 'low';
+
         $ppeOptions = PPESubMajorAccount::with('generalLedgerAccounts')->get();
 
-        // Generate RIS, ICS, and PAR numbers
-        $risNumber = $this->generateRISNumber();
-        $unitCost = $inventoryItem->unit_cost ?? 0;
-        $type = $unitCost >= 5000 ? 'high' : 'low';
-        $icsNumber = $this->generateICSNumber($type);
-        $parNumber = $this->generatePARNumber();
+        // Get PO if all items belong to the same PO
+        $poIds = $inventoryItems->pluck('poDetail.purchaseOrder.id')->filter()->unique();
 
-        $props = [
-            'inventoryItem' => $inventoryItem,
-            'user'          => Auth::user(),
-            'ppeOptions'    => $ppeOptions,
-            'risNumber'     => $risNumber,
-            'icsNumber'     => $icsNumber,
-            'type'          => $type,
-            'parNumber'     => $parNumber,
-            'purchaseOrder' => null, // No PO linked
+$purchaseOrder = null;
+if ($poIds->count() === 1) {
+    $poDetail = $inventoryItems->first()->poDetail;
+    if ($poDetail && $poDetail->purchaseOrder) {
+        $po = $poDetail->purchaseOrder;
+        $purchaseOrder = [
+            'id' => $po->id,
+            'po_number' => $po->po_number,
+            'detail' => $poDetail,
+            'supplier' => $po->supplier,
         ];
+    }
+}
 
-        return Inertia::render('Supply/IssuancePage', $props);
+        // Default recipient/division
+        $inventoryItems->transform(function ($item) {
+            $pr = $item->poDetail?->prDetail?->purchaseRequest;
+            $item->default_recipient = $pr?->focal_person?->id ?? null;
+            $item->default_division = $pr?->division?->division ?? null;
+            return $item;
+        });
+
+        return Inertia::render('Supply/IssuancePage', [
+            'isMulti' => true,
+            'inventoryItems' => $inventoryItems,
+            'user' => Auth::user(),
+            'ppeOptions' => $ppeOptions,
+            'risNumber' => $this->generateRISNumber(),
+            'icsNumber' => $this->generateICSNumber($type),
+            'parNumber' => $this->generatePARNumber(),
+            'type' => $type,
+            'purchaseOrder' => $purchaseOrder,
+        ]);
     }
 
-    // ✅ If tied to a PO, proceed as before
-    $poDetail = PurchaseOrderDetail::with([
-        'purchaseOrder.supplier',
-        'purchaseOrder.details.prDetail.product.category',
-        'purchaseOrder.details.prDetail.product.unit',
-        'purchaseOrder.details.prDetail.purchaseRequest.division',
-        'purchaseOrder.details.prDetail.purchaseRequest.focal_person',
-    ])->findOrFail($inventoryItem->po_detail_id);
-
-    $po = $poDetail->purchaseOrder;
-
-    $correctDetail = $po->details->firstWhere('id', $inventoryItem->po_detail_id);
-    if (!$correctDetail) {
-        return redirect()->back()->with('error', 'No matching PO detail found for this inventory item.');
+    // -------- SINGLE ITEM ISSUANCE --------
+    if (!$inventory_id) {
+        return back()->with('error', 'No inventory selected.');
     }
+
+    $inventoryItem = Inventory::with([
+        'unit',
+        'product',
+        'poDetail.purchaseOrder.supplier',
+        'poDetail.prDetail.purchaseRequest.focal_person',
+        'poDetail.prDetail.purchaseRequest.division',
+        'poDetail.prDetail.product.unit',
+    ])->findOrFail($inventory_id);
+
+    $unitCost = $inventoryItem->unit_cost ?? 0;
+    $type = $unitCost >= 5000 ? 'high' : 'low';
 
     $ppeOptions = PPESubMajorAccount::with('generalLedgerAccounts')->get();
 
-    // Generate RIS, ICS, PAR numbers again
-    $risNumber = $this->generateRISNumber();
-    $unitCost = $inventoryItem->unit_cost ?? 0;
-    $type = $unitCost >= 5000 ? 'high' : 'low';
-    $icsNumber = $this->generateICSNumber($type);
-    $parNumber = $this->generatePARNumber();
-
-    $props = [
-        'purchaseOrder' => [
+    $purchaseOrder = null;
+    $poDetail = $inventoryItem->poDetail;
+    if ($poDetail && $poDetail->purchaseOrder) {
+        $po = $poDetail->purchaseOrder;
+        $purchaseOrder = [
             'id' => $po->id,
             'po_number' => $po->po_number,
-            'detail' => $correctDetail,
-        ],
+            'detail' => $poDetail,
+            'supplier' => $po->supplier,
+        ];
+    }
+
+    $pr = $poDetail?->prDetail?->purchaseRequest;
+    $inventoryItem->default_recipient = $pr?->focal_person?->id ?? null;
+    $inventoryItem->default_division = $pr?->division?->division ?? null;
+
+    return Inertia::render('Supply/IssuancePage', [
         'inventoryItem' => $inventoryItem,
-        'user'          => Auth::user(),
-        'ppeOptions'    => $ppeOptions,
-        'risNumber'     => $risNumber,
-        'icsNumber'     => $icsNumber,
-        'type'          => $type,
-        'parNumber'     => $parNumber,
-    ];
-
-    return Inertia::render('Supply/IssuancePage', $props);
+        'user' => Auth::user(),
+        'ppeOptions' => $ppeOptions,
+        'risNumber' => $this->generateRISNumber(),
+        'icsNumber' => $this->generateICSNumber($type),
+        'parNumber' => $this->generatePARNumber(),
+        'type' => $type,
+        'purchaseOrder' => $purchaseOrder,
+        'isMulti' => false,
+    ]);
 }
-
-
-
 
 
 public function store_ris(Request $request)
@@ -185,6 +225,18 @@ public function store_ris(Request $request)
     // 🔍 Check if RIS already exists
     $ris = RIS::where('ris_number', $validated['ris_number'])->first();
 
+    // Determine PO ID from items if not explicitly provided
+    if (!$validated['po_id'] && count($validated['items']) > 0) {
+        $poIds = Inventory::whereIn('id', collect($validated['items'])->pluck('inventory_item_id'))
+            ->with('poDetail.purchaseOrder')
+            ->get()
+            ->pluck('poDetail.purchaseOrder.id')
+            ->filter()
+            ->unique();
+
+        $validated['po_id'] = $poIds->count() === 1 ? $poIds->first() : null;
+    }
+
     if (!$ris) {
         // 🆕 Create a new RIS if not found
         $ris = RIS::create([
@@ -196,12 +248,12 @@ public function store_ris(Request $request)
         ]);
     }
 
-    // 🧾 Attach the item(s)
+    // 🧾 Attach the item(s) to the RIS
     foreach ($validated['items'] as $item) {
         $ris->items()->create([
             'inventory_item_id' => $item['inventory_item_id'],
-            'recipient' => $item['recipient'],
-            'recipient_division' => $item['recipient_division'],
+            'recipient' => $item['recipient'] ?? null,
+            'recipient_division' => $item['recipient_division'] ?? null,
             'quantity' => $item['quantity'],
             'unit_cost' => $item['unit_cost'],
             'total_cost' => $item['total_cost'],
@@ -209,12 +261,17 @@ public function store_ris(Request $request)
 
         // 📦 Update inventory counts
         $inventory = Inventory::find($item['inventory_item_id']);
-        $inventory->total_stock -= $item['quantity'];
-        $inventory->save();
+        if ($inventory) {
+            $inventory->total_stock -= $item['quantity'];
+            $inventory->save();
+        }
     }
 
-    return redirect()->route('supply_officer.ris_issuance')->with('success', 'Item successfully added to RIS.');
+    return redirect()
+        ->route('supply_officer.ris_issuance')
+        ->with('success', 'Item(s) successfully added to RIS.');
 }
+
 
 
     public function ris_issuance(Request $request)
@@ -330,14 +387,26 @@ public function store_ics(Request $request)
         'items.*.series_number' => 'nullable|string|max:100',
         'items.*.office' => 'nullable|string|max:100',
         'items.*.school' => 'nullable|string|max:100',
-
         'items.*.quantity' => 'required|numeric|min:0.01',
         'items.*.unit_cost' => 'required|numeric|min:0.01',
         'items.*.total_cost' => 'required|numeric|min:0.01',
     ]);
+
+    // Determine PO ID if not explicitly provided
+    if (!$validated['po_id'] && count($validated['items']) > 0) {
+        $poIds = Inventory::whereIn('id', collect($validated['items'])->pluck('inventory_item_id'))
+            ->with('poDetail.purchaseOrder')
+            ->get()
+            ->pluck('poDetail.purchaseOrder.id')
+            ->filter()
+            ->unique();
+
+        $validated['po_id'] = $poIds->count() === 1 ? $poIds->first() : null;
+    }
+
+    // Check if ICS already exists
     $ics = ICS::where('ics_number', $validated['ics_number'])->first();
     if (!$ics) {
-        // 🆕 Create a new RIS if not found
         $ics = ICS::create([
             'po_id' => $validated['po_id'] ?? null,
             'ics_number' => $validated['ics_number'],
@@ -347,14 +416,17 @@ public function store_ics(Request $request)
         ]);
     }
 
-    // 🧾 Attach the item(s)
+    // Attach all items
     foreach ($validated['items'] as $item) {
-        $itemType = $item['unit_cost'] <= 5000 ? 'low' : 'high';
         $inventory = Inventory::find($item['inventory_item_id']);
+        if (!$inventory) continue;
+
+        $itemType = $item['unit_cost'] <= 5000 ? 'low' : 'high';
+
         $ics->items()->create([
             'inventory_item_id' => $inventory->id,
-            'recipient' => $item['recipient'],
-            'recipient_division' => $item['recipient_division'],
+            'recipient' => $item['recipient'] ?? null,
+            'recipient_division' => $item['recipient_division'] ?? null,
             'estimated_useful_life' => $item['estimated_useful_life'] ?? null,
             'inventory_item_number' => $item['inventory_item_number'] ?? null,
             'ppe_sub_major_account' => $item['ppe_sub_major_account'] ?? null,
@@ -367,12 +439,17 @@ public function store_ics(Request $request)
             'total_cost' => $item['total_cost'],
             'type' => $itemType,
         ]);
+
+        // Update inventory stock
         $inventory->total_stock -= $item['quantity'];
         $inventory->save();
-
-         return redirect()->route('supply_officer.ics_issuance_low')->with('success', 'Item successfully added to RIS.');
     }
+
+    return redirect()
+        ->route('supply_officer.ics_issuance_low')
+        ->with('success', 'Item(s) successfully added to ICS.');
 }
+
 
 
 

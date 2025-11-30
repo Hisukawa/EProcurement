@@ -1,7 +1,7 @@
 import SupplyOfficerLayout from "@/Layouts/SupplyOfficerLayout";
-import { Head, useForm } from "@inertiajs/react";
+import { Head, useForm, router } from "@inertiajs/react";
 import { PackageCheck } from "lucide-react";
-import { useEffect, Fragment } from "react";
+import { useEffect, Fragment, useState } from "react";
 
 export default function Inventory({ inventoryData, filters }) {
   const { data, setData, get } = useForm({
@@ -9,6 +9,17 @@ export default function Inventory({ inventoryData, filters }) {
     status: filters.status || "",
     date_received: filters.date_received || "",
   });
+
+  // NEW: Selected items for multi-issuance
+  const [selectedItems, setSelectedItems] = useState([]);
+
+const toggleSelect = (id, stock) => {
+  if (stock <= 0) return; // prevent selecting items with no stock
+  setSelectedItems((prev) =>
+    prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+  );
+};
+
 
   useEffect(() => {
     const delay = setTimeout(() => {
@@ -50,7 +61,7 @@ export default function Inventory({ inventoryData, filters }) {
     <SupplyOfficerLayout header="Schools Divisions Office - Ilagan | Inventory">
       <Head title="Inventory" />
 
-      {/* Header and Filters */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-8 gap-4">
         <h2 className="text-3xl font-bold text-gray-800">Inventory</h2>
 
@@ -75,11 +86,31 @@ export default function Inventory({ inventoryData, filters }) {
         </form>
       </div>
 
+      {/* NEW: Issue Selected Items Button */}
+      {selectedItems.length > 0 && (
+        <div className="mb-4">
+          <button
+            onClick={() =>
+              router.visit(route("supply_officer.issuance"), {
+                method: "get",
+                data: { items: selectedItems },
+              })
+
+            }
+            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center gap-2"
+          >
+            <PackageCheck size={18} /> Issue Selected Items ({selectedItems.length})
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm bg-white">
         <table className="w-full table-auto text-sm divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-3 py-3"></th> {/* NEW checkbox column */}
+
               {[
                 "PO Number",
                 "Requested By",
@@ -100,19 +131,23 @@ export default function Inventory({ inventoryData, filters }) {
               ))}
             </tr>
           </thead>
+
           <tbody className="divide-y divide-gray-100 text-center">
             {groupedInventoryData.length === 0 ? (
               <tr>
-                <td colSpan="9" className="py-12 text-gray-500 text-lg font-medium">
+                <td colSpan="10" className="py-12 text-gray-500 text-lg font-medium">
                   No Inventory Found.
                 </td>
               </tr>
             ) : (
               groupedInventoryData.map((group) => (
                 <Fragment key={group.po_id}>
-                  {/* Group Header Row */}
+                  {/* PO group header */}
                   <tr className="bg-gray-100 font-semibold">
-                    <td className="px-6 py-3 text-blue-700">{group.po?.po_number ?? "N/A"}</td>
+                    <td></td>
+                    <td className="px-6 py-3 text-blue-700">
+                      {group.po?.po_number ?? "N/A"}
+                    </td>
                     <td className="px-6 py-3">
                       {group.requested_by
                         ? [group.requested_by.firstname, group.requested_by.middlename, group.requested_by.lastname]
@@ -125,7 +160,7 @@ export default function Inventory({ inventoryData, filters }) {
                     </td>
                   </tr>
 
-                  {/* Item Rows */}
+                  {/* Item rows */}
                   {group.items.map((inv) => {
                     const unit = inv.unit?.unit ?? "N/A";
                     const unitCost = parseFloat(inv.unit_cost) || 0;
@@ -140,7 +175,18 @@ export default function Inventory({ inventoryData, filters }) {
 
                     return (
                       <tr key={inv.id} className="hover:bg-blue-50 transition duration-200">
-                        <td className="px-6 py-4"></td>
+                        {/* NEW checkbox */}
+                        <td className="px-3 py-4">
+                          <input
+                            type="checkbox"
+                            checked={selectedItems.includes(inv.id)}
+                            disabled={remainingStock <= 0} // <-- disable if no stock left
+                            onChange={() => toggleSelect(inv.id, remainingStock)}
+                            className="w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
+                          />
+                        </td>
+
+
                         <td className="px-6 py-4"></td>
                         <td className="px-6 py-4">{inv.item_desc ?? "No description"}</td>
                         <td className="px-6 py-4">{unit}</td>
@@ -148,6 +194,7 @@ export default function Inventory({ inventoryData, filters }) {
                         <td className="px-6 py-4">₱ {unitCost.toFixed(2)}</td>
                         <td className="px-6 py-4">₱ {totalPrice}</td>
                         <td className="px-6 py-4">{statusLabel}</td>
+
                         <td className="px-6 py-4">
                           {inv.total_stock <= 0 ? (
                             <span className="bg-gray-300 text-gray-600 px-3 py-2 rounded cursor-not-allowed flex items-center justify-center gap-1">
@@ -155,10 +202,7 @@ export default function Inventory({ inventoryData, filters }) {
                             </span>
                           ) : (
                             <a
-                              href={route("supply_officer.issuance", {
-                                po_detail_id: inv.po_detail_id,
-                                inventory_id: inv.id,
-                              })}
+                              href={route("supply_officer.issuance", inv.id)}
                               className="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 transition flex items-center justify-center gap-1"
                             >
                               <PackageCheck size={16} /> Issue Item
