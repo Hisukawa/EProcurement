@@ -257,62 +257,62 @@ const [switchRecord, setSwitchRecord] = useState(null);
 
                           <td className="px-4 py-3">{item.date}</td>
 
-                          {itemIdx === visibleItems.length - 1 && (
-                            <td
-                              rowSpan={visibleItems.length}
-                              className="px-4 py-3 text-center align-top"
-                            >
-                              <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                                <a
-                                  href={route("supply_officer.print_par", record.id)}
-                                  target="_blank"
-                                  className="inline-flex items-center justify-center gap-1 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg shadow-sm text-xs font-medium"
-                                >
-                                  <PrinterCheck size={14} />
-                                  Print
-                                </a>
+                          {itemIdx === 0 && (
+  <td
+    rowSpan={visibleItems.length}
+    className="px-4 py-3 text-center align-top"
+  >
+    <div className="flex flex-col sm:flex-row gap-2 justify-center">
+      <a
+        href={route("supply_officer.print_par", record.id)}
+        target="_blank"
+        className="inline-flex items-center justify-center gap-1 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg shadow-sm text-xs font-medium"
+      >
+        <PrinterCheck size={14} /> Print
+      </a>
 
-                                <Button
-                                  type="button"
-                                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
-                                  onClick={() => {
-                                    setSwitchRecord(record);
-                                    setSwitchItems([]);
-                                    setShowSwitchModal(true);
-                                  }}
-                                >
-                                  Switch Type
-                                </Button>
+      <Button
+        type="button"
+        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
+        onClick={() => {
+          setSwitchRecord(record);
+          setSwitchItems([]);
+          setShowSwitchModal(true);
+        }}
+      >
+        Switch Type
+      </Button>
 
-                                <Button
-                                  type="button"
-                                  onClick={(e) => handleActionSelect(e, record)}
-                                  value="return"
-                                  className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
-                                >
-                                  Return
-                                </Button>
-                              </div>
+      <Button
+        type="button"
+        onClick={(e) => handleActionSelect(e, record)}
+        value="return"
+        className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
+      >
+        Return
+      </Button>
+    </div>
 
-                              {/* Expand / Collapse toggle */}
-                              {itemsWithDetails.length > 2 && (
-                                <button
-                                  onClick={() => toggleRow(record.id)}
-                                  className="mt-2 text-blue-600 hover:underline text-xs flex items-center justify-center gap-1"
-                                >
-                                  {isExpanded ? (
-                                    <>
-                                      <MinusCircle size={14} /> Show Less
-                                    </>
-                                  ) : (
-                                    <>
-                                      <PlusCircle size={14} /> Show More
-                                    </>
-                                  )}
-                                </button>
-                              )}
-                            </td>
-                          )}
+    {/* Expand / Collapse */}
+    {itemsWithDetails.length > 2 && (
+      <button
+        onClick={() => toggleRow(record.id)}
+        className="mt-2 text-blue-600 hover:underline text-xs flex items-center justify-center gap-1"
+      >
+        {isExpanded ? (
+          <>
+            <MinusCircle size={14} /> Show Less
+          </>
+        ) : (
+          <>
+            <PlusCircle size={14} /> Show More
+          </>
+        )}
+      </button>
+    )}
+  </td>
+)}
+
                         </tr>
                       ))}
                     </React.Fragment>

@@ -1,110 +1,144 @@
 import { useForm } from "@inertiajs/react";
-import { FileText, SendHorizonal } from "lucide-react";
+import { FileText, SendHorizonal, Plus, Minus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import AutoCompleteInput from "./AutoCompleteInput";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import AutoCompleteInput from "./AutoCompleteInput";
 
-export default function ParForm({ purchaseOrder, inventoryItem, user, ppeOptions, parNumber }) {
-  const { toast } = useToast();
-  const detail = purchaseOrder?.detail ?? null;
-  const pr = detail?.pr_detail?.purchase_request ?? null;
-  const [ppe, setPpe] = useState(null);
-  const [gl, setGl] = useState(null);
-  const [office, setOffice] = useState(null);
-  const [school, setSchool] = useState(null);
-  const [series, setSeries] = useState("0001");
-  const [generatedNumber, setGeneratedNumber] = useState("");
-const item = inventoryItem ? inventoryItem.item_desc: "N/A";
+export default function ParForm({ purchaseOrder, inventoryItems = [], user, ppeOptions = [], parNumber }) {
+  const pr = purchaseOrder?.detail?.pr_detail?.purchase_request ?? null;
   const focal = pr
-    ? `${pr.focal_person.firstname} ${pr.focal_person.middlename} ${pr.focal_person.lastname}`
+    ? `${pr?.focal_person?.firstname ?? ""} ${pr?.focal_person?.middlename ?? ""} ${pr?.focal_person?.lastname ?? ""}`.trim()
     : "N/A";
-  const glOptions = ppe?.general_ledger_accounts ?? [];
 
-  const { data, setData, post, processing, errors } = useForm({
+  const { data, setData, post, processing, errors, reset } = useForm({
     po_id: purchaseOrder?.id ?? null,
     par_number: parNumber ?? "",
-    requested_by: pr?.focal_person?.id ?? "",
+    requested_by: pr?.focal_person?.id ?? null,
     issued_by: user?.id ?? null,
     remarks: "",
     date_acquired: new Date().toISOString().split("T")[0],
-    items: [
-      {
-        inventory_item_id: inventoryItem?.id ?? null,
-        recipient: "",
-        recipient_division: "",
-        estimated_useful_life: null,
-        inventory_item_number: "",
-        ppe_sub_major_account: "",
-        general_ledger_account: "",
-        office: "",
-        quantity: detail?.quantity ?? 1,
-        unit_cost: inventoryItem?.unit_cost ?? 0,
-        total_cost:
-          (inventoryItem?.unit_cost ?? 0) * (detail?.quantity ?? 1),
-        series_number: series,
-        property_no: "",
-      },
-    ],
+    items: inventoryItems.map(item => ({
+      inventory_item_id: item.id,
+      recipient: "",
+      recipient_division: "",
+      estimated_useful_life: null,
+      inventory_item_number: "",
+      ppe_sub_major_account: "",
+      general_ledger_account: "",
+      office: "",
+      school: "",
+      quantity: item.total_stock > 0 ? 1 : 0,
+      unit_cost: item.unit_cost ?? 0,
+      total_cost: item.unit_cost ?? 0,
+      series_number: "0001",
+      description: item.item_desc ?? item.product?.item_description ?? "N/A",
+      ppe: null,
+      gl: null,
+      officeObj: null,
+      schoolObj: null
+    }))
   });
-useEffect(() => {
-  if (!ppe || !gl) return;
 
-  fetch(`/api/ics-next-series?ppe=${encodeURIComponent(ppe.name.trim())}&gl=${encodeURIComponent(gl.name.trim())}`)
-    .then((res) => res.json())
-    .then((data) => {
-      if (data.series) {
-        setSeries(data.series); // string "0008"
-        setData("items.0.series_number", data.series); // store as string
-      }
+  const { toast } = useToast();
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [defaultRecipient, setDefaultRecipient] = useState("");
+  const [defaultDivision, setDefaultDivision] = useState("");
 
-    })
-    .catch(() => {
-      setSeries(1);
-      setData("items.0.series_number", 1);
-    });
-}, [ppe, gl, office, school]);
-  useEffect(() => {
-    if (!ppe || !gl || !series) return;
-  
-    const year = new Date().getFullYear().toString();
-    const ppeCode = ppe.code?.padStart(2, "0") || "00";
-    const glCode = gl.code?.padStart(2, "0") || "00";
-    const seriesCode = series?.toString().padStart(4, "0")
-  
-  
-  
-    // location (office)
-    const locationCode = office?.code?.padStart(2, "0") || "";
-  
-    // if office is "Schools", append school code
-    const schoolCode =
-      office?.name === "Schools" && school?.code
-        ? school.code.padStart(2, "0")
-        : "";
-  
-  
-    let parts = [year, ppeCode, glCode, seriesCode, locationCode];
-    if (schoolCode) parts.push(schoolCode);
-  
-    const fullNumber = parts.filter(Boolean).join("-");
-  
-    setGeneratedNumber(fullNumber);
-  
-    // keep form data in sync
-    setData("items.0.inventory_item_number", fullNumber);
-    setData("items.0.ppe_sub_major_account", ppe.name || "");
-    setData("items.0.general_ledger_account", gl.name || "");
-    setData("items.0.office", office?.name || "");
-    setData("items.0.series_number", parseInt(series, 10));
-    if (school) setData("items.0.school", school.name || "");
-  }, [ppe, gl, office, school, series]);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const generateNumberForItem = async () => {
+    const itemsToGenerate = data.items.filter(item => item.ppe && item.gl && item.quantity > 0);
+    if (!itemsToGenerate.length) return;
 
-  const handleSubmit = (e) => {
+    try {
+      const firstItem = itemsToGenerate[0];
+      const res = await fetch(`/api/ics-next-series?ppe=${encodeURIComponent(firstItem.ppe.name.trim())}&gl=${encodeURIComponent(firstItem.gl.name.trim())}`);
+      const api = await res.json();
+      let nextSeries = parseInt(api.series || "0", 10);
+
+      const updatedItems = [...data.items];
+
+      itemsToGenerate.forEach(item => {
+        const seriesCode = nextSeries.toString().padStart(4, "0");
+        const year = new Date().getFullYear().toString();
+        const ppeCode = item.ppe.code?.padStart(2, "0") || "00";
+        const glCode = item.gl.code?.padStart(2, "0") || "00";
+        const locationCode = item.officeObj?.code?.padStart(2, "0") || "";
+        const schoolCode = item.officeObj?.name === "Schools" && item.schoolObj?.code ? item.schoolObj.code.padStart(2, "0") : "";
+
+        const inventoryNumber = [year, ppeCode, glCode, seriesCode, locationCode]
+          .filter(Boolean)
+          .concat(schoolCode ? [schoolCode] : [])
+          .join("-");
+
+        const index = updatedItems.findIndex(i => i === item);
+        updatedItems[index] = {
+          ...item,
+          inventory_item_number: inventoryNumber,
+          series_number: seriesCode,
+          ppe_sub_major_account: item.ppe.name,
+          general_ledger_account: item.gl.name,
+          office: item.officeObj?.name || "",
+          school: item.schoolObj?.name || ""
+        };
+
+        nextSeries++;
+      });
+
+      setData("items", updatedItems);
+    } catch (err) {
+      console.error("Error generating inventory numbers", err);
+    }
+  };
+
+  const handleItemChange = (index, field, value) => {
+    const updatedItems = [...data.items];
+    if (field === "quantity") {
+      const qty = Math.min(parseFloat(value) || 0, inventoryItems[index].total_stock);
+      updatedItems[index].quantity = qty;
+      updatedItems[index].total_cost = qty * (updatedItems[index].unit_cost ?? 0);
+    } else {
+      updatedItems[index][field] = value;
+    }
+    setData("items", updatedItems);
+  };
+
+  const handleItemPPEChange = (index, selectedPPE) => {
+    const updatedItems = [...data.items];
+    updatedItems[index].ppe = selectedPPE;
+    updatedItems[index].gl = null;
+    updatedItems[index].ppe_sub_major_account = selectedPPE?.name || "";
+    updatedItems[index].general_ledger_account = "";
+    setData("items", updatedItems);
+  };
+
+  const handleItemGLChange = (index, selectedGL) => {
+    const updatedItems = [...data.items];
+    updatedItems[index].gl = selectedGL;
+    updatedItems[index].general_ledger_account = selectedGL?.name || "";
+    setData("items", updatedItems);
+    generateNumberForItem();
+  };
+
+  const handleItemOfficeChange = (index, selectedOffice) => {
+    const updatedItems = [...data.items];
+    updatedItems[index].officeObj = selectedOffice;
+    updatedItems[index].office = selectedOffice?.name || "";
+    setData("items", updatedItems);
+    generateNumberForItem();
+  };
+
+  const handleItemSchoolChange = (index, selectedSchool) => {
+    const updatedItems = [...data.items];
+    updatedItems[index].schoolObj = selectedSchool;
+    updatedItems[index].school = selectedSchool?.name || "";
+    setData("items", updatedItems);
+    generateNumberForItem();
+  };
+
+  const handleSubmit = e => {
     e.preventDefault();
-    setConfirmOpen(true);
+    setConfirmDialogOpen(true);
   };
 
   const handleConfirmSave = () => {
@@ -112,278 +146,128 @@ useEffect(() => {
       preserveScroll: true,
       onSuccess: () => {
         toast({ title: "Success", description: "PAR has been saved successfully!", className: "bg-green-600 text-white", duration: 3000 });
-        setConfirmOpen(false);
+        setConfirmDialogOpen(false);
         reset();
       },
       onError: () => {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to save PAR. Please check the form.",
-        });
-        setConfirmOpen(false);
+        toast({ variant: "destructive", title: "Error", description: "Failed to save PAR. Please check the form." });
+        setConfirmDialogOpen(false);
       },
     });
   };
 
-  const updateItemField = (field, value) => {
-    setData("items", [
-      {
-        ...data.items[0],
-        [field]: value,
-        total_cost:
-          field === "quantity"
-            ? value * data.items[0].unit_cost
-            : field === "unit_cost"
-            ? data.items[0].quantity * value
-            : data.items[0].total_cost,
-      },
-    ]);
-  };
-    const handleQuantityChange = (e) => {
-    let qty = parseFloat(e.target.value) || 0;
-    const maxQty = inventoryItem.total_stock;
-    if (qty > maxQty) qty = maxQty;
-
-    const unit = data.items[0].unit_cost ?? 0;
-    setData("items", [
-      { ...data.items[0], quantity: qty, total_cost: qty * unit },
-    ]);
-  };
-
-  const handleRecipientChange = (field, value) => {
-    setData("items", [
-      { ...data.items[0], [field]: value },
-    ]);
-  };
   return (
     <div className="bg-white p-6 rounded-xl shadow-md">
-      <h2 className="text-3xl font-bold text-blue-800 mb-1 flex items-center gap-2">
+      <h2 className="text-3xl font-bold text-blue-800 mb-4 flex items-center gap-2">
         <FileText size={24} /> Property Acknowledgement Receipt (PAR)
       </h2>
 
       {Object.keys(errors).length > 0 && (
-        <div className="col-span-2 bg-red-100 text-red-700 p-4 rounded mb-4">
+        <div className="bg-red-100 text-red-700 p-4 rounded mb-4">
           <ul className="list-disc list-inside">
-            {Object.entries(errors).map(([key, message]) => (
-              <li key={key}>{message}</li>
-            ))}
+            {Object.entries(errors).map(([key, message]) => <li key={key}>{message}</li>)}
           </ul>
         </div>
       )}
-      <p className="text-sm text-gray-700 mb-6">
-        <strong>Note:</strong> This is the Property Acknowledgement Receipt (PAR) form page. 
-        Fill out the details below to record an PAR issuance.
-      </p>
 
-
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Left Section */}
-        <div className="p-5 border rounded-md bg-blue-50">
-          <h3 className="text-lg font-semibold text-blue-700 mb-4">Item Details</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">PAR No.</label>
-              <input type="text" value={data.par_number} onChange={(e) => setData("par_number", e.target.value)} className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"/>
-              <p className="text-xs text-gray-500 mt-1">
-                Auto-generated ({parNumber}) — you may edit if needed.
-              </p>
-            </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {data.items.map((item, index) => (
+          <div key={index} className="p-5 border rounded-md bg-green-50 relative">
+            {data.items.length > 1 && (
+              <button type="button" onClick={() => setData("items", data.items.filter((_, i) => i !== index))} className="absolute top-2 right-2 text-red-600 hover:text-red-800">
+                <Minus size={20} />
+              </button>
+            )}
+            <h3 className="text-lg font-semibold text-green-700 mb-4">Item {index + 1}</h3>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Item</label>
-              <input value={item} readOnly className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"/>
+              <label className="block text-sm font-medium text-gray-700">Description</label>
+              <input value={item.description} readOnly className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm bg-white" />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* PPE / GL / Office / School / Inventory No */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
               <div>
-              <label className="block text-sm font-medium text-gray-700">Quantity</label>
-              <input
-                type="number"
-                min="1"
-                max={inventoryItem.total_stock}
-                onChange={handleQuantityChange}
-                placeholder={`Max: ${inventoryItem.total_stock}`}
-                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-              />
-            </div>
+                <label className="block text-sm font-medium text-gray-700">PPE Sub-major Account</label>
+                <select value={item.ppe?.id || ""} onChange={e => handleItemPPEChange(index, ppeOptions.find(p => p.id == e.target.value))} className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm">
+                  <option value="">Select PPE</option>
+                  {ppeOptions.map(p => <option key={p.id} value={p.id}>{p.code ? `${p.code} - ${p.name}` : p.name}</option>)}
+                </select>
+              </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Unit Cost</label>
-                <input type="number" value={data.items[0].unit_cost} onChange={(e) => updateItemField("unit_cost", Number(e.target.value))} className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm"/>
+                <label className="block text-sm font-medium text-gray-700">General Ledger Account</label>
+                <select value={item.gl?.id || ""} onChange={e => handleItemGLChange(index, item.ppe?.general_ledger_accounts.find(g => g.id == e.target.value))} disabled={!item.ppe} className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm disabled:bg-gray-100">
+                  <option value="">Select GL</option>
+                  {item.ppe?.general_ledger_accounts?.map(g => <option key={g.id} value={g.id}>{g.code ? `${g.code} - ${g.name}` : g.name}</option>)}
+                </select>
+              </div>
+              <AutoCompleteInput label="Location Office" apiRoute="/api/office-search" value={item.officeObj?.code || ""} onChange={val => handleItemOfficeChange(index, val)} placeholder="Type Location Office..." />
+              {item.officeObj?.name === "Schools" && <AutoCompleteInput label="School" apiRoute="/api/school-search" value={item.schoolObj?.name || ""} onChange={val => handleItemSchoolChange(index, val)} placeholder="Type School..." />}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Inventory Item No.</label>
+                <input value={item.inventory_item_number || ""} readOnly className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm bg-gray-100" />
               </div>
             </div>
 
+            {/* Quantity / Cost / Estimated Life */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Quantity</label>
+                <input type="number" min="1" max={inventoryItems[index]?.total_stock} value={item.quantity} onChange={e => handleItemChange(index, "quantity", e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Unit Cost</label>
+                <input type="number" value={item.unit_cost} readOnly className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm bg-gray-50" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Total Cost</label>
+                <input type="number" value={item.total_cost} readOnly className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm bg-gray-50" />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700">Estimated Useful Life (years)</label>
+              <input type="number" value={item.estimated_useful_life ?? ""} onChange={e => handleItemChange(index, "estimated_useful_life", e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm" onWheel={e => e.currentTarget.blur()} />
+            </div>
+          </div>
+        ))}
+
+        {/* Default Recipient */}
+        <div className="p-5 border rounded-md bg-yellow-50">
+          <h3 className="text-lg font-semibold text-yellow-700 mb-4">Default Recipient (applied to all items)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Total Cost</label>
-              <input type="text" value={data.items[0].total_cost.toFixed(2)} readOnly className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50"/>
+              <label className="block text-sm font-medium text-gray-700">Recipient Name</label>
+              <input type="text" value={defaultRecipient} onChange={e => { setDefaultRecipient(e.target.value); setData("items", data.items.map(i => ({ ...i, recipient: e.target.value }))); }} placeholder="Leave blank to issue to requester" className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Requested By</label>
-              <input type="text" value={focal} readOnly className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"/>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Issued By</label>
-              <input type="text" value={`${user.firstname} ${user.middlename} ${user.lastname}`} readOnly className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"/>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Property No.</label>
-              <input type="text" value={generatedNumber} onChange={(e) => updateItemField("property_no", e.target.value)} placeholder="Enter property number" className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm"/>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Date Acquired</label>
-              <input type="date" value={data.date_acquired} onChange={(e) => setData("date_acquired", e.target.value)} className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm"/>
+              <label className="block text-sm font-medium text-gray-700">Recipient Division</label>
+              <input type="text" value={defaultDivision} onChange={e => { setDefaultDivision(e.target.value); setData("items", data.items.map(i => ({ ...i, recipient_division: e.target.value }))); }} placeholder="Optional" className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm" />
             </div>
           </div>
         </div>
 
-        {/* Right Section */}
-        <div className="p-5 border rounded-md bg-green-50">
-          <h3 className="text-lg font-semibold text-green-700 mb-4">Acknowledgement</h3>
-          <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Recipient Name
-              </label>
-              <input
-                type="text"
-                value={data.items[0].recipient}
-                onChange={(e) =>
-                  handleRecipientChange("recipient", e.target.value)
-                }
-                placeholder="Leave blank to issue to requester"
-                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-              />
-            </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Remarks</label>
+          <textarea value={data.remarks} onChange={e => setData("remarks", e.target.value)} rows="4" className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm" placeholder="Optional" />
+        </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Recipient Office / Division
-              </label>
-              <input
-                type="text"
-                value={data.items[0].recipient_division}
-                onChange={(e) =>
-                  handleRecipientChange("recipient_division", e.target.value)
-                }
-                placeholder="Optional"
-                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-              />
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">PPE Sub-major Account</label>
-                <select
-                  value={ppe?.id || ""}
-                  onChange={(e) => {
-                    const selected = ppeOptions.find(p => p.id == e.target.value);
-                    setPpe(selected || null);
-                    setGl(null); // reset GL
-                  }}
-                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
-                >
-                  <option value="">Select PPE</option>
-                  {ppeOptions.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.code ? `${p.code} - ${p.name}` : p.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-    
-              {/* GL Dropdown */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">General Ledger Account</label>
-                <select
-                  value={gl?.id || ""}
-                  onChange={(e) => {
-                    const selected = glOptions.find(g => g.id == e.target.value);
-                    setGl(selected || null);
-                  }}
-                  disabled={!ppe}
-                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white disabled:bg-gray-100"
-                >
-                  <option value="">Select GL</option>
-                  {glOptions.map(g => (
-                    <option key={g.id} value={g.id}>
-                      {g.code ? `${g.code} - ${g.name}` : g.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-    
-              {/* Office Autocomplete */}
-              <AutoCompleteInput
-                label="Location Office"
-                apiRoute="/api/office-search"
-                value={office?.code  || ""}
-                onChange={setOffice}
-                placeholder="Type Location Office..."
-              />
-    
-              {/* School Autocomplete */}
-              {office?.name === "Schools" && (
-                <AutoCompleteInput
-                  label="School"
-                  apiRoute="/api/school-search"
-                  value={school?.name || ""}
-                  onChange={setSchool}
-                  placeholder="Type School..."
-                />
-              )}
-    
-              {/* Inventory Number */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Inventory Item No.</label>
-                <input
-                  type="text"
-                  value={generatedNumber}
-                  readOnly
-                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100"
-                />
-              </div>
-              {/* Estimated Life*/}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Estimated Useful Life</label>
-                <input
-                  type="number"
-                  value={data.items[0].estimated_useful_life ?? ""}
-                  onChange={(e) => setData("items.0.estimated_useful_life", e.target.value)}
-                  placeholder="Enter Estimated Useful Life in years (optional)"
-                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
-                  onWheel={(e) => e.currentTarget.blur()}
-                />
-              </div>
-              {/* Remarks */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Remarks</label>
-                <textarea
-                  value={data.remarks}
-                  onChange={(e) => setData("remarks", e.target.value)}
-                  rows="4"
-                  placeholder="Enter remarks (optional)"
-                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white"
-                />
-              </div>
-            </div>
-          </div>
-
-        <div className="col-span-full flex justify-end mt-4">
-          <button type="submit" disabled={processing} className="inline-flex items-center px-6 py-2 bg-blue-700 text-white text-sm font-medium rounded-md hover:bg-blue-800 transition disabled:opacity-50">
-            <SendHorizonal size={16} className="mr-2" />
-            Save PAR
+        <div className="flex justify-end">
+          <button type="submit" className="inline-flex items-center px-6 py-2 bg-blue-700 text-white rounded-md hover:bg-blue-800" disabled={processing}>
+            <SendHorizonal size={16} className="mr-2" /> {processing ? "Saving..." : "Save PAR"}
           </button>
         </div>
       </form>
 
-      {/* Confirmation Modal */}
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent>
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Confirm Save</DialogTitle>
-            <DialogDescription>Are you sure you want to save this Property Acknowledgement Receipt (PAR)?</DialogDescription>
+            <DialogDescription>Are you sure you want to save this PAR issuance?</DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button>
-            <Button onClick={handleConfirmSave} disabled={processing}>Confirm Save</Button>
+          <DialogFooter className="mt-4 flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setConfirmDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleConfirmSave}>Yes, Save PAR</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

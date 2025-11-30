@@ -327,30 +327,36 @@ const toggleRowExpansion = (id) => {
         </tr>
 
         {/* single expansion row containing remaining items (no extra action cells) */}
-        {isExpanded && remainingItems.length > 0 && (
-          <tr className="bg-gray-50">
-            <td colSpan={10} className="px-4 py-3">
-              <div className="grid gap-2">
-                {remainingItems.map((ri, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between gap-4 p-2 rounded-md border border-gray-200 bg-white"
-                  >
-                    <div className="flex-1">
-                      <div className="font-medium">{ri.description}</div>
-                      {ri.specs && <div className="text-xs text-gray-500">{ri.specs}</div>}
-                    </div>
+{isExpanded &&
+  remainingItems.map((ri, i) => (
+    <tr key={i} className="bg-gray-50 hover:bg-blue-50 transition">
+      {/* blank columns to align under main row */}
 
-                    <div className="w-28 text-center text-sm">{ri.quantity}</div>
-                    <div className="w-28 text-right text-sm">₱{ri.unitCost?.toFixed(2)}</div>
-                    <div className="w-28 text-right text-sm">₱{ri.totalCost?.toFixed(2)}</div>
-                    <div className="w-32 text-right text-xs">{ri.date}</div>
-                  </div>
-                ))}
-              </div>
-            </td>
-          </tr>
+      <td className="px-4 py-2"></td> {/* # */}
+      <td className="px-4 py-2"></td> {/* ICS No */}
+      <td className="px-4 py-2"></td> {/* Division */}
+      <td className="px-4 py-2"></td> {/* Requested By */}
+
+      {/* item description */}
+      <td className="px-4 py-2 font-medium">
+        {ri.description}
+        {ri.specs && (
+          <div className="text-xs text-gray-500">{ri.specs}</div>
         )}
+      </td>
+
+      <td className="px-4 py-2 text-center">{ri.quantity}</td>
+      <td className="px-4 py-2 text-right">₱{ri.unitCost.toFixed(2)}</td>
+      <td className="px-4 py-2 text-right">₱{ri.totalCost.toFixed(2)}</td>
+      <td className="px-4 py-2 text-left">{ri.date}</td>
+
+      {/* blank actions column */}
+      <td className="px-4 py-2"></td>
+    </tr>
+  ))
+}
+
+
       </React.Fragment>
     );
   })

@@ -187,7 +187,9 @@ Route::middleware(['auth', 'role:supply_officer'])->prefix('supply_officer')->gr
     Route::get('/iar_table', [SupplyController::class, 'iar_table'])->name('supply_officer.iar_table');
     Route::get('/print_iar/{id}', [SupplyController::class, 'print_iar'])->name('supply_officer.print_iar');
     Route::get('/inventory', [SupplyController::class, 'inventory'])->name('supply_officer.inventory');
-    Route::get('/issuance/{inventory_id}', [IssuanceController::class, 'issuance'])->name('supply_officer.issuance');
+    Route::get('/issuance/{inventory_id?}', [IssuanceController::class, 'issuance'])
+    ->name('supply_officer.issuance');
+
     Route::post('/store_ris', [IssuanceController::class, 'store_ris'])->name('supply_officer.store_ris');
     Route::post('/store_ics', [IssuanceController::class, 'store_ics'])->name('supply_officer.store_ics');
     Route::post('/store_par', [IssuanceController::class, 'store_par'])->name('supply_officer.store_par');
