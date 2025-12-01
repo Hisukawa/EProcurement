@@ -25,7 +25,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('disposal_id')->constrained('tbl_disposal')->onDelete('cascade'); // Link to disposal event
             $table->foreignId('inventory_item_id')->constrained('tbl_inventory')->onDelete('cascade'); // The item being disposed
-            $table->foreignId('returned_by')->constrained('users')->restrictOnDelete(); // Who returned the item
+            $table->string('returned_by'); // Who returned the item
             $table->foreignId('disposed_by')->constrained('users')->restrictOnDelete();
             $table->decimal('quantity', 12, 2); // Quantity of the item
             $table->text('remarks')->nullable(); // Any remarks specific to the item

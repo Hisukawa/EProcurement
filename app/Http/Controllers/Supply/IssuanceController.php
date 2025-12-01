@@ -12,6 +12,7 @@ use App\Models\PPESubMajorAccount;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderDetail;
 use App\Models\RIS;
+use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -250,10 +251,28 @@ public function store_ris(Request $request)
 
     // 🧾 Attach the item(s) to the RIS
     foreach ($validated['items'] as $item) {
+
+        // Fill recipient & division if null
+        $recipient = $item['recipient'] ?? null;
+        $recipientDivision = $item['recipient_division'] ?? null;
+
+        if (!$recipient && $validated['requested_by']) {
+            $requestedByUser = User::find($validated['requested_by']);
+            if ($requestedByUser) {
+                $recipient = trim(
+                    ($requestedByUser->firstname ?? '') . ' ' .
+                    ($requestedByUser->middlename ?? '') . ' ' .
+                    ($requestedByUser->lastname ?? '')
+                );
+
+                $recipientDivision = $requestedByUser->division->division ?? null;
+            }
+        }
+
         $ris->items()->create([
             'inventory_item_id' => $item['inventory_item_id'],
-            'recipient' => $item['recipient'] ?? null,
-            'recipient_division' => $item['recipient_division'] ?? null,
+            'recipient' => $recipient,
+            'recipient_division' => $recipientDivision,
             'quantity' => $item['quantity'],
             'unit_cost' => $item['unit_cost'],
             'total_cost' => $item['total_cost'],
@@ -271,6 +290,7 @@ public function store_ris(Request $request)
         ->route('supply_officer.ris_issuance')
         ->with('success', 'Item(s) successfully added to RIS.');
 }
+
 
 
 
@@ -404,6 +424,13 @@ public function store_ics(Request $request)
         $validated['po_id'] = $poIds->count() === 1 ? $poIds->first() : null;
     }
 
+    // Fetch requested_by user info
+    $requestedByUser = $validated['requested_by'] ? User::find($validated['requested_by']) : null;
+    $requestedByFullName = $requestedByUser
+        ? trim("{$requestedByUser->firstname} {$requestedByUser->middlename} {$requestedByUser->lastname}")
+        : null;
+    $requestedByDivision = $requestedByUser?->division?->division ?? null;
+
     // Check if ICS already exists
     $ics = ICS::where('ics_number', $validated['ics_number'])->first();
     if (!$ics) {
@@ -423,10 +450,14 @@ public function store_ics(Request $request)
 
         $itemType = $item['unit_cost'] <= 5000 ? 'low' : 'high';
 
+        // If recipient or recipient_division is null, fill from requested_by
+        $recipient = $item['recipient'] ?? $requestedByFullName;
+        $recipientDivision = $item['recipient_division'] ?? $requestedByDivision;
+
         $ics->items()->create([
             'inventory_item_id' => $inventory->id,
-            'recipient' => $item['recipient'] ?? null,
-            'recipient_division' => $item['recipient_division'] ?? null,
+            'recipient' => $recipient,
+            'recipient_division' => $recipientDivision,
             'estimated_useful_life' => $item['estimated_useful_life'] ?? null,
             'inventory_item_number' => $item['inventory_item_number'] ?? null,
             'ppe_sub_major_account' => $item['ppe_sub_major_account'] ?? null,
@@ -449,6 +480,7 @@ public function store_ics(Request $request)
         ->route('supply_officer.ics_issuance_low')
         ->with('success', 'Item(s) successfully added to ICS.');
 }
+
 
 
 
@@ -640,9 +672,16 @@ public function store_par(Request $request)
         'items.*.property_no'       => 'nullable|string|max:50',
     ]);
 
+    // Fetch requested_by user info
+    $requestedByUser = $validated['requested_by'] ? User::find($validated['requested_by']) : null;
+    $requestedByFullName = $requestedByUser
+        ? trim("{$requestedByUser->firstname} {$requestedByUser->middlename} {$requestedByUser->lastname}")
+        : null;
+    $requestedByDivision = $requestedByUser?->division?->division ?? null;
+
     $par = PAR::where('par_number', $validated['par_number'])->first();
     if (!$par) {
-        // 🆕 Create a new RIS if not found
+        // 🆕 Create a new PAR if not found
         $par = PAR::create([
             'po_id' => $validated['po_id'] ?? null,
             'par_number' => $validated['par_number'],
@@ -655,10 +694,16 @@ public function store_par(Request $request)
     // 🧾 Attach the item(s)
     foreach ($validated['items'] as $item) {
         $inventory = Inventory::find($item['inventory_item_id']);
+        if (!$inventory) continue;
+
+        // Fill recipient and division if null
+        $recipient = $item['recipient'] ?? $requestedByFullName;
+        $recipientDivision = $item['recipient_division'] ?? $requestedByDivision;
+
         $par->items()->create([
             'inventory_item_id' => $inventory->id,
-            'recipient' => $item['recipient'],
-            'recipient_division' => $item['recipient_division'],
+            'recipient' => $recipient,
+            'recipient_division' => $recipientDivision,
             'estimated_useful_life' => $item['estimated_useful_life'] ?? null,
             'inventory_item_number' => $item['inventory_item_number'] ?? null,
             'ppe_sub_major_account' => $item['ppe_sub_major_account'] ?? null,
@@ -670,11 +715,17 @@ public function store_par(Request $request)
             'unit_cost' => $item['unit_cost'],
             'total_cost' => $item['total_cost'],
         ]);
+
+        // Update inventory stock
         $inventory->total_stock -= $item['quantity'];
         $inventory->save();
     }
-    return redirect()->route('supply_officer.par_issuance')->with('success', 'Item successfully added to PAR.');
+
+    return redirect()
+        ->route('supply_officer.par_issuance')
+        ->with('success', 'Item(s) successfully added to PAR.');
 }
+
 
     public function print_par($id)
     {

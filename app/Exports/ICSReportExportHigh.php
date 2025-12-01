@@ -58,11 +58,7 @@ class ICSReportExportHigh implements FromCollection, WithHeadings, WithMapping, 
                     ->orWhereHas('items.inventoryItem', function ($itemQuery) use ($search) {
                         $itemQuery->where('item_desc', 'like', "%{$search}%");
                     })
-                    ->orWhereHas('po.details.prDetail.purchaseRequest.focal_person', function ($focalQuery) use ($search) {
-                        $focalQuery->where('firstname', 'like', "%{$search}%")
-                            ->orWhere('middlename', 'like', "%{$search}%")
-                            ->orWhere('lastname', 'like', "%{$search}%");
-                    })->orWhereHas('items', function ($itemQuery) use ($search) {
+                    ->orWhereHas('items', function ($itemQuery) use ($search) {
                         $itemQuery->where('recipient', 'like', "%{$search}%")
                             ->orWhere('recipient_division', 'like', "%{$search}%");
                     });
@@ -110,22 +106,18 @@ class ICSReportExportHigh implements FromCollection, WithHeadings, WithMapping, 
 
     $inventoryItem = $item->inventoryItem;
     $focal = $ics->po?->rfq?->purchaseRequest?->focal_person;
-    $prDivision = optional($ics->po?->rfq?->purchaseRequest?->division)->division;
     $productDesc = $inventoryItem?->item_desc ?? '';
 
     // ✅ Prefer recipient and recipient_division if present
-    $recipientName = $item->recipient ?: trim(
-        ($focal?->firstname ?? '') . ' ' .
-        ($focal?->middlename ?? '') . ' ' .
-        ($focal?->lastname ?? '')
-    );
+    $recipientName = $item->recipient;
 
-    $recipientDivision = $item->recipient_division ?: $prDivision;
+    $recipientDivision = $item->recipient_division;
     $recipientPosition = $focal?->position ?? '';
 
     return [
         $item->inventory_item_number ?? '',                                        // Inventory Item No.
         $ics->ics_number ?? '',   // ICS No.
+        
         optional($ics->created_at)->format('Y-m-d') ?? '',                         // Date
         $ics->po?->po_number ?? $inventoryItem?->dr_number ?? '',                                                // PO No.
         $productDesc,                                                              // Description

@@ -30,6 +30,17 @@ export default function ReturnForm({
       ) ?? []
     );
   }, [record, selected_items]);
+// Compute the top-level Returned By input, deduplicated
+const returnedBy = Array.from(
+  new Set(
+    filteredItems.map((item) => {
+      if (item.recipient) return item.recipient;
+      const reqBy = record?.requested_by || record?.received_from;
+      if (!reqBy) return "";
+      return `${reqBy.firstname ?? ""} ${reqBy.middlename ?? ""} ${reqBy.lastname ?? ""}`.trim();
+    }).filter(Boolean)
+  )
+).join(", ");
 
   const { data, setData, errors, processing, post } = useForm({
     rrsp_number: rrsp_number ?? "",
@@ -48,10 +59,10 @@ export default function ReturnForm({
 
       return {
         inventory_item_id: item.inventory_item_id,
-        returned_by: record?.requested_by?.id ?? record?.received_from?.id ?? "",
         quantity: remainingQty,
         max_quantity: remainingQty,
         remarks: "",
+        returned_by: item.recipient ?? "",
         item_desc:
           item.inventory_item?.item_desc ??
           item.inventoryItem?.product?.name ??
@@ -66,10 +77,6 @@ export default function ReturnForm({
 
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const { toast } = useToast();
-
-  const returnedBy = `${record?.requested_by?.firstname ?? ""} ${
-    record?.requested_by?.middlename ?? ""
-  } ${record?.requested_by?.lastname ?? ""}`.trim();
 
   const handleItemChange = (index, field, value) => {
     const updatedItems = [...data.items];

@@ -63,8 +63,8 @@
 
         // Recipient fallback
         $recipientItem = $ris->items->firstWhere('recipient', '!=', null);
-        $receivedByName = $recipientItem->recipient ?? $requestedByName;
-        $receivedByPosition = $recipientItem->recipient_division ?? $requestedByPosition;
+        $receivedByName = $recipientItem->recipient ?? '';
+        $receivedByPosition = $recipientItem->recipient_division ?? '';
     @endphp
 
     <table>
@@ -162,10 +162,10 @@
         </tr>
         <tr>
             <td class="text-left">Designation :</td>
-            <td>{{ $focalDesignation }}</td>
+            <td></td>
             <td>AO - IV (Supply Officer)</td>
             <td>{{ $issuedByPosition }}</td>
-            <td>{{ $receivedByPosition }}</td>
+            <td></td>
         </tr>
         <tr>
             <td class="text-left">Date :</td>

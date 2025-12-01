@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 
 export default function RISForm({ purchaseOrder, inventoryItems = [], user, risNumber }) {
   const pr = purchaseOrder?.detail?.pr_detail?.purchase_request ?? null;
-  
+
   const focal = pr
     ? `${pr?.focal_person?.firstname ?? ""} ${pr?.focal_person?.middlename ?? ""} ${pr?.focal_person?.lastname ?? ""}`.trim()
     : "N/A";
@@ -105,9 +105,25 @@ export default function RISForm({ purchaseOrder, inventoryItems = [], user, risN
       },
     });
   };
-  const [defaultRecipient, setDefaultRecipient] = useState("");
-const [defaultDivision, setDefaultDivision] = useState("");
 
+  const [defaultRecipient, setDefaultRecipient] = useState("");
+  const [defaultDivision, setDefaultDivision] = useState("");
+
+  const handleRecipientChange = (e) => {
+    setDefaultRecipient(e.target.value);
+    setData("items", data.items.map((item) => ({
+      ...item,
+      recipient: e.target.value,
+    })));
+  };
+
+  const handleDivisionChange = (e) => {
+    setDefaultDivision(e.target.value);
+    setData("items", data.items.map((item) => ({
+      ...item,
+      recipient_division: e.target.value,
+    })));
+  };
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-md">
@@ -143,12 +159,14 @@ const [defaultDivision, setDefaultDivision] = useState("");
               />
             </div>
             
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Requested By</label>
-          <input value={focal} readOnly className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm bg-white" />
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Requested By</label>
+              <input value={focal} readOnly className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm bg-white" />
+            </div>
           </div>
         </div>
+
+
 
         {/* Multiple Items */}
         {data.items.map((item, index) => (
@@ -168,45 +186,6 @@ const [defaultDivision, setDefaultDivision] = useState("");
                 <label className="block text-sm font-medium text-gray-700">Description</label>
                 <input value={item.description} readOnly className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm bg-white" />
               </div>
-              {/* Default Recipient (applies to all items) */}
-<div className="p-5 border rounded-md bg-yellow-50 mb-4">
-  <h3 className="text-lg font-semibold text-yellow-700 mb-4">Default Recipient (applied to all items)</h3>
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div>
-      <label className="block text-sm font-medium text-gray-700">Recipient Name</label>
-      <input
-        type="text"
-        value={defaultRecipient}
-        onChange={(e) => {
-          setDefaultRecipient(e.target.value);
-          setData("items", data.items.map(item => ({
-            ...item,
-            recipient: e.target.value
-          })));
-        }}
-        placeholder="Leave blank to issue to requester"
-        className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm"
-      />
-    </div>
-    <div>
-      <label className="block text-sm font-medium text-gray-700">Recipient Division</label>
-      <input
-        type="text"
-        value={defaultDivision}
-        onChange={(e) => {
-          setDefaultDivision(e.target.value);
-          setData("items", data.items.map(item => ({
-            ...item,
-            recipient_division: e.target.value
-          })));
-        }}
-        placeholder="Optional"
-        className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm"
-      />
-    </div>
-  </div>
-</div>
-
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Quantity</label>
@@ -231,7 +210,32 @@ const [defaultDivision, setDefaultDivision] = useState("");
             </div>
           </div>
         ))}
-
+                {/* Default Recipient and Division (Only once at the bottom) */}
+        <div className="p-5 border rounded-md bg-yellow-50 mb-4">
+          <h3 className="text-lg font-semibold text-yellow-700 mb-4">Default Recipient (applied to all items)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Recipient Name</label>
+              <input
+                type="text"
+                value={defaultRecipient}
+                onChange={handleRecipientChange}
+                placeholder="Leave blank to issue to requester"
+                className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Recipient Division</label>
+              <input
+                type="text"
+                value={defaultDivision}
+                onChange={handleDivisionChange}
+                placeholder="Optional"
+                className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm"
+              />
+            </div>
+          </div>
+        </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700">Remarks</label>
@@ -270,3 +274,4 @@ const [defaultDivision, setDefaultDivision] = useState("");
     </div>
   );
 }
+

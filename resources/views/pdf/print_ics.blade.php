@@ -146,8 +146,8 @@
 
         // Recipient fallback
         $recipientItem = $ics->items->firstWhere('recipient', '!=', null);
-        $receivedByName = $recipientItem->recipient ?? $requestedByName;
-        $receivedByPosition = $recipientItem->recipient_division ?? $requestedByPosition;
+        $receivedByName = $recipientItem->recipient ?? '';
+        $receivedByPosition = $recipientItem->recipient_division ?? '';
     @endphp
 
 

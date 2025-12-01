@@ -50,16 +50,6 @@ class ParReportExport implements FromCollection, WithHeadings, WithMapping, With
                 ->orWhereHas('items.inventoryItem', function ($itemQuery) use ($search) {
                     $itemQuery->where('item_desc', 'like', "%{$search}%");
                 })
-                // ✅ Search by Focal Person
-                ->orWhereHas('po.details.prDetail.purchaseRequest.focal_person', function ($focalQuery) use ($search) {
-                    $focalQuery->where('firstname', 'like', "%{$search}%")
-                        ->orWhere('middlename', 'like', "%{$search}%")
-                        ->orWhere('lastname', 'like', "%{$search}%");
-                })
-                // ✅ Search by Division
-                ->orWhereHas('po.details.prDetail.purchaseRequest.division', function ($divQuery) use ($search) {
-                    $divQuery->where('division', 'like', "%{$search}%");
-                })
                 ->orWhereHas('items', function ($itemQuery) use ($search) {
                         $itemQuery->where('recipient', 'like', "%{$search}%")
                             ->orWhere('recipient_division', 'like', "%{$search}%");
@@ -106,15 +96,9 @@ class ParReportExport implements FromCollection, WithHeadings, WithMapping, With
     $item = $row->item;
 
     $inventoryItem = $item->inventoryItem;
-    $division      = optional($par->po?->rfq?->purchaseRequest?->division)->division ?? '';
-    $prDivision = optional($par->po?->rfq?->purchaseRequest?->division)->division;
     $focal         = $par->po?->rfq?->purchaseRequest?->focal_person;
-    $recipientName = $item->recipient ?: trim(
-        ($focal?->firstname ?? '') . ' ' .
-        ($focal?->middlename ?? '') . ' ' .
-        ($focal?->lastname ?? '')
-    );
-    $recipientDivision = $item->recipient_division ?: $prDivision;
+    $recipientName = $item->recipient;
+    $recipientDivision = $item->recipient_division;
     $recipientPosition = $focal?->position ?? '';
 
     // Use item_desc directly
@@ -123,7 +107,7 @@ class ParReportExport implements FromCollection, WithHeadings, WithMapping, With
     return [
         $item->inventory_item_number ?? '',                     // Inventory Item No.
         $par->par_number ?? '',                              // PAR No. $par->ics_number,          
-        $item->property_no ?? '',                    // ICS No./PAR No.
+        $item->inventory_item_number ?? '',                     // ICS No./PAR No.
         $par->created_at?->format('Y-m-d') ?? '',    // Date
         $par->po?->po_number ?? '',                  // PO No.
         $productDesc,                                // ✅ Description from item_desc
@@ -132,7 +116,7 @@ class ParReportExport implements FromCollection, WithHeadings, WithMapping, With
         $inventoryItem?->unit?->unit ?? '',          // Unit
         $item->quantity,                             // Qty.
         $recipientName ?? '',
-        $focal?->position ?? '',
+        $recipientPosition,
         $recipientDivision,
         $item?->estimated_useful_life ?? '',        // Optional if exists
     ];

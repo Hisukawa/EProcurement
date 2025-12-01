@@ -10,7 +10,6 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
@@ -18,9 +17,8 @@ class RISReportGenerate implements FromCollection, WithHeadings, WithMapping, Wi
 {
     protected $month;
     protected $year;
-    protected $lastRisNo = null;
-
     protected $search;
+    protected $lastRisNo = null;
 
     public function __construct($month = null, $year = null, $search = null)
     {
@@ -29,103 +27,90 @@ class RISReportGenerate implements FromCollection, WithHeadings, WithMapping, Wi
         $this->search = $search;
     }
 
-public function collection()
-{
-    $query = RIS::with([
-        'items.inventoryItem.product.unit',
-        'po.details.prDetail.purchaseRequest.division',
-        'po.details.prDetail.purchaseRequest.focal_person'
-    ]);
 
-    // 🔹 Filter by month and year
-    if ($this->month) {
-        $query->whereMonth('created_at', $this->month);
-    }
-    if ($this->year) {
-        $query->whereYear('created_at', $this->year);
-    }
+    public function collection()
+    {
+        $query = RIS::with([
+            'requestedBy.division',
+            'items.inventoryItem.product.unit',
+            'po.details.prDetail.purchaseRequest.division',
+            'po.details.prDetail.purchaseRequest.focal_person'
+        ]);
 
-    // 🔹 Apply search if provided
-    if ($this->search) {
-        $search = $this->search;
+        // Filter by month and year
+        if ($this->month) $query->whereMonth('created_at', $this->month);
+        if ($this->year)  $query->whereYear('created_at', $this->year);
 
-        $query->where(function ($q) use ($search) {
-            $q->where('ris_number', 'like', "%{$search}%")
-                // ✅ Search PO Number
-                ->orWhereHas('po', function ($poQuery) use ($search) {
-                    $poQuery->where('po_number', 'like', "%{$search}%");
-                })
-                // ✅ Search by Item Description or Product Name
-                ->orWhereHas('items.inventoryItem', function ($itemQuery) use ($search) {
-                    $itemQuery->where('item_desc', 'like', "%{$search}%");
-                })
-                // ✅ Search by Focal Person
-                ->orWhereHas('po.details.prDetail.purchaseRequest.focal_person', function ($focalQuery) use ($search) {
-                    $focalQuery->where('firstname', 'like', "%{$search}%")
-                        ->orWhere('middlename', 'like', "%{$search}%")
-                        ->orWhere('lastname', 'like', "%{$search}%");
-                })
-                // ✅ Search by Division
-                ->orWhereHas('po.details.prDetail.purchaseRequest.division', function ($divQuery) use ($search) {
-                    $divQuery->where('division', 'like', "%{$search}%");
-                })
-                ->orWhereHas('items', function ($itemQuery) use ($search) {
-                        $itemQuery->where('recipient', 'like', "%{$search}%")
-                            ->orWhere('recipient_division', 'like', "%{$search}%");
-                    });
-        });
-    }
+        // Search logic (fixed)
+        if ($this->search) {
+            $search = $this->search;
 
-    // 🔹 Order by created date and get all records
-    $risList = $query->orderBy('created_at')->get();
+            $query->where(function ($q) use ($search) {
 
-    // 🔹 Flatten results (RIS + items)
-    $rows = collect();
-    foreach ($risList as $ris) {
-        if ($ris->items->isEmpty()) {
-            $rows->push((object)[
-                'ris' => $ris,
-                'item' => null,
-            ]);
-        } else {
-            foreach ($ris->items as $itm) {
+                $q->where('ris_number', 'like', "%{$search}%")
+
+                  ->orWhereHas('po', fn($po) =>
+                      $po->where('po_number', 'like', "%{$search}%")
+                  )
+
+                  ->orWhereHas('items.inventoryItem', fn($item) =>
+                      $item->where('item_desc', 'like', "%{$search}%")
+                  )
+
+                  ->orWhereHas('items', fn($item) =>
+                      $item->where('recipient', 'like', "%{$search}%")
+                           ->orWhere('recipient_division', 'like', "%{$search}%")
+                  );
+            });
+        }
+
+        $risList = $query->orderBy('created_at')->get();
+
+        // Flatten rows
+        $rows = collect();
+        foreach ($risList as $ris) {
+            if ($ris->items->isEmpty()) {
                 $rows->push((object)[
                     'ris' => $ris,
-                    'item' => $itm,
+                    'item' => null,
                 ]);
+            } else {
+                foreach ($ris->items as $itm) {
+                    $rows->push((object)[
+                        'ris' => $ris,
+                        'item' => $itm,
+                    ]);
+                }
             }
         }
-    }
 
-    return $rows;
-}
+        return $rows;
+    }
 
 
     public function headings(): array
     {
-        // dynamic date range
         $monthName = $this->month ? date("F", mktime(0, 0, 0, $this->month, 1)) : '';
         $daysInMonth = ($this->month && $this->year) ? date("t", strtotime("{$this->year}-{$this->month}-01")) : '';
+
         if ($this->month && $this->year) {
             $dateRange = "{$monthName} 1–{$daysInMonth}, {$this->year}";
         } elseif ($this->year) {
             $dateRange = "Year {$this->year}";
         } else {
-            // fallback: show current month range
             $monthName = date("F");
             $daysInMonth = date("t");
             $yearNow = date("Y");
             $dateRange = "{$monthName} 1–{$daysInMonth}, {$yearNow}";
         }
 
-
         return [
-            ['Appendix 64'], 
-            ['REPORT OF SUPPLIES AND MATERIALS ISSUED'], 
-            ['Entity Name: SDO City of Ilagan', '', '', '', '', '', ''], // no serial number
+            ['Appendix 64'],
+            ['REPORT OF SUPPLIES AND MATERIALS ISSUED'],
+            ['Entity Name: SDO City of Ilagan', '', '', '', '', '', ''],
             ['Fund Cluster: 01', '', '', '', '', '', '', "Date: {$dateRange}"],
             ['To be filled up by the Supply and/or Property Division/Unit', '', '', '', '', 'To be filled up by the Accounting Division/Unit'],
-            [ // table header row (row 6)
+            [
                 'RIS No.',
                 'Responsibility Center Code',
                 'Stock No.',
@@ -138,9 +123,7 @@ public function collection()
         ];
     }
 
-    /**
-     * Map each flattened row (stdClass with ris + item) to the final array
-     */
+
     public function map($row): array
     {
         $ris = $row->ris;
@@ -148,7 +131,12 @@ public function collection()
 
         $inventoryItem = $itm?->inventoryItem;
 
-        // ✅ Use item_desc directly, fallback if missing
+        // Determine responsible person (Recipient → fallback to RequestedBy)
+        $responsiblePerson = $itm->recipient;
+        $responsibleDivision = $itm->recipient_division;
+        
+
+        // Item description
         $itemDesc = $inventoryItem?->item_desc
             ?? optional($ris->po->details->first()?->prDetail?->product)->name
             ?? '';
@@ -158,17 +146,14 @@ public function collection()
         $unitCost = $itm?->unit_cost ?? 0;
         $amount   = $quantity * $unitCost;
 
-        // only show RIS number once
+        // Only show RIS No once
         $showRis = $this->lastRisNo !== $ris->ris_number;
-        if ($showRis) {
-            $this->lastRisNo = $ris->ris_number;
-        }
+        if ($showRis) $this->lastRisNo = $ris->ris_number;
 
         return [
             $showRis ? $ris->ris_number : '',
-            '', // Responsibility Center Code
-            $inventoryItem?->stock_no ?? '', // Stock No
-            $itemDesc, // ✅ Description from item_desc
+            $inventoryItem?->stock_no ?? '',
+            $itemDesc,
             $unit,
             $quantity,
             $unitCost ? number_format((float)$unitCost, 2, '.', ',') : '',
@@ -177,24 +162,18 @@ public function collection()
     }
 
 
-
-
-    /**
-     * Styling, merging and totals after sheet is filled
-     */
     public function registerEvents(): array
     {
         return [
-            // inside registerEvents()
             AfterSheet::class => function(AfterSheet $event) {
+
                 $sheet = $event->sheet->getDelegate();
 
-                // default font
                 $sheet->getParent()->getDefaultStyle()->applyFromArray([
                     'font' => ['name' => 'Times New Roman', 'size' => 10],
                 ]);
 
-                // merge header ranges
+                // Header merges
                 $sheet->mergeCells('A1:H1');
                 $sheet->mergeCells('A2:H2');
                 $sheet->mergeCells('A3:F3');
@@ -202,102 +181,75 @@ public function collection()
                 $sheet->mergeCells('A5:E5');
                 $sheet->mergeCells('F5:H5');
 
-                // titles
+                // Styles
                 $sheet->getStyle('A1:H1')->applyFromArray([
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT],
-                    'font'      => ['name' => 'Times New Roman', 'size' => 12, 'bold' => true],
+                    'font' => ['bold' => true, 'size' => 12]
                 ]);
+
                 $sheet->getStyle('A2:H2')->applyFromArray([
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                    'font'      => ['name' => 'Times New Roman', 'size' => 12, 'bold' => true],
+                    'font' => ['bold' => true, 'size' => 12]
                 ]);
-                $sheet->getStyle('A3:H4')->applyFromArray([
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT],
-                    'font'      => ['name' => 'Times New Roman', 'size' => 10],
-                ]);
-                $sheet->getStyle('A5:H5')->applyFromArray([
+
+                $sheet->getStyle('A6:H6')->applyFromArray([
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                    'font'      => ['name' => 'Times New Roman', 'size' => 10, 'italic' => true],
+                    'font' => ['bold' => true]
                 ]);
 
-                // header row style (row 6)
-                $highestColumn = $sheet->getHighestColumn();
-                $sheet->getStyle("A6:{$highestColumn}6")->applyFromArray([
-                    'font' => ['name' => 'Times New Roman', 'size' => 10, 'bold' => true],
-                    'alignment' => [
-                        'horizontal' => Alignment::HORIZONTAL_CENTER,
-                        'vertical' => Alignment::VERTICAL_CENTER,
-                    ],
-                ]);
-
-                // determine data bounds
-                $startDataRow = 7; // headers occupy rows 1..6
+                $startDataRow = 7;
                 $highestRow = $sheet->getHighestRow();
+                $highestColumn = $sheet->getHighestColumn();
 
-                if ($highestRow < $startDataRow) {
-                    foreach (range('A', $highestColumn) as $col) {
-                        $sheet->getColumnDimension($col)->setAutoSize(true);
-                    }
-                    return;
-                }
+                if ($highestRow >= $startDataRow) {
 
-                // number format for cost columns
-                $sheet->getStyle("G{$startDataRow}:G{$highestRow}")
-                    ->getNumberFormat()->setFormatCode('#,##0.00');
-                $sheet->getStyle("H{$startDataRow}:H{$highestRow}")
-                    ->getNumberFormat()->setFormatCode('#,##0.00');
+                    // Format cost numeric columns
+                    $sheet->getStyle("G{$startDataRow}:G{$highestRow}")
+                        ->getNumberFormat()->setFormatCode('#,##0.00');
 
-                // Merge vertical groups for RIS No. and Responsibility Center Code
-                $r = $startDataRow;
-                while ($r <= $highestRow) {
-                    $val = trim((string)$sheet->getCell("A{$r}")->getValue());
-                    if ($val !== '') {
-                        $start = $r;
-                        $end = $r;
-                        $nr = $r + 1;
-                        while ($nr <= $highestRow) {
-                            $nextVal = trim((string)$sheet->getCell("A{$nr}")->getValue());
-                            if ($nextVal === '') {
+                    $sheet->getStyle("H{$startDataRow}:H{$highestRow}")
+                        ->getNumberFormat()->setFormatCode('#,##0.00');
+
+                    // Merge RIS & Responsibility Center
+                    $r = $startDataRow;
+                    while ($r <= $highestRow) {
+                        $val = trim((string)$sheet->getCell("A{$r}")->getValue());
+                        if ($val !== '') {
+                            $start = $r;
+                            $end = $r;
+                            $nr = $r + 1;
+
+                            while ($nr <= $highestRow && trim((string)$sheet->getCell("A{$nr}")->getValue()) === '') {
                                 $end = $nr;
                                 $nr++;
-                            } else {
-                                break;
                             }
+
+                            if ($end > $start) {
+                                $sheet->mergeCells("A{$start}:A{$end}");
+                                $sheet->mergeCells("B{$start}:B{$end}");
+                                $sheet->getStyle("A{$start}:B{$end}")
+                                    ->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+                            }
+
+                            $r = $end + 1;
+                        } else {
+                            $r++;
                         }
-                        if ($end > $start) {
-                            $sheet->mergeCells("A{$start}:A{$end}");
-                            $sheet->mergeCells("B{$start}:B{$end}");
-                            $sheet->getStyle("A{$start}:B{$end}")
-                                ->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
-                        }
-                        $r = $end + 1;
-                    } else {
-                        $r++;
                     }
+
+                    // Borders
+                    $sheet->getStyle("A6:{$highestColumn}{$highestRow}")
+                        ->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+
+                    $sheet->getStyle("A6:{$highestColumn}{$highestRow}")
+                        ->getBorders()->getOutline()->setBorderStyle(Border::BORDER_MEDIUM);
                 }
 
-                // Borders: thin inside, medium outline (only until last data row, no totals)
-                $sheet->getStyle("A6:{$highestColumn}{$highestRow}")
-                    ->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-                $sheet->getStyle("A6:{$highestColumn}{$highestRow}")
-                    ->getBorders()->getOutline()->setBorderStyle(Border::BORDER_MEDIUM);
-
-                // autosize columns
+                // Auto-size columns
                 foreach (range('A', $highestColumn) as $col) {
                     $sheet->getColumnDimension($col)->setAutoSize(true);
                 }
             }
-
         ];
-    }
-
-    public function styles(Worksheet $sheet)
-    {
-        // additional style hooks if needed
-        $sheet->getStyle('A1:A2')->getFont()->setBold(true)->setSize(12);
-        $sheet->getStyle('A1:A2')->getAlignment()->setHorizontal('center');
-        $sheet->getStyle('A6:H6')->getFont()->setBold(true); // table headers
-
-        return [];
     }
 }

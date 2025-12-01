@@ -56,13 +56,6 @@ const filteredIcs = ics?.data?.filter((record) => {
         .includes(search.toLowerCase())
     ) ||
     (
-      (record.po?.rfq?.purchase_request?.focal_person?.firstname ?? '') +
-      ' ' +
-      (record.po?.rfq?.purchase_request?.focal_person?.lastname ?? '')
-    )
-      .toLowerCase()
-      .includes(search.toLowerCase()) ||
-    (
       (record.items?.[0]?.recipient ?? '').toLowerCase().includes(search.toLowerCase())
     )
 
@@ -243,15 +236,9 @@ const toggleRowExpansion = (id) => {
     const remainingItems = itemsWithDetails.slice(1);
 
     const issuedTo =
-      record.items?.[0]?.recipient ??
-      (record.requested_by
-        ? `${record.requested_by.firstname ?? ""} ${record.requested_by.lastname ?? ""}`.trim()
-        : "N/A");
+      record.items?.[0]?.recipient ?? "N/A";
 
-    const division =
-      record.items?.[0]?.recipient_division ??
-      record.po?.details?.[0]?.pr_detail?.purchase_request?.division?.division ??
-      "N/A";
+    const division =record.items?.[0]?.recipient_division ?? "N/A";
 
     return (
       <React.Fragment key={record.id}>
