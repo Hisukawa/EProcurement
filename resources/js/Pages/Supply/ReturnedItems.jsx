@@ -132,12 +132,13 @@ export default function ReturnedItems({ filters, records, user }) {
               ) : (
                 records.data.map((record) => {
                   const items = record.items || [];
+                  console.log(items);
                   return items.map((it) => (
                     <tr key={it.id} className="hover:bg-gray-50 transition">
                       <td className="px-6 py-4 text-gray-700">{record.rrsp_number}</td>
                       <td className="px-6 py-4 text-gray-700">{record.ics_number}</td>
                       <td className="px-6 py-4 text-gray-700">
-                        {it?.returned_by?.firstname} {it?.returned_by?.lastname}
+                        {it?.returned_by} 
                       </td>
                       <td className="px-6 py-4 text-gray-700 text-left">{it?.inventory_item?.item_desc}</td>
                       <td className="px-6 py-4 text-gray-700">{it?.quantity}</td>
