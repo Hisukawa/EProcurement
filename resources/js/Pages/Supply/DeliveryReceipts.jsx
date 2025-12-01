@@ -1,5 +1,5 @@
 import SupplyOfficerLayout from "@/Layouts/SupplyOfficerLayout";
-import { Head, useForm } from "@inertiajs/react";
+import { Head, router, useForm } from "@inertiajs/react";
 import { PackageCheck, PlusCircle, PrinterCheck, X } from "lucide-react";
 import { useEffect, Fragment, useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
@@ -88,24 +88,50 @@ const handleAddDeliveryReceipt = (e) => {
     },
   });
 };
+  const [selectedItems, setSelectedItems] = useState([]);
+
+const toggleSelect = (id, stock) => {
+  if (stock <= 0) return; // prevent selecting items with no stock
+  setSelectedItems((prev) =>
+    prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+  );
+};
   return (
     <SupplyOfficerLayout header="Schools Divisions Office - Ilagan | Inventory">
       <Head title="Inventory" />
 
       {/* Header and Filters */}
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-8 gap-4">
-        <h2 className="text-3xl font-bold text-gray-800">Inventory</h2>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
+        {/* Inventory Heading and Issue Selected Items Button */}
+        <div className="flex items-center gap-4">
+          <h2 className="text-3xl font-bold text-gray-800">Inventory</h2>
+          
+          {/* Issue Selected Items Button */}
+          {selectedItems.length > 0 && (
+            <button
+              onClick={() =>
+                router.visit(route("supply_officer.issuance"), {
+                  method: "get",
+                  data: { items: selectedItems },
+                })
+              }
+              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center gap-2"
+            >
+              <PackageCheck size={18} /> Issue Selected Items ({selectedItems.length})
+            </button>
+          )}
+        </div>
 
+        {/* Filters and Add Delivery Receipt Button */}
         <div className="flex items-center gap-3">
-          <form onSubmit={(e) => e.preventDefault()} className="flex flex-wrap gap-3">
+          <form onSubmit={(e) => e.preventDefault()} className="flex gap-3">
             <input
               type="text"
-              placeholder="Search item or Focal Person"
+              placeholder="Search item"
               className="w-64 border border-gray-300 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-
           </form>
 
           <button
@@ -117,6 +143,8 @@ const handleAddDeliveryReceipt = (e) => {
           </button>
         </div>
       </div>
+
+
 
       {/* Table */}
       <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm bg-white">
@@ -165,6 +193,15 @@ const handleAddDeliveryReceipt = (e) => {
 
       return (
         <tr key={inv.id} className="hover:bg-blue-50 transition duration-200">
+          <td className="px-3 py-4">
+            <input
+              type="checkbox"
+              checked={selectedItems.includes(inv.id)}
+              disabled={remainingStock <= 0} // <-- disable if no stock left
+              onChange={() => toggleSelect(inv.id, remainingStock)}
+              className="w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
+            />
+          </td>
           <td className="px-6 py-4">{inv.dr_number ?? "N/A"}</td>
           <td className="px-6 py-4">
             {inv.requested_by

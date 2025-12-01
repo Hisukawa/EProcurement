@@ -98,13 +98,8 @@
 
         // Recipient fallback: use item recipient if exists, else requestedBy
         $recipientItem = $par->items->firstWhere('recipient', '!=', null);
-        if ($recipientItem && $recipientItem->recipient) {
-            $receivedByName = $recipientItem->recipient;
-            $receivedByPosition = $recipientItem->recipient_division ?? ($par->requestedBy->position ?? '');
-        } else {
-            $receivedByName = trim(($par->requestedBy->firstname ?? '') . ' ' . ($par->requestedBy->middlename ?? '') . ' ' . ($par->requestedBy->lastname ?? ''));
-            $receivedByPosition = $par->requestedBy->position ?? '';
-        }
+        $receivedByName = $recipientItem->recipient ?? '';
+        $receivedByPosition = $recipientItem->recipient_division ?? '';
     @endphp
 
     <table class="sig-table" style="margin-top:none !important">

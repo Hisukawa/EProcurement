@@ -20,20 +20,11 @@ export default function Par({ purchaseOrders, inventoryItems, par, user }) {
 const [expandedRows, setExpandedRows] = useState([]);
 
 const filteredPar = par?.data?.filter(record => {
-  const focalPersonName = record.po?.rfq?.purchase_request?.focal_person
-    ? `${record.po.rfq.purchase_request.focal_person.firstname ?? ''} ${record.po.rfq.purchase_request.focal_person.lastname ?? ''}`
-    : '';
-
-  const requestedByName = record.requested_by
-    ? `${record.requested_by.firstname ?? ''} ${record.requested_by.lastname ?? ''}`
-    : '';
 
   const matchesSearch =
     search === '' ||
     record.par_number?.toLowerCase().includes(search.toLowerCase()) ||
     record.inventory_item?.item_desc?.toLowerCase().includes(search.toLowerCase()) ||
-    requestedByName.toLowerCase().includes(search.toLowerCase()) ||
-    focalPersonName.toLowerCase().includes(search.toLowerCase())||
       (record.items?.[0]?.recipient ?? '').toLowerCase().includes(search.toLowerCase());
 
 
@@ -168,170 +159,140 @@ const [switchRecord, setSwitchRecord] = useState(null);
             </thead>
 
             <tbody className="divide-y divide-gray-100">
-              {filteredPar && filteredPar.length > 0 ? (
-                filteredPar.map((record, index) => {
-                  const itemsWithDetails =
-                    record.items?.map((item) => ({
-                      description: item.inventory_item?.item_desc ?? "N/A",
-                      quantity: item.quantity,
-                      unitCost: Number(item.unit_cost ?? 0),
-                      totalCost: Number(item.unit_cost ?? 0) * item.quantity,
-                      date: new Date(item.created_at).toLocaleDateString("en-PH", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      }),
-                    })) || [];
+  {filteredPar && filteredPar.length > 0 ? (
+    filteredPar.map((record, index) => {
+      const itemsWithDetails =
+        record.items?.map((item) => ({
+          description: item.inventory_item?.item_desc ?? "N/A",
+          quantity: item.quantity,
+          unitCost: Number(item.unit_cost ?? 0),
+          totalCost: Number(item.unit_cost ?? 0) * item.quantity,
+          date: new Date(item.created_at).toLocaleDateString("en-PH", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          }),
+        })) || [];
 
-                  const isExpanded = expandedRows.includes(record.id);
-                  const visibleItems = isExpanded
-                    ? itemsWithDetails
-                    : itemsWithDetails.slice(0, 1);
-                    const issuedTo =
-                    record.items?.[0]?.recipient ??
-                    (record.requested_by
-                      ? `${record.requested_by.firstname ?? ""} ${record.requested_by.lastname ?? ""}`.trim()
-                      : "N/A");
+      const isExpanded = expandedRows.includes(record.id);
+      const firstItem = itemsWithDetails[0] ?? {
+        description: record.items?.[0]?.inventory_item?.item_desc ?? "N/A",
+        quantity: record.items?.[0]?.quantity ?? 0,
+        unitCost: Number(record.items?.[0]?.inventory_item?.unit_cost ?? 0),
+        totalCost:
+          (record.items?.[0]?.quantity ?? 0) *
+          (record.items?.[0]?.inventory_item?.unit_cost ?? 0),
+        date: new Date(record.items?.[0]?.created_at ?? record.created_at).toLocaleDateString("en-PH"),
+      };
 
-                  const division =
-                    record.items?.[0]?.recipient_division ??
-                    record.po?.details?.[0]?.pr_detail?.purchase_request?.division?.division ??
-                    "N/A";
+      const remainingItems = itemsWithDetails.slice(1);
+      const issuedTo = record.items?.[0]?.recipient ?? "N/A";
+      const division = record.items?.[0]?.recipient_division ?? "N/A";
 
-                  return (
-                    <React.Fragment key={record.id}>
-                      {visibleItems.map((item, itemIdx) => (
-                        <tr
-                          key={`${record.id}-${itemIdx}`}
-                          className={`transition-all duration-150 ${
-                            itemIdx % 2 === 0 ? "bg-white" : "bg-gray-50"
-                          } hover:bg-blue-50 hover:shadow-sm`}
-                        >
-                          {itemIdx === 0 && (
-                            <>
-                              <td
-                                rowSpan={visibleItems.length}
-                                className="px-4 py-3 font-semibold text-gray-800 align-top"
-                              >
-                                {index + 1}
-                              </td>
+      return (
+        <React.Fragment key={record.id}>
+          {/* Main row */}
+          <tr className="bg-white hover:bg-blue-50 transition">
+            <td className="px-4 py-3 font-semibold text-gray-800 align-top">{index + 1}</td>
 
-                              <td
-                                rowSpan={visibleItems.length}
-                                className="px-4 py-3 text-blue-600 font-medium align-top"
-                              >
-                                {record.par_number}
-                              </td>
+            <td className="px-4 py-3 text-blue-600 font-medium align-top">{record.par_number}</td>
 
-                              <td
-                                rowSpan={visibleItems.length}
-                                className="px-4 py-3 align-top"
-                              >
-                                {division}
-                              </td>
+            <td className="px-4 py-3 align-top">{division}</td>
 
-                              <td
-                                rowSpan={visibleItems.length}
-                                className="px-4 py-3 align-top"
-                              >
-                                {issuedTo}
-                              </td>
-                            </>
-                          )}
+            <td className="px-4 py-3 align-top">{issuedTo}</td>
 
-                          <td className="px-4 py-3">
-                            <span className="font-medium">{item.description}</span>
-                          </td>
+            {/* First item */}
+            <td className="px-4 py-3 font-medium">{firstItem.description}</td>
+            <td className="px-4 py-3 text-center">{firstItem.quantity}</td>
+            <td className="px-4 py-3 text-right">₱{firstItem.unitCost?.toFixed(2)}</td>
+            <td className="px-4 py-3 text-right">₱{firstItem.totalCost?.toFixed(2)}</td>
+            <td className="px-4 py-3">{firstItem.date}</td>
 
-                          <td className="px-4 py-3 text-center text-gray-800">
-                            {item.quantity}
-                          </td>
+            {/* Actions */}
+            <td className="px-4 py-3 text-center align-top">
+              <div className="flex flex-col sm:flex-row gap-2 justify-center relative z-10">
+                <a
+                  href={route("supply_officer.print_par", record.id)}
+                  target="_blank"
+                  className="inline-flex items-center justify-center gap-1 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg shadow-sm text-xs font-medium pointer-events-auto"
+                >
+                  <PrinterCheck size={14} />
+                  Print
+                </a>
 
-                          <td className="px-4 py-3 text-right">
-                            ₱{item.unitCost.toFixed(2)}
-                          </td>
+                <Button
+                  type="button"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm pointer-events-auto"
+                  onClick={() => {
+                    setSwitchRecord(record);
+                    setSwitchItems([]);
+                    setShowSwitchModal(true);
+                  }}
+                >
+                  Switch Type
+                </Button>
 
-                          <td className="px-4 py-3 text-right">
-                            ₱{item.totalCost.toFixed(2)}
-                          </td>
+                <Button
+                  type="button"
+                  onClick={(e) => handleActionSelect(e, record)}
+                  value="return"
+                  className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm pointer-events-auto"
+                >
+                  Return
+                </Button>
+              </div>
 
-                          <td className="px-4 py-3">{item.date}</td>
-
-                          {itemIdx === 0 && (
-  <td
-    rowSpan={visibleItems.length}
-    className="px-4 py-3 text-center align-top"
-  >
-    <div className="flex flex-col sm:flex-row gap-2 justify-center">
-      <a
-        href={route("supply_officer.print_par", record.id)}
-        target="_blank"
-        className="inline-flex items-center justify-center gap-1 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg shadow-sm text-xs font-medium"
-      >
-        <PrinterCheck size={14} /> Print
-      </a>
-
-      <Button
-        type="button"
-        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
-        onClick={() => {
-          setSwitchRecord(record);
-          setSwitchItems([]);
-          setShowSwitchModal(true);
-        }}
-      >
-        Switch Type
-      </Button>
-
-      <Button
-        type="button"
-        onClick={(e) => handleActionSelect(e, record)}
-        value="return"
-        className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-lg text-xs font-medium shadow-sm"
-      >
-        Return
-      </Button>
-    </div>
-
-    {/* Expand / Collapse */}
-    {itemsWithDetails.length > 2 && (
-      <button
-        onClick={() => toggleRow(record.id)}
-        className="mt-2 text-blue-600 hover:underline text-xs flex items-center justify-center gap-1"
-      >
-        {isExpanded ? (
-          <>
-            <MinusCircle size={14} /> Show Less
-          </>
-        ) : (
-          <>
-            <PlusCircle size={14} /> Show More
-          </>
-        )}
-      </button>
-    )}
-  </td>
-)}
-
-                        </tr>
-                      ))}
-                    </React.Fragment>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td
-                    colSpan="10"
-                    className="text-center py-10 text-gray-500 bg-gray-50 italic"
-                  >
-                    <div className="flex flex-col items-center justify-center">
-                      <FileText className="w-10 h-10 mb-2 text-gray-400" />
-                      <span>No ICS records found</span>
-                    </div>
-                  </td>
-                </tr>
+              {/* Expand/Collapse toggle */}
+              {record.items.length > 1 && (
+                <button
+                  onClick={() => toggleRow(record.id)}
+                  className="mt-2 text-blue-600 hover:underline text-xs flex items-center justify-center gap-1"
+                >
+                  {isExpanded ? (
+                    <>
+                      <MinusCircle size={14} /> Show Less
+                    </>
+                  ) : (
+                    <>
+                      <PlusCircle size={14} /> Show More ({record.items.length - 1} more)
+                    </>
+                  )}
+                </button>
               )}
-            </tbody>
+            </td>
+          </tr>
+
+          {/* Remaining items */}
+          {isExpanded &&
+            remainingItems.map((ri, i) => (
+              <tr key={i} className="bg-gray-50 hover:bg-blue-50 transition">
+                <td className="px-4 py-2"></td>
+                <td className="px-4 py-2"></td>
+                <td className="px-4 py-2"></td>
+                <td className="px-4 py-2"></td>
+                <td className="px-4 py-2 font-medium">{ri.description}</td>
+                <td className="px-4 py-2 text-center">{ri.quantity}</td>
+                <td className="px-4 py-2 text-right">₱{ri.unitCost.toFixed(2)}</td>
+                <td className="px-4 py-2 text-right">₱{ri.totalCost.toFixed(2)}</td>
+                <td className="px-4 py-2 text-left">{ri.date}</td>
+                <td className="px-4 py-2"></td>
+              </tr>
+            ))}
+        </React.Fragment>
+      );
+    })
+  ) : (
+    <tr>
+      <td colSpan="10" className="text-center py-10 text-gray-500 bg-gray-50 italic">
+        <div className="flex flex-col items-center justify-center">
+          <FileText className="w-10 h-10 mb-2 text-gray-400" />
+          <span>No PAR records found</span>
+        </div>
+      </td>
+    </tr>
+  )}
+</tbody>
+
           </table>
         </div>
 

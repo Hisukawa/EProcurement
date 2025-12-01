@@ -27,11 +27,23 @@ export default function DisposalForm({ record, user, type, rrsp_number, selected
     ) ?? [];
   }, [record, selected_items]);
 
+// Compute the top-level Returned By input, deduplicated
+const returnedBy = Array.from(
+  new Set(
+    filteredItems.map((item) => {
+      if (item.recipient) return item.recipient;
+      const reqBy = record?.requested_by || record?.received_from;
+      if (!reqBy) return "";
+      return `${reqBy.firstname ?? ""} ${reqBy.middlename ?? ""} ${reqBy.lastname ?? ""}`.trim();
+    }).filter(Boolean)
+  )
+).join(", ");
+
+
 const { data, setData, errors, processing, post } = useForm({
   rrsp_number: rrsp_number ?? "",
   ics_number: record?.po?.po_number ?? "",
   items: filteredItems.map((item) => {
-    // Get quantities
     const totalQty = Number(item.quantity ?? 0);
     const reissuedQty = Number(item.reissued_item?.quantity ?? 0);
     const disposedQty = Number(item.disposed_item?.quantity ?? 0);
@@ -39,25 +51,16 @@ const { data, setData, errors, processing, post } = useForm({
 
     return {
       inventory_item_id: item.inventory_item_id,
-      returned_by: record?.requested_by?.id ?? record?.received_from?.id ?? "",
-      recipient: "",
-      quantity: remainingQty, // default to remaining
-      max_quantity: remainingQty, // ✅ remaining allowed to reissue
+      returned_by: item.recipient ?? "", // ✅ use recipient from record
+      recipient: "", // optional, can leave empty
+      quantity: remainingQty,
+      max_quantity: remainingQty,
       remarks: "",
-      item_desc:
-        item.inventory_item?.item_desc ??
-        item.inventoryItem?.product?.name ??
-        "N/A",
-      unit:
-        item.inventory_item?.unit?.unit_name ??
-        item.inventoryItem?.product?.unit?.unit_name ??
-        "",
+      item_desc: item.inventory_item?.item_desc ?? item.inventoryItem?.product?.name ?? "N/A",
+      unit: item.inventory_item?.unit?.unit_name ?? item.inventoryItem?.product?.unit?.unit_name ?? "",
     };
   }),
 });
-
-
-  const returnedBy = `${record?.requested_by?.firstname ?? record?.received_from?.firstname ?? ""} ${record?.requested_by?.middlename ?? record?.received_from?.middlename ?? ""} ${record?.requested_by?.lastname ?? record?.received_from?.lastname ?? ""}`.trim();
 
   const handleSubmit = (e) => {
     e.preventDefault();

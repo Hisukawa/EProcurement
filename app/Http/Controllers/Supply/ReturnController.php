@@ -57,16 +57,12 @@ public function generateRrspNumber()
 
 public function returned_items(Request $request)
 {
-    $query = Reissued::with(['items.inventoryItem', 'items.returnedBy', 'items.reissuedBy'])
+    $query = Reissued::with([ 'items','items.inventoryItem', 'items.reissuedBy',])
         ->latest();
 
     if ($request->filled('search')) {
         $search = $request->search;
-        $query->whereHas('items.returnedBy', function ($q) use ($search) {
-            $q->where('firstname', 'like', "%{$search}%")
-              ->orWhere('lastname', 'like', "%{$search}%");
-        })
-        ->orWhereHas('items.reissuedBy', function ($q) use ($search) {
+        $query->whereHas('items.reissuedBy', function ($q) use ($search) {
             $q->where('firstname', 'like', "%{$search}%")
               ->orWhere('lastname', 'like', "%{$search}%");
         });
@@ -177,7 +173,7 @@ public function submit_return(Request $request)
         'remarks' => 'nullable|string',
         'items' => 'required|array',
         'items.*.inventory_item_id' => 'required|exists:tbl_inventory,id',
-        'items.*.returned_by' => 'required|exists:users,id',
+        'items.*.returned_by' => 'nullable|string',
         'items.*.quantity' => 'required|numeric|min:0.01',
         'items.*.remarks' => 'nullable|string',
     ]);
@@ -356,7 +352,7 @@ public function submit_disposal(Request $request)
         'date_disposed' => 'nullable|date',
         'items' => 'required|array',
         'items.*.inventory_item_id' => 'required|exists:tbl_inventory,id',
-        'items.*.returned_by' => 'required|exists:users,id',
+        'items.*.returned_by' => 'nullable|string',
         'items.*.quantity' => 'required|numeric|min:0.01',
         'items.*.remarks' => 'nullable|string',
     ]);

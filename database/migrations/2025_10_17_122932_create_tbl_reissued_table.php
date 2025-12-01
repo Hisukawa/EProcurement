@@ -26,7 +26,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('reissued_id')->constrained('tbl_reissued')->onDelete('cascade'); // Link to reissue event
             $table->foreignId('inventory_item_id')->constrained('tbl_inventory')->onDelete('cascade'); // The item being reissued
-            $table->foreignId('returned_by')->constrained('users')->restrictOnDelete(); // Who returned the item
+            $table->string('returned_by'); // Who returned the item
             $table->foreignId('reissued_by')->constrained('users')->restrictOnDelete(); // Who is reissuing
             $table->decimal('quantity', 12, 2); // Quantity of the item being reissued
             $table->text('remarks')->nullable(); // Any remarks specific to the item
