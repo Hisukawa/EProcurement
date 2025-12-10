@@ -394,7 +394,7 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
               <div className="font-semibold text-gray-800">
                 {detail.item} {detail.specs}
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-red-500">
                 Qty: {detail.quantity} {detail.unit}
               </div>
             </td>
@@ -443,9 +443,37 @@ export default function AbstractOfQuotations({ rfq, groupedDetails = {}, committ
                 </td>
               );
             })}
+            
           </tr>
+          
         );
       })}
+      
+{/* TOTAL ROW */}
+<tr className="bg-blue-50 font-semibold text-gray-800">
+  <td className="border px-4 py-2 text-right">
+    Total:
+  </td>
+
+  {Array.from(
+    new Map(
+      Object.values(groupedDetails)
+        .flat()
+        .map((q) => [q.supplier.id, q.supplier])
+    ).values()
+  ).map((supplier) => {
+    const total = supplierMap[supplier.id]?.total || 0;
+
+    return (
+      <td
+        key={supplier.id}
+        className="border px-4 py-2 text-center text-blue-700"
+      >
+        ₱{total.toLocaleString()}
+      </td>
+    );
+  })}
+</tr>
 
       {/* REMARKS ROW */}
       <tr className="bg-gray-50">

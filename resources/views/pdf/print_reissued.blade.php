@@ -60,7 +60,7 @@
         @foreach($reissuedItemData->items as $detail)
             <tr class="text-center with-border">
                 @php
-                    $returnedBy = ($detail->returnedBy->firstname ?? '') .  ' ' . ($detail->returnedBy->middlename ?? '') . ($detail->returnedBy->lastname ?? '');
+                    $returnedBy = $detail->returned_by ?? '';
                     $remarks = ($detail->remarks ?? '') . ' to ' . ($detail->recipient ?? '');
                 @endphp
                 <td>{{ $detail->inventoryItem->item_desc ?? '' }}</td>
@@ -105,7 +105,7 @@
         </tr>
         <tr class="with-border">
             <td colspan="2" class="text-center" style="height: 10%; border-top:none !important;"><span class="underline font-bold">{{  $returnedBy }}</span><br>
-                <small>AO-IV (Supply Officer)</small>
+                {{-- <small>AO-IV (Supply Officer)</small> --}}
             </td>
             <td colspan="3" class="text-center" style="height: 10%; border-top:none !important;"><span class="underline font-bold">Adeline C. Soriano</span><br>
                 <small>AO-IV (Supply Officer)</small>
