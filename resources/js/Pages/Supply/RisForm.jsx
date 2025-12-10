@@ -124,6 +124,11 @@ export default function RISForm({ purchaseOrder, inventoryItems = [], user, risN
       recipient_division: e.target.value,
     })));
   };
+  // Check if any inventory item is from CENTRAL source
+const isCentral = inventoryItems.some(
+  (item) => item.source_type === "central"
+);
+
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-md">
@@ -210,30 +215,49 @@ export default function RISForm({ purchaseOrder, inventoryItems = [], user, risN
             </div>
           </div>
         ))}
-                {/* Default Recipient and Division (Only once at the bottom) */}
+        {/* Default Recipient and Division (Only once at the bottom) */}
         <div className="p-5 border rounded-md bg-yellow-50 mb-4">
-          <h3 className="text-lg font-semibold text-yellow-700 mb-4">Default Recipient (applied to all items)</h3>
+          <h3 className="text-lg font-semibold text-yellow-700 mb-4">
+            Default Recipient (applied to all items)
+            {isCentral && (
+              <span className="text-red-600 ml-2 text-sm font-normal">
+                * Required for CENTRAL sourced items
+              </span>
+            )}
+          </h3>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            {/* Recipient Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Recipient Name</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Recipient Name {isCentral && <span className="text-red-600">*</span>}
+              </label>
               <input
                 type="text"
                 value={defaultRecipient}
                 onChange={handleRecipientChange}
                 placeholder="Leave blank to issue to requester"
+                required={isCentral}
                 className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm"
               />
             </div>
+
+            {/* Recipient Division */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Recipient Division</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Recipient Division {isCentral && <span className="text-red-600">*</span>}
+              </label>
               <input
                 type="text"
                 value={defaultDivision}
                 onChange={handleDivisionChange}
                 placeholder="Optional"
+                required={isCentral}
                 className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm"
               />
             </div>
+
           </div>
         </div>
 

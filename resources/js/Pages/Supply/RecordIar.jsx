@@ -61,7 +61,10 @@ export default function RecordIar({ po, inspectionCommittee, iarNumber }) {
       return {
         pr_details_id: detail.pr_detail_id,
         product_name: prDetail?.item || "Unknown Item",
-        specs: prDetail?.specs || "No specs provided",
+        specs: prDetail?.specs && prDetail.specs.trim() !== "" 
+          ? prDetail.specs 
+          : prDetail?.item || "No specs provided",
+
         quantity_ordered: parseFloat(detail.quantity || 0),
         unit_price: parseFloat(detail.unit_price || 0),
         quantity_received: "",
