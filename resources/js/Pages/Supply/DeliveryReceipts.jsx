@@ -152,8 +152,8 @@ const toggleSelect = (id, stock) => {
           <thead className="bg-gray-50">
             <tr>
               {[
+                "#",
                 "DR Number",
-                "Requested By",
                 "Item Description",
                 "Unit",
                 "Remaining Stock/Qty",
@@ -203,11 +203,6 @@ const toggleSelect = (id, stock) => {
             />
           </td>
           <td className="px-6 py-4">{inv.dr_number ?? "N/A"}</td>
-          <td className="px-6 py-4">
-            {inv.requested_by
-              ? `${inv.requested_by.firstname} ${inv.requested_by.middlename ?? ""} ${inv.requested_by.lastname}`
-              : "N/A"}
-          </td>
           <td className="px-6 py-4">{inv.item_desc ?? "No description"}</td>
           <td className="px-6 py-4">{unit}</td>
           <td className="px-6 py-4">{remainingStock}</td>

@@ -155,7 +155,9 @@ export default function ParForm({ purchaseOrder, inventoryItems = [], user, ppeO
       },
     });
   };
-
+  const isCentral = inventoryItems.some(
+    (item) => item.source_type === "central"
+  );
   return (
     <div className="bg-white p-6 rounded-xl shadow-md">
       <h2 className="text-3xl font-bold text-blue-800 mb-4 flex items-center gap-2">
@@ -227,22 +229,34 @@ export default function ParForm({ purchaseOrder, inventoryItems = [], user, ppeO
 
             <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700">Estimated Useful Life (years)</label>
-              <input type="number" value={item.estimated_useful_life ?? ""} onChange={e => handleItemChange(index, "estimated_useful_life", e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm" onWheel={e => e.currentTarget.blur()} />
+              <input type="number" value={item.estimated_useful_life ?? ""} onChange={e => handleItemChange(index, "estimated_useful_life", e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm" onWheel={e => e.currentTarget.blur()} required/>
             </div>
           </div>
         ))}
 
         {/* Default Recipient */}
         <div className="p-5 border rounded-md bg-yellow-50">
-          <h3 className="text-lg font-semibold text-yellow-700 mb-4">Default Recipient (applied to all items)</h3>
+          <h3 className="text-lg font-semibold text-yellow-700 mb-4">
+            Default Recipient (applied to all items)
+            {isCentral && (
+              <span className="text-red-600 ml-2 text-sm font-normal">
+                * Required for CENTRAL sourced items
+              </span>
+            )}
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Recipient Name</label>
-              <input type="text" value={defaultRecipient} onChange={e => { setDefaultRecipient(e.target.value); setData("items", data.items.map(i => ({ ...i, recipient: e.target.value }))); }} placeholder="Leave blank to issue to requester" className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm" />
+              <label className="block text-sm font-medium text-gray-700">
+                Recipient Name {isCentral && <span className="text-red-600">*</span>}
+              </label>
+              <input type="text" value={defaultRecipient} onChange={e => { setDefaultRecipient(e.target.value); setData("items", data.items.map(i => ({ ...i, recipient: e.target.value }))); }} placeholder="Leave blank to issue to requester" className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm" required={isCentral}/>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Recipient Division</label>
-              <input type="text" value={defaultDivision} onChange={e => { setDefaultDivision(e.target.value); setData("items", data.items.map(i => ({ ...i, recipient_division: e.target.value }))); }} placeholder="Optional" className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm" />
+              <label className="block text-sm font-medium text-gray-700">
+                Recipient Division {isCentral && <span className="text-red-600">*</span>}
+              </label>
+              <input type="text" value={defaultDivision} onChange={e => { setDefaultDivision(e.target.value); setData("items", data.items.map(i => ({ ...i, recipient_division: e.target.value }))); }} placeholder="Optional" className="w-full mt-1 px-3 py-2 border rounded-md shadow-sm" 
+              required={isCentral}/>
             </div>
           </div>
         </div>

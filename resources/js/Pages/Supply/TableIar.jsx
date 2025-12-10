@@ -77,40 +77,31 @@ console.log(iarData);
     }
 
     // Group by IAR number
-    const grouped = iarData.data.reduce((acc, iar) => {
-      const key = iar.iar_number;
-      if (!acc[key]) {
-        acc[key] = {
-          header: iar,
-          specs: [],
-          supplier: iar.purchase_order?.supplier?.company_name ?? "N/A",
-          division: iar.purchase_order?.rfq?.purchase_request?.division?.division ?? "N/A",
-          totalPrice: 0,
-        };
-      }
-    
+    // Group by IAR number
+const grouped = iarData.data.reduce((acc, iar) => {
+  const key = iar.iar_number;
 
-      // collect product specs from related PR details
-    if (iar.purchase_order?.details?.length) {
-      // 🧾 Case 1: With Purchase Order — use PR detail specs
-      iar.purchase_order.details.forEach((d) => {
-        if (d.pr_detail?.specs) {
-          acc[key].specs.push(d.pr_detail.specs);
-        }
-      });
-    } else if (iar.specs) {
-      // 📦 Case 2: No PO — use specs directly from IAR table
-      acc[key].specs.push(iar.specs);
-    }
+  if (!acc[key]) {
+    acc[key] = {
+      header: iar,
+      specs: [],
+      supplier: iar.purchase_order?.supplier?.company_name ?? "N/A",
+      division: iar.purchase_order?.rfq?.purchase_request?.division?.division ?? "N/A",
+      totalPrice: 0,
+    };
+  }
 
+  // ✅ Always use IAR-level specs
+  acc[key].specs.push(iar.specs || "N/A");
 
-      // add IAR-level price (since qty_received & unit_price are on IAR record itself)
-      const qtyReceived = parseFloat(iar.quantity_received) || 0;
-      const unitPrice = parseFloat(iar.unit_price) || 0;
-      acc[key].totalPrice += qtyReceived * unitPrice;
+  // Add IAR-level price
+  const qtyReceived = parseFloat(iar.quantity_received) || 0;
+  const unitPrice = parseFloat(iar.unit_price) || 0;
+  acc[key].totalPrice += qtyReceived * unitPrice;
 
-      return acc;
-    }, {});
+  return acc;
+}, {});
+
     console.log(grouped);
 
     // Render each IAR row
