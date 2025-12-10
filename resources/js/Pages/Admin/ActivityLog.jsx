@@ -6,7 +6,7 @@ import ReactPaginate from "react-paginate";
 export default function ActivityLog({ activities }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(0);
-  const itemsPerPage = 5;
+  const itemsPerPage = 10;
 
   // Filter activities based on the search query
   const filteredActivities = useMemo(() => {

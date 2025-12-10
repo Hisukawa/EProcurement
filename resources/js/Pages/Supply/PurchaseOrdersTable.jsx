@@ -11,6 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import ApproverLayout from "@/Layouts/ApproverLayout";
 
 export default function PurchaseOrdersTable({ purchaseOrders, filters }) {
   const { props } = usePage();
@@ -32,7 +33,7 @@ export default function PurchaseOrdersTable({ purchaseOrders, filters }) {
   // Debounced filter handling
   useEffect(() => {
     const timeout = setTimeout(() => {
-      get(route("supply_officer.purchase_orders_table"), {
+      get(route("bac_user.purchase_orders_table"), {
         preserveState: true,
         replace: true,
       });
@@ -122,13 +123,6 @@ export default function PurchaseOrdersTable({ purchaseOrders, filters }) {
                       </a>
                     )}
 
-                    <a
-                      href={route("supply_officer.print_po", po.id)}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white text-xs font-medium rounded-md hover:bg-blue-700 transition"
-                      target="_blank"
-                    >
-                      <PrinterCheckIcon size={16} /> Print PO
-                    </a>
                   </td>
                 </tr>
               ))

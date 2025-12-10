@@ -169,10 +169,11 @@ public function dashboard()
         ->get()
         ->map(fn($iar) => [
             'id' => $iar->iar_number,
-            'action' => "IAR Recorded: {$iar->purchaseOrder->po_number}",
-            'user' => $iar->recordedBy?->firstname . ' ' . $iar->recordedBy?->lastname ?? 'System',
+            'action' => "IAR Recorded: " . ($iar->purchaseOrder?->po_number ?? 'No PO'),
+            'user' => ($iar->recordedBy?->firstname . ' ' . $iar->recordedBy?->lastname) ?: 'System',
             'date' => $iar->created_at->format('M d, Y H:i'),
         ]);
+
 
     // ---- Recent Activity ----
     $risActivity = RIS::with(['requestedBy', 'issuedBy', 'items.inventoryItem'])
@@ -371,7 +372,7 @@ public function activity_logs() {
         ->get()
         ->map(fn($iar) => [
             'id' => $iar->iar_number,
-            'action' => "IAR Recorded: {$iar->purchaseOrder->po_number}",
+            'action' => "IAR Recorded: " . ($iar->purchaseOrder?->po_number ?? 'No PO'),
             'user' => $iar->recordedBy?->firstname . ' ' . $iar->recordedBy?->lastname ?? 'System',
             'date' => $iar->created_at->format('M d, Y H:i'),
         ]);
