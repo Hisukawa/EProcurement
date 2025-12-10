@@ -11,6 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import ApproverLayout from "@/Layouts/ApproverLayout";
 
 export default function CreatePurchaseOrder({ pr, rfq, suppliers, winners }) {
   const winningSupplierIds = useMemo(
@@ -123,13 +124,13 @@ const getItemsForSupplier = (supplierId) => {
   };
 
   const handleConfirmSubmit = () => {
-    post(route("supply_officer.store_po"), {
+    post(route("bac_user.store_po"), {
       onFinish: () => setIsConfirmDialogOpen(false),
     });
   };
 
   return (
-    <SupplyOfficerLayout header="Schools Divisions Office - Ilagan | Create Purchase Order">
+    <ApproverLayout header="Schools Divisions Office - Ilagan | Create Purchase Order">
       <Head title={`Create PO for PR #${pr.pr_number}`} />
     <form
       onSubmit={handleSubmit}
@@ -176,7 +177,7 @@ const getItemsForSupplier = (supplierId) => {
         <p className="text-red-500 text-sm mt-1">{errors.delivery_term}</p>
       )}
     </div>
-    <div className="mb-6">
+    {/* <div className="mb-6">
       <label htmlFor="payment_term" className="block font-semibold mb-2">
         Payment Term <span className="text-red-500">*</span>
       </label>
@@ -193,7 +194,7 @@ const getItemsForSupplier = (supplierId) => {
       {errors.payment_term && (
         <p className="text-red-500 text-sm mt-1">{errors.payment_term}</p>
       )}
-    </div>
+    </div> */}
 
 
       {winningSuppliers.map((supplier) => {
@@ -371,6 +372,6 @@ const getItemsForSupplier = (supplierId) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </SupplyOfficerLayout>
+    </ApproverLayout>
   );
 }

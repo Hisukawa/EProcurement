@@ -1,3 +1,4 @@
+import ApproverLayout from "@/Layouts/ApproverLayout";
 import SupplyOfficerLayout from "@/Layouts/SupplyOfficerLayout";
 import { Head, useForm } from "@inertiajs/react";
 import React, { useEffect } from "react";
@@ -10,7 +11,7 @@ export default function PurchaseOrder({ purchaseRequests, filters }) {
 
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
-      get(route("supply_officer.purchase_orders"), {
+      get(route("bac_user.purchase_orders"), {
         preserveState: true,
         replace: true,
       });
@@ -20,7 +21,7 @@ export default function PurchaseOrder({ purchaseRequests, filters }) {
   }, [data.search, data.division]);
 
   return (
-    <SupplyOfficerLayout header="Schools Division Office - Ilagan | Create Purchase Order">
+    <ApproverLayout header="Schools Division Office - Ilagan | Create Purchase Order">
       <Head title="Purchase Order" />
 
       {/* Header and Search */}
@@ -207,7 +208,7 @@ export default function PurchaseOrder({ purchaseRequests, filters }) {
                     {/* Action */}
                     <td className="px-6 py-4 align-middle">
                       <a
-                        href={route("supply_officer.create_po", pr.id)}
+                        href={route("bac_user.create_po", pr.id)}
                         className={`inline-block px-4 py-2 text-sm font-medium rounded-md transition ${
                           pr.has_po
                             ? "bg-gray-400 cursor-not-allowed"
@@ -249,6 +250,6 @@ export default function PurchaseOrder({ purchaseRequests, filters }) {
           />
         ))}
       </div>
-    </SupplyOfficerLayout>
+    </ApproverLayout>
   );
 }

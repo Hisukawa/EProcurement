@@ -72,7 +72,7 @@
 
         <tr class="with-border">
             <td colspan="3" style="border-bottom: none !important; border-top: none !important;" >Date of Delivery: <span class="underline font-semibold"></span></td>
-            <td colspan="3" style="border-bottom: none !important; border-top: none !important;">Payment Term: <span class="underline font-semibold">{{ $po->payment_term }}</span></td>
+            <td colspan="3" style="border-bottom: none !important; border-top: none !important;">Payment Term: <span class="underline font-semibold">n30</span></td>
         </tr>
         <tr class="text-center font-bold with-border">
             <td style="width:2%">Stock/Property No.</td>
@@ -156,7 +156,7 @@
             </p></td>
         </tr>
         <tr class="with-border">
-            <td  style="border-bottom:none !important;border-top:none !important;border-right: none !important; padding-left:100px;" colspan="3" class="font-bold ">Conforme <span style="padding-left: 210px">Very truly yours,</span></td>
+            <td  style="border-bottom:none !important;border-top:none !important;border-right: none !important; padding-left:100px;" colspan="3" class="font-bold ">Conforme <span style="padding-left: 200px">Very truly yours,</span></td>
             <td style="border-bottom:none !important;border-top:none !important; border-left: none !important; white-space: nowrap; padding-right: 50px;" colspan="3" class="font-bold"></td>
         </tr>
         <tr class="with-border">

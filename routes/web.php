@@ -172,16 +172,22 @@ Route::get('/get/rfq/data', [RFQController::class, 'getRFQData'])->name('get.rfq
 
 Route::get('/view_details/{id}', [ApproverController::class, 'view_details'])->name('bac_user.view_details');
 
+
+Route::get('/purchase_orders', [SupplyController::class, 'purchase_orders'])->name('bac_user.purchase_orders');
+Route::get('/purchase_orders/create/{id}', [SupplyController::class, 'create_po'])->name('bac_user.create_po');
+Route::post('/store_po', [SupplyController::class, 'store_po'])->name('bac_user.store_po');
+Route::get('/manage_purchase_orders_table', [SupplyController::class, 'bac_purchase_orders_table'])->name('bac_user.bac_purchase_orders_table');
+Route::get('/print_po/{id}', [SupplyController::class, 'print_po'])->name('bac_user.print_po');
 });
 
 // Supply Routes
 Route::middleware(['auth', 'role:supply_officer'])->prefix('supply_officer')->group(function () {
     Route::get('/', [SupplyController::class, 'dashboard'])->name('supply_officer.dashboard');
-    Route::get('/purchase_orders', [SupplyController::class, 'purchase_orders'])->name('supply_officer.purchase_orders');
-    Route::get('/purchase_orders/create/{id}', [SupplyController::class, 'create_po'])->name('supply_officer.create_po');
-    Route::post('/store_po', [SupplyController::class, 'store_po'])->name('supply_officer.store_po');
+    // Route::get('/purchase_orders', [SupplyController::class, 'purchase_orders'])->name('supply_officer.purchase_orders');
+    // Route::get('/purchase_orders/create/{id}', [SupplyController::class, 'create_po'])->name('supply_officer.create_po');
+    // Route::post('/store_po', [SupplyController::class, 'store_po'])->name('supply_officer.store_po');
     Route::get('/manage_purchase_orders', [SupplyController::class, 'purchase_orders_table'])->name('supply_officer.purchase_orders_table');
-    Route::get('/print_po/{id}', [SupplyController::class, 'print_po'])->name('supply_officer.print_po');
+    // Route::get('/print_po/{id}', [SupplyController::class, 'print_po'])->name('supply_officer.print_po');
     Route::get('/record_iar/{id}', [SupplyController::class, 'record_iar'])->name('supply_officer.record_iar');
     Route::post('/store_iar', [SupplyController::class, 'store_iar'])->name('supply_officer.store_iar');
     Route::get('/iar_table', [SupplyController::class, 'iar_table'])->name('supply_officer.iar_table');

@@ -220,13 +220,6 @@ public function dashboard()
                 'color' => "bg-orange-100 text-orange-600"
             ],
             [
-                'label' => "Purchase Orders",
-                'value' => $totalPo,
-                'icon' => 'FileText',
-                'link' => "supply_officer.purchase_orders",
-                'color' => "bg-teal-100 text-teal-600"
-            ],
-            [
                 'label' => "Issuance Logs",
                 'value' => $totalIssued,
                 'icon' => 'Layers',
@@ -389,6 +382,7 @@ public function store_po(Request $request)
     $request->validate([
         'rfq_id' => 'required|exists:tbl_rfqs,id',
         'mode_of_procurement' => 'required|string|max:255',
+        'delivery_term' => 'nullable|string|max:255',
         'items' => 'required|array|min:1',
         'items.*.pr_detail_id' => 'required|exists:tbl_pr_details,id',
         'items.*.quantity' => 'required|numeric|min:0',
@@ -427,6 +421,7 @@ public function store_po(Request $request)
                 'po_number' => $poNumber,
                 'rfq_id' => $request->rfq_id,
                 'mode_of_procurement' => $request->mode_of_procurement,
+                'delivery_term' => $request->delivery_term,
                 'supplier_id' => $supplierId,
                 'user_id' => $userId,
                 'recorded_by' => Auth::id(),
@@ -466,11 +461,50 @@ public function store_po(Request $request)
     });
 
     return redirect()
-        ->route('supply_officer.purchase_orders_table')
+        ->route('bac_user.bac_purchase_orders_table')
         ->with('success', 'Purchase Order(s) successfully created with auditing.');
 }
 
-    public function purchase_orders_table(Request $request){
+    public function bac_purchase_orders_table(Request $request){
+        $search = $request->input('search');
+        $division = $request->input('division');
+
+        $query = PurchaseOrder::with([
+            'supplier',
+            'rfq.purchaseRequest.division',
+            'rfq.purchaseRequest.focal_person',
+            'iar'
+        ]);
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('po_number', 'like', "%{$search}%")
+                ->orWhereHas('rfq.purchaseRequest.focal_person', function ($q2) use ($search) {
+                    $q2->where('firstname', 'like', "%{$search}%")
+                        ->orWhere('lastname', 'like', "%{$search}%");
+                });
+            });
+        }
+
+        if ($division) {
+            $query->whereHas('rfq.purchaseRequest.division', function ($q) use ($division) {
+                $q->where('id', $division);
+            });
+        }
+
+        $purchaseOrders = $query->orderByDesc('created_at')->paginate(10)->withQueryString();
+
+        return Inertia::render('BacApprover/PurchaseOrdersTable', [
+            'purchaseOrders' => $purchaseOrders,
+            'filters' => [
+                'search' => $search,
+                'division' => $division,
+                'divisions' => Division::select('id', 'division')->get(),
+            ],
+        ]);
+    }
+
+        public function purchase_orders_table(Request $request){
         $search = $request->input('search');
         $division = $request->input('division');
 
@@ -629,7 +663,7 @@ public function store_iar(Request $request)
         // ✅ Save to IAR
         IAR::create([
             'po_id'                   => $validated['po_id'],
-            'iar_number'              => $validated['iar_number'],
+            'iar_number'              => $po->po_number,
             'specs'                   => $item['specs'],
             'quantity_ordered'        => $item['quantity_ordered'],
             'quantity_received'       => $item['quantity_received'],

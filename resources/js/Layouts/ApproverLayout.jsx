@@ -6,16 +6,56 @@ import {
   ClipboardDocumentIcon,
   Bars3Icon,
   XMarkIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/solid';
 import { BellAlertIcon } from '@heroicons/react/16/solid';
 import NavLink from '@/Components/NavLink';
 import Dropdown from '@/Components/Dropdown';
 import logo from '../src/deped1.png';
 import { Inertia } from '@inertiajs/inertia';
-import { CheckCircleIcon, ClipboardCheckIcon, FileTextIcon } from 'lucide-react';
+import { CheckCircleIcon, ChevronDownIcon, ClipboardCheckIcon, FileTextIcon } from 'lucide-react';
 import { Toaster } from "@/components/ui/toaster";
 import usePolling from "@/hooks/usePolling";
+function PORequestsDropdown({ isSidebarCollapsed }) {
+  const [isOpen, setIsOpen] = useState(false);
 
+  return (
+    <div className="w-full">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between w-full px-2 py-2 hover:bg-indigo-600 hover:text-white rounded-lg"
+      >
+        <div className="flex items-center gap-2 w-full">
+          <DocumentTextIcon className="w-5 h-5 text-gray-300 text-sm" />
+          {!isSidebarCollapsed && <span className="text-gray-200 text-sm">Purchase Orders</span>}
+        </div>
+        {!isSidebarCollapsed && (
+          <ChevronDownIcon
+            className={`w-5 h-5 text-gray-300 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          />
+        )}
+      </button>
+
+      {isOpen && (
+        <nav className="mt-2 pl-10 space-y-1">
+          {[
+            { label: 'Generate PO', routeName: 'bac_user.purchase_orders'},
+            { label: 'Manage POs', routeName: 'bac_user.bac_purchase_orders_table'},
+          ].map((item) => (
+            <NavLink
+              key={item.label}
+              href={item.routeName ? route(item.routeName) : '#'}
+              active={item.routeName ? route().current(item.routeName) : false}
+              className="block text-sm text-gray-300 hover:bg-gray-700 hover:text-white px-3 py-1 rounded-md"
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+      )}
+    </div>
+  );
+}
 export default function ApproverLayout({ header, children }) {
   const { user } = usePage().props.auth;
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
@@ -106,6 +146,7 @@ const markAsRead = async (notification) => {
 };
 
 
+
   return (
     <>
     {showFlash && (
@@ -174,6 +215,7 @@ const markAsRead = async (notification) => {
               <FileTextIcon className="w-5 h-5 text-gray-300" />
               <span className="text-white font-medium">Quotations</span>
             </NavLink>
+            <PORequestsDropdown isSidebarCollapsed={false} />
 
           </nav>
 
