@@ -450,7 +450,7 @@ public function activity_logs() {
             'email' => 'required|string|email|max:255|unique:users,email',
             'division_id'   => 'required|exists:tbl_divisions,id',
             'password'      => 'required|string|min:8|confirmed',
-            'position'      => 'required|string|max:255',
+            'position'      => 'nullable|string|max:255',
             'account_status'=> 'nullable|in:active,inactive',
             'role'           => 'required|exists:roles,name',
         ]);

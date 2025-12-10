@@ -488,6 +488,7 @@ const handlePriceChange = (supplierId, detailId, value) => {
                                     )
                                   }
                                   disabled={hasWholePrWinner} // <-- disable if PR-wide winner exists
+                                  readOnly
                                 />
                                 <span
                                 className="font-semibold"
@@ -506,7 +507,7 @@ const handlePriceChange = (supplierId, detailId, value) => {
                                   </span>
                                 ) : null}
 
-                                <Button
+                                {/* <Button
                                   size="xs"
                                   variant="outline"
                                   className="px-2 py-1 bg-green-600 text-white"
@@ -514,7 +515,7 @@ const handlePriceChange = (supplierId, detailId, value) => {
                                   disabled={savingPrices[`${quote.supplier.id}-${detail.id}`] || hasWholePrWinner} // <-- disable saving
                                 >
                                   {savingPrices[`${quote.supplier.id}-${detail.id}`] ? "Saving..." : "Save"}
-                                </Button>
+                                </Button> */}
                               </div>
                             ) : (
                               <span className="text-gray-400">—</span>
@@ -703,13 +704,14 @@ const handlePriceChange = (supplierId, detailId, value) => {
                                 onChange={(e) =>
                                   handlePriceChange(q.supplier.id, detail.id, parseFloat(e.target.value) || 0)
                                 }
+                                readOnly
                               />
                               {q.unit_price_edited && q.unit_price_edited !== q.quoted_price && (
                                 <span className="text-xs text-gray-500 italic">
                                   Original: ₱{parseFloat(q.quoted_price).toLocaleString()}
                                 </span>
                               )}
-                              <Button
+                              {/* <Button
                                 size="xs"
                                 variant="outline"
                                 className="px-2 py-1 bg-green-500 text-white"
@@ -717,7 +719,7 @@ const handlePriceChange = (supplierId, detailId, value) => {
                                 disabled={savingPrices[`${q.supplier.id}-${detail.id}`]}
                               >
                                 {savingPrices[`${q.supplier.id}-${detail.id}`] ? "Saving..." : "Save"}
-                              </Button>
+                              </Button> */}
                             </div>
 
                             {/* <div className="text-xs text-gray-600 italic">

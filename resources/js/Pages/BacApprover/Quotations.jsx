@@ -75,7 +75,7 @@ export default function Quotation({ purchaseRequests, filters = {} }) {
                     "Specs",
                     "Unit",
                     "Quantity",
-                    "Default Price",
+                    // "Default Price",
                     "Actions",
                   ].map((title) => (
                     <th key={title} className="px-4 py-3 text-xs font-semibold uppercase tracking-wider">
@@ -124,7 +124,7 @@ export default function Quotation({ purchaseRequests, filters = {} }) {
                       </td>
                       <td className="px-4 py-2 text-gray-700">{units.slice(0, 2).join(", ")}{units.length > 2 ? ` +${units.length - 2} more` : ""}</td>
                       <td className="px-4 py-2 text-gray-700">{quantities.slice(0, 2).join(", ")}{quantities.length > 2 ? ` +${quantities.length - 2} more` : ""}</td>
-                      <td className="px-4 py-2 text-gray-700">₱{totalPrice.toLocaleString()}</td>
+                      {/* <td className="px-4 py-2 text-gray-700">₱{totalPrice.toLocaleString()}</td> */}
                       <td className="px-4 py-2">
                         {pr.rfqs?.some(rfq => rfq.details?.some(d => d.is_winner_as_calculated)) ? (
                           <div className="flex flex-col items-center">
