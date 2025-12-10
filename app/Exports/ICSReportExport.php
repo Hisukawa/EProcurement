@@ -127,7 +127,7 @@ class ICSReportExport implements FromCollection, WithHeadings, WithMapping, With
         $recipientName,                                                            // ✅ Prefer item->recipient
         $recipientPosition,                                                        // Position (from focal)
         $recipientDivision,                                                        // ✅ Prefer item->recipient_division
-        $item?->estimated_useful_life ?? '',                                        // Useful Life
+        $item?->estimated_useful_life . ' year/s' ?? '',                                        // Useful Life
     ];
 }
 
