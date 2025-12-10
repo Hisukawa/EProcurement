@@ -52,7 +52,7 @@ console.log(iarData);
                 "Items",
                 "Suppliers",
                 "Total Price",
-                "Inspected By",
+                // "Inspected By",
                 "Actions",
               ].map((title) => (
                 <th
@@ -89,7 +89,7 @@ console.log(iarData);
           <td className="px-6 py-4">{itemsSummary}</td>
           <td className="px-6 py-4">{item.supplier || "N/A"}</td>
           <td className="px-6 py-4">₱ {item.totalPrice.toFixed(2)}</td>
-          <td className="px-6 py-4">{item.inspection_committee || "N/A"}</td>
+          {/* <td className="px-6 py-4">{item.inspection_committee || "N/A"}</td> */}
           <td className="px-6 py-4">
             <a
               href={route("supply_officer.print_iar", item.id)}
