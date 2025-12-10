@@ -65,62 +65,34 @@ console.log(iarData);
             </tr>
           </thead>
 <tbody className="divide-y divide-gray-100 text-center">
-  {(() => {
-    if (!iarData?.data?.length) {
-      return (
-        <tr>
-          <td colSpan="7" className="py-12 text-gray-500 text-lg font-medium">
-            No Inspection Reports found.
-          </td>
-        </tr>
-      );
-    }
-
-    // Group items by IAR number
-    const grouped = iarData.data.reduce((acc, item) => {
-      const key = item.iar_number;
-
-      if (!acc[key]) {
-        acc[key] = {
-          header: item,
-          specs: [],
-          supplier: item.purchase_order?.supplier?.company_name ?? "N/A",
-          division: item.purchase_order?.rfq?.purchase_request?.division?.division ?? "N/A",
-          totalPrice: 0,
-        };
-      }
-
-      // Collect all specs for this IAR
-      if (item.specs) acc[key].specs.push(item.specs);
-
-      // Sum total price for all items in this IAR
-      const qty = parseFloat(item.quantity_received) || 0;
-      const price = parseFloat(item.unit_price) || 0;
-      acc[key].totalPrice += qty * price;
-
-      return acc;
-    }, {});
-
-    // Render one row per IAR
-    return Object.values(grouped).map(({ header, specs, supplier, division, totalPrice }) => {
+  {iarData?.data?.length === 0 ? (
+    <tr>
+      <td colSpan="7" className="py-12 text-gray-500 text-lg font-medium">
+        No Inspection Reports found.
+      </td>
+    </tr>
+  ) : (
+    iarData.data.map((item) => {
+      // Join item names into a summary
       const itemsSummary =
-        specs.length > 1
-          ? `${specs[0]} +${specs.length - 1} more`
-          : specs[0] || "N/A";
+  item.items?.length > 1
+    ? `${item.items[0]} +${item.items.length - 1} more`
+    : item.items?.[0] || "N/A";
+
 
       return (
-        <tr key={header.iar_number} className="hover:bg-blue-50 transition duration-200">
+        <tr key={item.iar_number} className="hover:bg-blue-50 transition duration-200">
           <td className="px-6 py-4 font-semibold text-blue-700 whitespace-nowrap">
-            {header.iar_number}
+            {item.iar_number}
           </td>
-          <td className="px-6 py-4">{division}</td>
+          <td className="px-6 py-4">{item.division || "N/A"}</td>
           <td className="px-6 py-4">{itemsSummary}</td>
-          <td className="px-6 py-4">{supplier}</td>
-          <td className="px-6 py-4">₱ {totalPrice.toFixed(2)}</td>
-          <td className="px-6 py-4">{header.inspected_by}</td>
+          <td className="px-6 py-4">{item.supplier || "N/A"}</td>
+          <td className="px-6 py-4">₱ {item.totalPrice.toFixed(2)}</td>
+          <td className="px-6 py-4">{item.inspection_committee || "N/A"}</td>
           <td className="px-6 py-4">
             <a
-              href={route("supply_officer.print_iar", header.id)}
+              href={route("supply_officer.print_iar", item.id)}
               className="bg-gray-600 text-white px-3 py-2 rounded hover:bg-gray-700 transition flex items-center justify-center gap-1"
               target="_blank"
             >
@@ -129,9 +101,11 @@ console.log(iarData);
           </td>
         </tr>
       );
-    });
-  })()}
+    })
+  )}
 </tbody>
+
+
 
         </table>
       </div>
