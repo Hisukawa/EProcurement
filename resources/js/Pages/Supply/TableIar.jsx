@@ -76,35 +76,32 @@ console.log(iarData);
       );
     }
 
-    // Group by IAR number
-    // Group by IAR number
-const grouped = iarData.data.reduce((acc, iar) => {
-  const key = iar.iar_number;
+    // Group items by IAR number
+    const grouped = iarData.data.reduce((acc, item) => {
+      const key = item.iar_number;
 
-  if (!acc[key]) {
-    acc[key] = {
-      header: iar,
-      specs: [],
-      supplier: iar.purchase_order?.supplier?.company_name ?? "N/A",
-      division: iar.purchase_order?.rfq?.purchase_request?.division?.division ?? "N/A",
-      totalPrice: 0,
-    };
-  }
+      if (!acc[key]) {
+        acc[key] = {
+          header: item,
+          specs: [],
+          supplier: item.purchase_order?.supplier?.company_name ?? "N/A",
+          division: item.purchase_order?.rfq?.purchase_request?.division?.division ?? "N/A",
+          totalPrice: 0,
+        };
+      }
 
-  // ✅ Always use IAR-level specs
-  acc[key].specs.push(iar.specs || "N/A");
+      // Collect all specs for this IAR
+      if (item.specs) acc[key].specs.push(item.specs);
 
-  // Add IAR-level price
-  const qtyReceived = parseFloat(iar.quantity_received) || 0;
-  const unitPrice = parseFloat(iar.unit_price) || 0;
-  acc[key].totalPrice += qtyReceived * unitPrice;
+      // Sum total price for all items in this IAR
+      const qty = parseFloat(item.quantity_received) || 0;
+      const price = parseFloat(item.unit_price) || 0;
+      acc[key].totalPrice += qty * price;
 
-  return acc;
-}, {});
+      return acc;
+    }, {});
 
-    console.log(grouped);
-
-    // Render each IAR row
+    // Render one row per IAR
     return Object.values(grouped).map(({ header, specs, supplier, division, totalPrice }) => {
       const itemsSummary =
         specs.length > 1
@@ -136,13 +133,11 @@ const grouped = iarData.data.reduce((acc, iar) => {
   })()}
 </tbody>
 
-
-
         </table>
       </div>
 
       {/* Pagination */}
-      <div className="mt-6 flex justify-center flex-wrap gap-1">
+      <div class="flex justify-center gap-1 whitespace-nowrap">
         {iarData.links.map((link, i) => (
           <button
             key={i}

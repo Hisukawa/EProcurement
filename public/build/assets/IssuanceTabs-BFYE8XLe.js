@@ -1,6 +1,0 @@
-import{c as t}from"./createLucideIcon-yNS56xQp.js";import{j as r}from"./app-zuVoyez-.js";import{N as o}from"./Dropdown-GMzF1VTu.js";/**
- * @license lucide-react v0.511.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */const a=[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["path",{d:"M8 12h8",key:"1wcyev"}]],u=t("circle-minus",a);function d(){const s=[{label:"Requisition and Issue Slips",routeName:"supply_officer.ris_issuance"},{label:"Inventory Custodian Slips - LOW",routeName:"supply_officer.ics_issuance_low"},{label:"Inventory Custodian Slips - HIGH",routeName:"supply_officer.ics_issuance_high"},{label:"Property Acknowledgement Receipt",routeName:"supply_officer.par_issuance"}];return r.jsx("div",{className:"w-full mx-auto mb-6",children:r.jsx("div",{className:"flex bg-white rounded-lg shadow overflow-hidden border border-gray-300 divide-x divide-gray-300",children:s.map(e=>{const i=route().current(e.routeName);return r.jsx(o,{href:route(e.routeName),active:i,className:`flex-1 flex items-center justify-center text-center px-4 py-4 text-sm font-medium uppercase tracking-wide transition duration-200 ${i?"bg-blue-600 text-white border-b-4 border-gray-600":"text-gray-600 hover:bg-gray-100"}`,children:e.label},e.label)})})})}export{u as C,d as I};
