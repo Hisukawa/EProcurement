@@ -113,7 +113,7 @@
     @endphp
 
     <tr class="with-border text-center">
-        <td>{{ $stockNumber }}</td>
+        <td></td>
         <td>{{ $unit }}</td>
         <td class="text-left" style="padding-left:8px;">{{ $description }}</td>
         <td>{{ $quantityRequested }}</td>

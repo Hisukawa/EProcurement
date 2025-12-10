@@ -664,7 +664,7 @@ public function store_iar(Request $request)
         IAR::create([
             'po_id'                   => $validated['po_id'],
             'iar_number'              => $po->po_number,
-            'specs'                   => $item['specs'],
+            'specs'                   => trim(($poDetail->prDetail->item ?? 'N/A')) . ' - ' . $item['specs'],
             'quantity_ordered'        => $item['quantity_ordered'],
             'quantity_received'       => $item['quantity_received'],
             'unit_id'                 => $unit->id,  // Use the unit name from PR
@@ -734,12 +734,12 @@ public function replaceMember(Request $request, $id)
 public function iar_table(Request $request)
 {
     $search = $request->input('search');
-    $iar = IAR::with([
-        'purchaseOrder.details.prDetail.product.unit',
+
+    // Fetch all matching IAR rows with relationships
+    $iarItems = IAR::with([
         'purchaseOrder.supplier',
         'purchaseOrder.rfq.purchaseRequest.division',
-        'purchaseOrder.rfq.purchaseRequest.focal_person',
-    ])->latest('created_at')
+    ])
     ->when($search, function ($query, $search) {
         $query->where('iar_number', 'like', "%$search%")
               ->orWhereHas('purchaseOrder.supplier', function ($q) use ($search) {
@@ -747,16 +747,41 @@ public function iar_table(Request $request)
                     ->orWhere('representative_name', 'like', "%$search%");
               });
     })
-    ->paginate(10)
-    ->withQueryString();
+    ->orderBy('created_at', 'desc')
+    ->get();
+
+    // Group by IAR number
+    $grouped = $iarItems->groupBy('iar_number')->map(function($group) {
+        $first = $group->first();
+        return [
+            'iar_number'            => $first->iar_number,
+            'supplier'              => $first->purchaseOrder->supplier->company_name ?? 'N/A',
+            'division'              => $first->purchaseOrder->rfq->purchaseRequest->division->division ?? 'N/A',
+            'inspection_committee'  => $first->inspection_committee_id ?? 'N/A',
+            'items'                 => $group->pluck('specs')->toArray(), // ✅ send all specs
+            'totalPrice'            => $group->sum(fn($item) => ($item->quantity_received ?? 0) * ($item->unit_price ?? 0)),
+            'id'                    => $first->id,
+        ];
+    })->values();
+
+    // Manual pagination
+    $page = $request->input('page', 1);
+    $perPage = 10;
+    $paginated = new \Illuminate\Pagination\LengthAwarePaginator(
+        $grouped->forPage($page, $perPage),
+        $grouped->count(),
+        $perPage,
+        $page,
+        ['path' => url()->current(), 'query' => $request->query()]
+    );
 
     return Inertia::render('Supply/TableIar', [
-        'iarData' => $iar,
-        'filters' => [
-            'search' => $search
-        ]
+        'iarData' => $paginated,
+        'filters' => ['search' => $search],
     ]);
 }
+
+
 
 public function print_iar($id)
 {
