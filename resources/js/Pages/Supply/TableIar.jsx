@@ -26,7 +26,7 @@ console.log(iarData);
       {/* Header and Filters */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-8 gap-4">
         <h2 className="text-3xl font-bold text-gray-800">
-          Inspection and Acceptance Reports
+          Inspection and Acceptance Report
         </h2>
 
         <form onSubmit={(e) => e.preventDefault()} className="flex gap-3">
