@@ -118,7 +118,7 @@ class ParReportExport implements FromCollection, WithHeadings, WithMapping, With
         $recipientName ?? '',
         $recipientPosition,
         $recipientDivision,
-        $item?->estimated_useful_life ?? '',        // Optional if exists
+        $item?->estimated_useful_life . ' year/s' ?? '',        // Optional if exists
     ];
 }
 
