@@ -15,7 +15,7 @@ return new class extends Migration
         Schema::create('tbl_disposal', function (Blueprint $table) {
             $table->id();
             $table->string('rrsp_number')->unique();
-            $table->string('ics_number')->nullable(); // Who disposed
+            $table->string('ics_number')->nullable();
             $table->date('date_disposed')->nullable();
             $table->timestamps();
         });

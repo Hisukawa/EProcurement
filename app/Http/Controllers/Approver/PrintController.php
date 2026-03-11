@@ -22,6 +22,13 @@ public function print_rfq($prId)
     // Fetch saved RFQ data (BAC CN, Services, Location, Subject, Delivery Period, ABC)
     $rfq = RFQ::where('pr_id', $prId)->first();
 
+    $bac_cn = $rfq->bac_cn ?? '';
+    $services = $rfq->services ?? '';
+    $location = $rfq->location ?? '';
+    $subject = $rfq->subject ?? '';
+    $delivery_period = $rfq->delivery_period ?? '';
+    $abc = $rfq->abc ?? '';
+
     $details = $pr->details->map(function ($detail) {
         return [
             'id' => $detail->id,
@@ -48,12 +55,12 @@ public function print_rfq($prId)
         'logo' => $logo,
         'committee' => $committee,
         // Pass the saved RFQ data to the PDF
-        'bac_cn' => $rfq->bac_cn,
-        'services' => $rfq->services,
-        'location' => $rfq->location,
-        'subject' => $rfq->subject,
-        'delivery_period' => $rfq->delivery_period,
-        'abc' => $rfq->abc,
+        'bac_cn' => $bac_cn,
+        'services' => $services,
+        'location' => $location,
+        'subject' => $subject,
+        'delivery_period' => $delivery_period,
+        'abc' => $abc,
     ]);
 
     return $pdf->stream("PR-{$pr->id}-RFQ.pdf");
@@ -71,6 +78,13 @@ public function print_rfq_selected(Request $request, $prId)
 
     // Fetch saved RFQ data (BAC CN, Services, Location, Subject, Delivery Period, ABC)
     $rfq = RFQ::where('pr_id', $prId)->first();
+
+    $bac_cn = $rfq->bac_cn ?? '';
+    $services = $rfq->services ?? '';
+    $location = $rfq->location ?? '';
+    $subject = $rfq->subject ?? '';
+    $delivery_period = $rfq->delivery_period ?? '';
+    $abc = $rfq->abc ?? '';
 
     // Filter details by selected IDs
     $details = $pr->details
@@ -115,12 +129,12 @@ public function print_rfq_selected(Request $request, $prId)
         'logo' => $logo,
         'committee' => $committee,
         // Pass the saved RFQ data to the PDF
-        'bac_cn' => $rfq->bac_cn,
-        'services' => $rfq->services,
-        'location' => $rfq->location,
-        'subject' => $rfq->subject,
-        'delivery_period' => $rfq->delivery_period,
-        'abc' => $rfq->abc,
+        'bac_cn' => $bac_cn,
+        'services' => $services,
+        'location' => $location,
+        'subject' => $subject,
+        'delivery_period' => $delivery_period,
+        'abc' => $abc,
     ]);
 
     return $pdf->stream("PR-{$pr->id}-RFQ-Selected.pdf");
